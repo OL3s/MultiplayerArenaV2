@@ -61,11 +61,11 @@ Current map data classes:
 
 ## Multiplayer Focus
 
-The project should support both local multiplayer and online multiplayer.
+The project should support both local multiplayer and online multiplayer, with split-screen integration treated as a first-class part of the multiplayer model.
 
-Multiplayer should be flexible enough to mix local and online players. Example targets include two players sharing one machine with split screen while also joining an online match, or one player hosting an online match while additional local players join from the same device.
+Multiplayer should be flexible enough to mix local and online players. The main integration goal is split-screen-first: one device can own multiple active players, and those local players should move cleanly through the same host, join, lobby, and match flows as single-player devices. Example targets include two players sharing one machine while joining an online match, or one player hosting while additional local players join from the same device.
 
-The main multiplayer target is 4 players per team, for 4v4 matches with up to 8 total active players.
+The main multiplayer target is up to 4 teams with up to 4 players per team, for team matches with up to 16 total active players.
 
 The player model should be dynamic. A network peer is a device/connection, not necessarily one player. One device should be able to own several local players, and that same device should be able to either host the match or join another host.
 
@@ -113,7 +113,7 @@ Supported setup goals:
 - One client device joining with multiple local split-screen players
 - Mixed matches where total players are spread across several host/client devices
 
-Match limits should track peers and players separately. For example, a match can target 8 active players while using fewer than 8 network peers if some devices have multiple local players.
+Match limits should track peers and players separately. For example, a match can target up to 16 active players while using fewer than 16 network peers if some devices have multiple local players.
 
 Networking should be managed through a `Networking` autoload node. This node is responsible for tracking the current network mode before and during a match.
 
@@ -161,7 +161,7 @@ Current implementation note:
 - This repository does not currently include the Easy Networking addon or RTC signaling layer.
 - Until those pieces are added, the join flow uses Godot's built-in multiplayer transport for working local multi-instance testing while preserving the same `Networking` authority and snapshot-sync flow the RTC path should use.
 
-`MultiplayerData` should describe the active synced match setup. It owns connected peers/devices, accepted match players, and setup config so the game can support pure local play, pure online play, hosted split-screen play, and split-screen clients joining online sessions.
+`MultiplayerData` should describe the active synced match setup. It owns connected peers/devices, accepted match players, and setup config so the game can support pure local play, pure online play, hosted split-screen play, and split-screen clients joining online sessions through the same shared model.
 
 Peers and players should be separate arrays. `PeerData` describes the connected device and its requested local-player capacity. `PlayerData` describes an actual accepted in-game player and links back to the device through `PeerId`. This keeps the player list easy for gameplay systems while still supporting several players on one connection.
 
@@ -196,7 +196,7 @@ Current data structure:
 ```csharp
 public partial class MultiplayerData : Resource
 {
-    public const int FreeForAllTeamId = 0;
+    public const int DefaultTeamId = 1;
     public Godot.Collections.Array<PeerData> Peers { get; set; } = new();
     public Godot.Collections.Array<PlayerData> Players { get; set; } = new();
     public SetupConfig SetupConfig { get; set; } = new();
@@ -321,10 +321,10 @@ This project is in the early setup phase. Core gameplay, local multiplayer, onli
 
 - Build a solid top-down movement and shooting foundation
 - Add local and online multiplayer support
-- Support split-screen players in online sessions where possible
+- Treat split-screen integration as a core multiplayer requirement across local and online flows
 - Support multiple local players per device for both hosts and clients
 - Use a 4-slot local lobby on the main menu before hosting or joining
-- Target 4v4 team matches with up to 8 active players
+- Target up to 4 teams with up to 16 active players total
 - Use a `Networking` autoload as the single place for network mode state
 - Create reusable arena and game mode systems
 - Build a consistent destructible environment system where tile logic and visuals stay in sync
