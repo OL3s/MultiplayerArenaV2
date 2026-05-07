@@ -5,16 +5,15 @@ public partial class GameModeConfig : Resource
 {
     public enum GameModeType
     {
-        FreeForAll,
-        TeamDeathmatch,
-        Objective,
+        Deathmatch,
+        CaptureTheFlag,
     }
 
     [Export]
-    public GameModeType ModeType { get; set; } = GameModeType.FreeForAll;
+    public GameModeType ModeType { get; set; } = GameModeType.Deathmatch;
 
     [Export]
-    public string DisplayName { get; set; } = "Free For All";
+    public string DisplayName { get; set; } = "Deathmatch";
 
     [Export]
     public bool IsEnabled { get; set; } = true;

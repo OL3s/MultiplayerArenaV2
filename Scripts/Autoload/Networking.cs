@@ -48,7 +48,7 @@ public partial class Networking : Node
 
         public int MaxPlayers { get; set; } = MaxClients;
 
-        public string GameModeId { get; set; } = "free_for_all";
+        public string GameModeId { get; set; } = "deathmatch";
     }
 
     [Signal]
@@ -210,7 +210,7 @@ public partial class Networking : Node
         CurrentServerName = string.Empty;
         ClearMultiplayerDataLocal();
         SyncCachedSetupConfig();
-        EnsureDefaultGameMode(MultiplayerData.SetupConfig);
+        EnsureDefaultSetupSelections(MultiplayerData.SetupConfig);
         SyncCachedSetupConfig();
 
         if (IsLocalOnly)
@@ -268,7 +268,7 @@ public partial class Networking : Node
         MultiplayerData.SetupConfig.GameModeId = listing.GameModeId;
         MultiplayerData.SetupConfig.MaxPlayers = listing.MaxPlayers;
         MultiplayerData.SetupConfig.LocalPlayerCount = GetActiveLocalPlayerCount();
-        EnsureDefaultGameMode(MultiplayerData.SetupConfig);
+        EnsureDefaultSetupSelections(MultiplayerData.SetupConfig);
         SyncCachedSetupConfig();
 
         var peer = new ENetMultiplayerPeer();
@@ -389,9 +389,8 @@ public partial class Networking : Node
         MultiplayerData.Players.Clear();
         MultiplayerData.SetupConfig.LocalPlayerCount = activeLocalPlayerCount;
         MultiplayerData.SetupConfig.OnlineEnabled = CurrentMode == NetworkMode.ServerOnline;
-        MultiplayerData.SetupConfig.ForceFreeForAllTeams = CurrentMode == NetworkMode.LocalOnly;
 
-        UpdatePeer(peerId, IsServer, global::MultiplayerData.FreeForAllTeamId, activeLocalPlayerCount, 4);
+        UpdatePeer(peerId, IsServer, GetDefaultPeerTeamId(peerId), activeLocalPlayerCount, 4);
 
         var globalId = 0;
         foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
@@ -431,7 +430,6 @@ public partial class Networking : Node
     public void SetPeerTeam(int peerId, int teamId)
     {
         var normalizedTeamId = global::MultiplayerData.NormalizeTeamId(teamId);
-        MultiplayerData.SetupConfig.ForceFreeForAllTeams = normalizedTeamId == global::MultiplayerData.FreeForAllTeamId;
 
         var peerData = GetOrCreatePeerData(peerId);
         UpdatePeer(
@@ -799,7 +797,7 @@ public partial class Networking : Node
         RemovePeer(peerId);
 
         var requestedLocalPlayerCount = Math.Min(localIds.Count, displayNames.Count);
-        UpdatePeer(peerId, false, global::MultiplayerData.FreeForAllTeamId, requestedLocalPlayerCount, 4);
+        UpdatePeer(peerId, false, GetDefaultPeerTeamId(peerId), requestedLocalPlayerCount, 4);
 
         var globalId = MultiplayerData.Players.Count;
         for (var i = 0; i < requestedLocalPlayerCount; i++)
@@ -1040,19 +1038,47 @@ public partial class Networking : Node
         CachedSetupConfig = MultiplayerData.SetupConfig?.Clone() ?? new SetupConfig();
     }
 
-    private static void EnsureDefaultGameMode(SetupConfig setupConfig)
+    private static void EnsureDefaultSetupSelections(SetupConfig setupConfig)
     {
-        if (setupConfig == null || setupConfig.GameModes.Count > 0)
+        if (setupConfig == null)
         {
             return;
         }
 
-        setupConfig.AddGameMode(new GameModeConfig
+        if (setupConfig.GameModes.Count == 0)
         {
-            ModeType = GameModeConfig.GameModeType.FreeForAll,
-            DisplayName = "Free For All",
-            IsEnabled = true,
-        });
+            var defaultGameModes = new[]
+            {
+                GameModeConfig.GameModeType.Deathmatch,
+                GameModeConfig.GameModeType.CaptureTheFlag,
+            };
+
+            foreach (var modeType in defaultGameModes)
+            {
+                setupConfig.AddGameMode(new GameModeConfig
+                {
+                    ModeType = modeType,
+                    DisplayName = GetGameModeDisplayName(modeType),
+                    IsEnabled = true,
+                });
+            }
+        }
+
+        if (setupConfig.MapConfig.EnabledStructureTypes.Count == 0)
+        {
+            foreach (MapGenerationConfig.StructureType structureType in System.Enum.GetValues(typeof(MapGenerationConfig.StructureType)))
+            {
+                setupConfig.MapConfig.EnabledStructureTypes.Add(structureType);
+            }
+        }
+
+        if (setupConfig.BiomeConfig.EnabledBiomes.Count == 0)
+        {
+            foreach (BiomeConfig.BiomeType biomeType in System.Enum.GetValues(typeof(BiomeConfig.BiomeType)))
+            {
+                setupConfig.BiomeConfig.EnabledBiomes.Add(biomeType);
+            }
+        }
     }
 
     private static bool AreSetupConfigsEquivalent(SetupConfig left, SetupConfig right)
@@ -1100,12 +1126,14 @@ public partial class Networking : Node
             setupConfig.MaxPlayers,
             setupConfig.LocalPlayerCount,
             setupConfig.OnlineEnabled ? 1 : 0,
-            setupConfig.ForceFreeForAllTeams ? 1 : 0,
             EscapeConfigValue(setupConfig.ServerAddress),
             setupConfig.ServerPort,
             EscapeConfigValue(setupConfig.GameModeId),
             (int)setupConfig.MapConfig.SelectedSeedMode,
             setupConfig.MapConfig.FixedSeed,
+            setupConfig.GameplayScoring.BestOfRoundsPerGameMode,
+            setupConfig.GameplayScoring.BestOfGameModes,
+            setupConfig.GameplayScoring.RandomizeGameModeOrder ? 1 : 0,
             string.Join(",", mapTypes),
             string.Join(",", biomes),
             string.Join(";", gameModes));
@@ -1119,7 +1147,7 @@ public partial class Networking : Node
         }
 
         var parts = serializedSetupConfig.Split('|');
-        if (parts.Length < 12)
+        if (parts.Length < 14)
         {
             return null;
         }
@@ -1127,10 +1155,16 @@ public partial class Networking : Node
         if (!int.TryParse(parts[0], out var maxPlayers)
             || !int.TryParse(parts[1], out var localPlayerCount)
             || !int.TryParse(parts[2], out var onlineEnabled)
-            || !int.TryParse(parts[3], out var forceFreeForAllTeams)
-            || !int.TryParse(parts[5], out var serverPort)
-            || !int.TryParse(parts[7], out var seedMode)
-            || !int.TryParse(parts[8], out var fixedSeed))
+            || !int.TryParse(parts[4], out var serverPort)
+            || !int.TryParse(parts[6], out var seedMode)
+            || !int.TryParse(parts[7], out var fixedSeed))
+        {
+            return null;
+        }
+
+        if (!int.TryParse(parts[8], out var bestOfRoundsPerGameMode)
+            || !int.TryParse(parts[9], out var bestOfGameModes)
+            || !int.TryParse(parts[10], out var randomizeGameModeOrder))
         {
             return null;
         }
@@ -1140,21 +1174,26 @@ public partial class Networking : Node
             MaxPlayers = maxPlayers,
             LocalPlayerCount = localPlayerCount,
             OnlineEnabled = onlineEnabled == 1,
-            ForceFreeForAllTeams = forceFreeForAllTeams == 1,
-            ServerAddress = UnescapeConfigValue(parts[4]),
+            ServerAddress = UnescapeConfigValue(parts[3]),
             ServerPort = serverPort,
-            GameModeId = UnescapeConfigValue(parts[6]),
+            GameModeId = UnescapeConfigValue(parts[5]),
             MapConfig = new MapGenerationConfig
             {
                 SelectedSeedMode = (MapGenerationConfig.SeedMode)seedMode,
                 FixedSeed = fixedSeed,
             },
             BiomeConfig = new BiomeConfig(),
+            GameplayScoring = new GameplayScoring
+            {
+                BestOfRoundsPerGameMode = bestOfRoundsPerGameMode,
+                BestOfGameModes = bestOfGameModes,
+                RandomizeGameModeOrder = randomizeGameModeOrder == 1,
+            },
         };
 
-        if (!string.IsNullOrWhiteSpace(parts[9]))
+        if (!string.IsNullOrWhiteSpace(parts[11]))
         {
-            foreach (var mapType in parts[9].Split(',', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var mapType in parts[11].Split(',', StringSplitOptions.RemoveEmptyEntries))
             {
                 if (int.TryParse(mapType, out var mapTypeValue))
                 {
@@ -1163,9 +1202,9 @@ public partial class Networking : Node
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(parts[10]))
+        if (!string.IsNullOrWhiteSpace(parts[12]))
         {
-            foreach (var biome in parts[10].Split(',', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var biome in parts[12].Split(',', StringSplitOptions.RemoveEmptyEntries))
             {
                 if (int.TryParse(biome, out var biomeValue))
                 {
@@ -1174,9 +1213,9 @@ public partial class Networking : Node
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(parts[11]))
+        if (!string.IsNullOrWhiteSpace(parts[13]))
         {
-            foreach (var gameModeEntry in parts[11].Split(';', StringSplitOptions.RemoveEmptyEntries))
+            foreach (var gameModeEntry in parts[13].Split(';', StringSplitOptions.RemoveEmptyEntries))
             {
                 var gameModeParts = gameModeEntry.Split(',');
                 if (gameModeParts.Length != 3
@@ -1195,7 +1234,35 @@ public partial class Networking : Node
             }
         }
 
+        EnsureDefaultSetupSelections(setupConfig);
+
         return setupConfig;
+    }
+
+    private static string GetGameModeDisplayName(GameModeConfig.GameModeType modeType)
+    {
+        return modeType switch
+        {
+            GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
+            GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
+            _ => modeType.ToString(),
+        };
+    }
+
+    private static int GetDefaultPeerTeamId(int peerId)
+    {
+        return Math.Max(global::MultiplayerData.DefaultTeamId, peerId);
+    }
+
+    private void ApplyLocalOnlyTeams()
+    {
+        var teamId = global::MultiplayerData.DefaultTeamId;
+        foreach (var playerData in MultiplayerData.Players)
+        {
+            var peerData = GetOrCreatePeerData(playerData.PeerId);
+            peerData.TeamId = global::MultiplayerData.NormalizeTeamId(teamId);
+            teamId++;
+        }
     }
 
     private static string EscapeConfigValue(string value)

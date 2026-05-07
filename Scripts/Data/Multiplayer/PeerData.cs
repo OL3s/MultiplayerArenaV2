@@ -10,7 +10,7 @@ public partial class PeerData : Resource
     public bool IsHost { get; set; }
 
     [Export]
-    public int TeamId { get; set; } = MultiplayerData.FreeForAllTeamId;
+    public int TeamId { get; set; } = MultiplayerData.DefaultTeamId;
 
     [Export]
     public int RequestedLocalPlayerCount { get; set; }

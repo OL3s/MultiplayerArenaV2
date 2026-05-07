@@ -167,11 +167,11 @@ Peers and players should be separate arrays. `PeerData` describes the connected 
 
 Important identity rule: `PlayerData` is looked up by `(PeerId, LocalId)`, not by `GlobalId`. `LocalId` can repeat across peers, because every machine has its own local player `0`, `1`, `2`, etc. `PeerId` disambiguates which device that local player belongs to. `GlobalId` is still stored on the player, but it is the accepted match player number, not the ownership key.
 
-Team id `0` means free-for-all/no-team. Team ids `1` and above are real team ids. `-1` should stay reserved for unset/invalid ids and should be normalized to `0` before gameplay uses it.
+Team ids start at `1`. `-1` and `0` should be treated as unset/invalid ids and normalized to the default team before gameplay uses them.
 
-Team resolution is peer-based for the current lobby model. `PeerData.TeamId` is the authoritative team for that peer/device, so split-screen players owned by the same peer move teams as a group. Gameplay code should call `MultiplayerData.GetTeam(...)` instead of reading team fields directly. `SetupConfig.ForceFreeForAllTeams` can force all players to resolve as FFA when the mode should ignore teams.
+Team resolution is peer-based for the current lobby model. `PeerData.TeamId` is the authoritative team for that peer/device, so split-screen players owned by the same peer move teams as a group. Gameplay code should call `MultiplayerData.GetTeam(...)` instead of reading team fields directly.
 
-The match lobby should show a small top-left setup summary, a centered players section, and a right-side config section. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped under clickable team headers like `[FFA]`, `[Team 1]`, and `[Team 2]`. Clicking a team header moves all players owned by the local peer to that team.
+The match lobby should show a small top-left setup summary, a centered players section, and a right-side config section. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped under clickable team headers like `[Team 1]`, `[Team 2]`, and `[Team 3]`. Clicking a team header moves all players owned by the local peer to that team.
 
 Match setup should be resource-driven. `SetupConfig` owns the selected/available game modes, map generation settings, biome settings, player limits, address/port, and team behavior. Game modes are represented as `GameModeConfig` resources in an array so multiple modes can be enabled for voting, rotation, quickmatch filtering, or future playlist logic. Map and biome setup are separate resources so procedural generation can grow without turning `SetupConfig` into a large flat object. The match lobby config UI should edit these resources directly through grouped sections for internet settings, map/biome settings, and game settings.
 
@@ -229,7 +229,6 @@ public partial class SetupConfig : Resource
     public int MaxPlayers { get; set; }
     public int LocalPlayerCount { get; set; }
     public bool OnlineEnabled { get; set; }
-    public bool ForceFreeForAllTeams { get; set; }
     public string ServerAddress { get; set; }
     public int ServerPort { get; set; }
     public string GameModeId { get; set; }
@@ -246,9 +245,8 @@ public partial class GameModeConfig : Resource
 {
     public enum GameModeType
     {
-        FreeForAll,
-        TeamDeathmatch,
-        Objective,
+        Deathmatch,
+        CaptureTheFlag,
     }
 
     public GameModeType ModeType { get; set; }

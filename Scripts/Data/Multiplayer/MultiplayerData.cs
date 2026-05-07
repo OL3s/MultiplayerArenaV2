@@ -3,7 +3,7 @@ using Godot;
 [GlobalClass]
 public partial class MultiplayerData : Resource
 {
-    public const int FreeForAllTeamId = 0;
+    public const int DefaultTeamId = 1;
 
     [Export]
     public Godot.Collections.Array<PeerData> Peers { get; set; } = new();
@@ -18,16 +18,11 @@ public partial class MultiplayerData : Resource
     {
         if (playerData == null)
         {
-            return FreeForAllTeamId;
-        }
-
-        if (SetupConfig.ForceFreeForAllTeams)
-        {
-            return FreeForAllTeamId;
+            return DefaultTeamId;
         }
 
         var peerData = GetPeer(playerData.PeerId);
-        return NormalizeTeamId(peerData?.TeamId ?? FreeForAllTeamId);
+        return NormalizeTeamId(peerData?.TeamId ?? DefaultTeamId);
     }
 
     public int GetTeam(int peerId, int localId)
@@ -40,12 +35,12 @@ public partial class MultiplayerData : Resource
             }
         }
 
-        return FreeForAllTeamId;
+        return DefaultTeamId;
     }
 
     public static int NormalizeTeamId(int teamId)
     {
-        return teamId <= FreeForAllTeamId ? FreeForAllTeamId : teamId;
+        return teamId < DefaultTeamId ? DefaultTeamId : teamId;
     }
 
     private PeerData GetPeer(int peerId)

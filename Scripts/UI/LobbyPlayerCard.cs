@@ -10,6 +10,6 @@ public partial class LobbyPlayerCard : PanelContainer
 
     private static string FormatTeamName(int teamId)
     {
-        return teamId == MultiplayerData.FreeForAllTeamId ? "FFA" : teamId.ToString();
+        return $"Team {teamId}";
     }
 }
