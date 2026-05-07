@@ -85,6 +85,9 @@ Projectile and explosion damage handling rules:
 - Explosion damage should only affect tiles that actually fall within the radius and still exist in the wall hashset.
 - A good future pattern is `DamageWallsInRadius(centerTile, radius, damageAmount)` so area damage remains grid-accurate.
 - Movement collision can come from the wall `TileMapLayer`, but destructible gameplay state should always be read from `ArenaMapData`.
+- Current RTC/networking direction for destructible walls is server-authoritative function replication: the host/server runs the map logic and sends the same damage/destroy function calls outward to clients.
+- Clients should not be the authority for wall destruction. For now, they only receive and replay server-approved wall damage updates.
+- Late-join map-state catch-up is intentionally deferred for later work. The current focus is authoritative live sync from server to already-connected clients.
 
 Current destruction test scene:
 
@@ -94,6 +97,23 @@ Current destruction test scene:
 - `Shift + Left Click` applies explosive area damage using the current mouse world position and a larger test radius.
 - A debug radius is drawn under the mouse cursor so explosive sampling is visible while testing.
 - Right-clicking resets the mock test arena.
+
+Current LAN destruction test scene:
+
+- `Scenes/TestMapDestructionLogicLAN.tscn` is a temporary LAN/RTC-focused test scene for server-authoritative wall destruction sync.
+- `TestMapDestructionLogicLAN` uses `Networking.ArenaMapData` as the shared authoritative map resource instead of a private scene-local map instance.
+- The scene includes a status label that shows waiting/connection state while testing host/client behavior.
+- `TestMapDestructionLogicLAN` supports CLI overrides through Godot user args: `--role`, `--address`, and `--port`.
+- The host instance is the only peer allowed to apply wall damage input.
+- The client instance is a read-only viewer that re-renders when `Networking` emits `ArenaMapChanged` after authoritative map RPC updates are applied.
+- Current controls on the host are the same as the local test scene: `Left Click` for bullet-style damage, `Shift + Left Click` for explosive radius damage, and `Right Click` to rebuild/reset the mock arena.
+- The LAN test scene currently focuses on live sync for already-connected peers. Start both peers first, then perform destruction tests from the host side.
+- Initial map construction and late-join catch-up are still not fully synchronized yet. Those are deferred follow-up tasks, not part of the current networking slice.
+
+Example CLI usage:
+
+- Host: `godot --path . res://Scenes/TestMapDestructionLogicLAN.tscn -- --role host`
+- Client: `godot --path . res://Scenes/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700`
 
 ## Planned Game Modes
 
@@ -159,6 +179,8 @@ Supported setup goals:
 Match limits should track peers and players separately. For example, a match can target up to 16 active players while using fewer than 16 network peers if some devices have multiple local players.
 
 Networking should be managed through a `Networking` autoload node. This node is responsible for tracking the current network mode before and during a match.
+
+For destructible map state, `Networking` should also act as the authoritative bridge between gameplay and transport. The current target is one-way server-to-client map update flow: the server/host executes the wall-damage logic and sends the same function call to clients so they stay in sync. Full late-join map snapshot/catch-up is planned later and is not the current focus.
 
 Planned network mode state:
 

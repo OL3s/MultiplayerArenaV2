@@ -61,6 +61,9 @@ public partial class Networking : Node
     [Signal]
     public delegate void ConfigApplyStateChangedEventHandler();
 
+    [Signal]
+    public delegate void ArenaMapChangedEventHandler();
+
     public NetworkMode CurrentMode { get; private set; } = NetworkMode.NotSelected;
 
     public JoinType CurrentJoinType { get; private set; } = JoinType.None;
@@ -75,6 +78,9 @@ public partial class Networking : Node
 
     [Export]
     public MultiplayerData MultiplayerData { get; private set; } = new();
+
+    [Export]
+    public ArenaMapData ArenaMapData { get; private set; } = new();
 
     public SetupConfig CachedSetupConfig { get; private set; } = new();
 
@@ -115,6 +121,10 @@ public partial class Networking : Node
     public bool IsOnlineServer => CurrentMode == NetworkMode.ServerOnline;
 
     public bool HasSelectedMode => CurrentMode != NetworkMode.NotSelected;
+
+    public bool HasActiveNetworkPeer => HasNetworkPeer();
+
+    public int CurrentServerPort => MultiplayerData.SetupConfig.ServerPort;
 
     public bool HasPendingSetupConfigChanges => HasSelectedMode && !AreSetupConfigsEquivalent(MultiplayerData.SetupConfig, CachedSetupConfig);
 
@@ -565,6 +575,62 @@ public partial class Networking : Node
         RpcClearPlayers();
     }
 
+    public bool DamageAuthoritativeWallTile(Vector2I position, int damageAmount = 1)
+    {
+        if (!CanApplyAuthoritativeArenaMapChange())
+        {
+            return false;
+        }
+
+        if (!ArenaMapData.IsWallTile(position) || damageAmount <= 0)
+        {
+            return false;
+        }
+
+        if (HasNetworkPeer())
+        {
+            Rpc(nameof(RpcDamageArenaWallTile), position.X, position.Y, damageAmount);
+            return true;
+        }
+
+        RpcDamageArenaWallTile(position.X, position.Y, damageAmount);
+        return true;
+    }
+
+    public bool DamageAuthoritativeWallFromWorldPosition(Vector2 worldPosition, Vector2I tileSize, int damageAmount = 1)
+    {
+        return DamageAuthoritativeWallTile(ArenaMapData.WorldToTile(worldPosition, tileSize), damageAmount);
+    }
+
+    public bool DamageAuthoritativeWallsInRadius(Vector2I centerTile, int radius, int damageAmount = 1)
+    {
+        if (!CanApplyAuthoritativeArenaMapChange())
+        {
+            return false;
+        }
+
+        if (damageAmount <= 0 || radius < 0)
+        {
+            return false;
+        }
+
+        if (HasNetworkPeer())
+        {
+            Rpc(nameof(RpcDamageArenaWallsInRadius), centerTile.X, centerTile.Y, radius, damageAmount);
+            return true;
+        }
+
+        RpcDamageArenaWallsInRadius(centerTile.X, centerTile.Y, radius, damageAmount);
+        return true;
+    }
+
+    public bool DamageAuthoritativeWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, int damageAmount = 1)
+    {
+        var centerTile = ArenaMapData.WorldToTile(worldCenter, tileSize);
+        var tileRadius = Mathf.CeilToInt(worldRadius / Mathf.Max(1, tileSize.X));
+        return DamageAuthoritativeWallsInRadius(centerTile, tileRadius, damageAmount);
+    }
+
     public void ClearPeers()
     {
         if (HasNetworkPeer())
@@ -749,6 +815,20 @@ public partial class Networking : Node
         EmitLobbyStateChanged();
     }
 
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcDamageArenaWallTile(int x, int y, int damageAmount)
+    {
+        ArenaMapData.DamageWallTile(new Vector2I(x, y), damageAmount);
+        EmitArenaMapChanged();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcDamageArenaWallsInRadius(int centerX, int centerY, int radius, int damageAmount)
+    {
+        ArenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, damageAmount);
+        EmitArenaMapChanged();
+    }
+
     private void OnPeerConnected(long peerId)
     {
         if (!IsAuthoritativeServer())
@@ -857,6 +937,7 @@ public partial class Networking : Node
                 playerData.DisplayName,
                 false);
         }
+
     }
 
     private void StartDiscoveryServer()
@@ -1035,8 +1116,10 @@ public partial class Networking : Node
         MultiplayerData.SetupConfig = new SetupConfig();
         MultiplayerData.Peers.Clear();
         MultiplayerData.Players.Clear();
+        ArenaMapData = new ArenaMapData();
         SyncCachedSetupConfig();
         EmitLobbyStateChanged();
+        EmitArenaMapChanged();
     }
 
     private void SyncCachedSetupConfig()
@@ -1349,6 +1432,11 @@ public partial class Networking : Node
         return IsServer && HasNetworkPeer() && Multiplayer.GetUniqueId() == ServerPeerId;
     }
 
+    private bool CanApplyAuthoritativeArenaMapChange()
+    {
+        return !HasNetworkPeer() || IsAuthoritativeServer();
+    }
+
     private int GetRegisteredLocalPeerId()
     {
         foreach (var playerData in MultiplayerData.Players)
@@ -1504,4 +1592,10 @@ public partial class Networking : Node
     {
         EmitSignal(SignalName.ConfigApplyStateChanged);
     }
+
+    private void EmitArenaMapChanged()
+    {
+        EmitSignal(SignalName.ArenaMapChanged);
+    }
+
 }
