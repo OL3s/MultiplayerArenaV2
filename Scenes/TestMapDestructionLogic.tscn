@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/Map/TestMapDestructionLogic.cs" id="1_testmap"]
+[ext_resource type="Script" path="res://Scripts/Data/Map/ArenaTileLayerRenderer.cs" id="2_renderer"]
+
+[node name="TestMapDestructionLogic" type="Node2D"]
+script = ExtResource("1_testmap")
+
+[node name="ArenaTileLayerRenderer" type="Node2D" parent="."]
+script = ExtResource("2_renderer")
+
+[node name="FloorLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer"]
+
+[node name="WallLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer"]
+
+[node name="WallDamageLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer"]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(192, 144)
+zoom = Vector2(2, 2)
+enabled = true

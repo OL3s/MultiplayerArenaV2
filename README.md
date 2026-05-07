@@ -44,13 +44,38 @@ Current debug tile asset:
 - `Assets/Tiles/debug_floor_wall_atlas.svg` is a temporary SVG atlas with `32x16` debug tiles.
 - The top tile is floor at atlas coordinate `(0, 0)`.
 - The bottom tile is wall at atlas coordinate `(0, 1)`.
+- `Assets/Tiles/debug_wall_damage_overlay.svg` is a temporary separate SVG atlas for wall-damage overlay visuals.
+- The top tile is a light damage overlay at atlas coordinate `(0, 0)`.
+- The bottom tile is a heavy damage overlay at atlas coordinate `(0, 1)`.
 
 Current map data classes:
 
-- `ArenaMapData` stores floor tiles and wall tiles as hashsets.
+- `ArenaMapData` stores floor tiles and wall tiles as hashsets, and hit walls in a dictionary keyed by `Vector2I`.
 - `ArenaMapData.GenerateMap()` exists as the main generation entry point, but is intentionally empty until the real map algorithm is chosen.
-- `ArenaMapData.FillWallsFromFloors()` creates wall tiles around floor tiles using all 8 neighboring cells, so corner walls are included and no smoothing is applied.
-- `ArenaMapData.GenerateTileMapData()` converts the floor/wall hashsets into `MapTileData` resources with position, source id, atlas coordinates, tile type, and alternative tile id.
+- `ArenaMapData.ResetWallTiles()` rebuilds the wall hashset from current floors using all 8 neighboring cells, so corner walls are included and no smoothing is applied.
+- `ArenaMapData.FillWallsFromFloors()` currently delegates to `ResetWallTiles()`.
+- `ArenaMapData.DamageWallTile()` tracks damage per wall tile in `WallDamageData` and destroys the wall when max damage is reached.
+- `ArenaMapData.DestroyWallTile()` converts the destroyed wall tile into a floor tile, then rebuilds surrounding walls from the floor hashset so the data stays consistent.
+- `ArenaMapData.GenerateLayerTileMapData()` emits `MapTileData` for separate logical layers: `Floor`, `Wall`, and `WallDamage`.
+- `MapTileData` now stores both tile type and logical layer type so a renderer can rebuild visible tile layers from data without using the rendered TileMap state as authority.
+- `WallDamageData` stores `Damage`, `MaxDamage`, and `DamageStage` for one wall tile.
+
+Current rendering structure for destructible map testing:
+
+- `ArenaMapData` is the source of truth for floor tiles, wall tiles, and wall damage.
+- `ArenaTileLayerRenderer` is a Node2D renderer that rebuilds visible Godot `TileMapLayer` nodes from `ArenaMapData`.
+- The current layer split is:
+- `FloorLayer`: floor visuals
+- `WallLayer`: wall visuals
+- `WallDamageLayer`: visual damage overlay only
+- The renderer clears and repaints each `TileMapLayer` from generated `MapTileData`, so the rendered layers are a projection of hashset/dictionary state, not the authority themselves.
+
+Current destruction test scene:
+
+- `Scenes/TestMapDestructionLogic.tscn` is a temporary root scene for destructible map backend testing.
+- `TestMapDestructionLogic` creates mock floor hashset data, calls `ResetWallTiles()`, then applies a few sample wall-damage values after normal wall generation.
+- Left-clicking a wall damages it. When enough damage is applied, the wall is destroyed, becomes floor, and surrounding walls are recalculated from the floor hashset.
+- Right-clicking resets the mock test arena.
 
 ## Planned Game Modes
 
