@@ -430,6 +430,10 @@ public partial class Networking : Node
     public void SetPeerTeam(int peerId, int teamId)
     {
         var normalizedTeamId = global::MultiplayerData.NormalizeTeamId(teamId);
+        if (normalizedTeamId == global::MultiplayerData.DefaultTeamId)
+        {
+            normalizedTeamId = GetLeastPopulatedTeamId(peerId);
+        }
 
         var peerData = GetOrCreatePeerData(peerId);
         UpdatePeer(
@@ -1251,18 +1255,61 @@ public partial class Networking : Node
 
     private static int GetDefaultPeerTeamId(int peerId)
     {
-        return Math.Max(global::MultiplayerData.DefaultTeamId, peerId);
+        return global::MultiplayerData.DefaultTeamId;
     }
 
     private void ApplyLocalOnlyTeams()
     {
-        var teamId = global::MultiplayerData.DefaultTeamId;
+        var assignedPeerIds = new HashSet<int>();
         foreach (var playerData in MultiplayerData.Players)
         {
+            if (!assignedPeerIds.Add(playerData.PeerId))
+            {
+                continue;
+            }
+
             var peerData = GetOrCreatePeerData(playerData.PeerId);
-            peerData.TeamId = global::MultiplayerData.NormalizeTeamId(teamId);
-            teamId++;
+            peerData.TeamId = GetLeastPopulatedTeamId(playerData.PeerId);
         }
+    }
+
+    private int GetLeastPopulatedTeamId(int excludedPeerId = -1)
+    {
+        var teamCounts = new Dictionary<int, int>();
+        for (var teamId = 1; teamId <= 4; teamId++)
+        {
+            teamCounts[teamId] = 0;
+        }
+
+        foreach (var playerData in MultiplayerData.Players)
+        {
+            if (playerData.PeerId == excludedPeerId)
+            {
+                continue;
+            }
+
+            var playerTeamId = MultiplayerData.GetTeam(playerData);
+            if (!teamCounts.ContainsKey(playerTeamId))
+            {
+                continue;
+            }
+
+            teamCounts[playerTeamId]++;
+        }
+
+        var bestTeamId = 1;
+        var bestCount = int.MaxValue;
+        for (var teamId = 1; teamId <= 4; teamId++)
+        {
+            var count = teamCounts[teamId];
+            if (count < bestCount)
+            {
+                bestTeamId = teamId;
+                bestCount = count;
+            }
+        }
+
+        return bestTeamId;
     }
 
     private static string EscapeConfigValue(string value)

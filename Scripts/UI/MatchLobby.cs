@@ -180,12 +180,12 @@ public partial class MatchLobby : Control
 
     private static IEnumerable<int> GetVisibleTeamIds(SetupConfig setupConfig)
     {
-        return DefaultTeamIds;
+        return DefaultTeamIds[1..];
     }
 
     private static string FormatTeamName(int teamId)
     {
-        return $"Team {teamId}";
+        return teamId == global::MultiplayerData.DefaultTeamId ? "Auto-Assign" : $"Team {teamId}";
     }
 
     private static string FormatModeName(Networking.NetworkMode networkMode)

@@ -10,6 +10,6 @@ public partial class LobbyPlayerCard : PanelContainer
 
     private static string FormatTeamName(int teamId)
     {
-        return $"Team {teamId}";
+        return teamId == global::MultiplayerData.DefaultTeamId ? "Auto-Assign" : $"Team {teamId}";
     }
 }

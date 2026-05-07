@@ -1,9 +1,10 @@
+using System;
 using Godot;
 
 [GlobalClass]
 public partial class MultiplayerData : Resource
 {
-    public const int DefaultTeamId = 1;
+    public const int DefaultTeamId = 0;
 
     [Export]
     public Godot.Collections.Array<PeerData> Peers { get; set; } = new();
@@ -40,7 +41,7 @@ public partial class MultiplayerData : Resource
 
     public static int NormalizeTeamId(int teamId)
     {
-        return teamId < DefaultTeamId ? DefaultTeamId : teamId;
+        return Math.Clamp(teamId, DefaultTeamId, 4);
     }
 
     private PeerData GetPeer(int peerId)
