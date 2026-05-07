@@ -2,37 +2,87 @@ using Godot;
 
 public partial class Networking : Node
 {
-    public enum NetworkRole
+    public enum NetworkMode
     {
         NotSelected,
-        Server,
+        LocalOnly,
+        ServerLocal,
+        ServerOnline,
+        DedicatedServer,
         Client,
     }
 
-    public NetworkRole CurrentRole { get; private set; } = NetworkRole.NotSelected;
+    public NetworkMode CurrentMode { get; private set; } = NetworkMode.NotSelected;
 
     [Export]
     public MultiplayerData MultiplayerData { get; private set; } = new();
 
-    public bool IsServer => CurrentRole == NetworkRole.Server;
-
-    public bool IsClient => CurrentRole == NetworkRole.Client;
-
-    public bool HasSelectedRole => CurrentRole != NetworkRole.NotSelected;
-
-    public void SetServer()
+    public override void _Ready()
     {
-        CurrentRole = NetworkRole.Server;
+        if (IsHeadlessRun())
+        {
+            SetDedicatedServer();
+        }
+    }
+
+    public bool IsLocalOnly => CurrentMode == NetworkMode.LocalOnly;
+
+    public bool IsServer => CurrentMode is NetworkMode.ServerLocal or NetworkMode.ServerOnline or NetworkMode.DedicatedServer;
+
+    public bool IsClient => CurrentMode == NetworkMode.Client;
+
+    public bool IsDedicatedServer => CurrentMode == NetworkMode.DedicatedServer;
+
+    public bool IsOnlineServer => CurrentMode == NetworkMode.ServerOnline;
+
+    public bool HasSelectedMode => CurrentMode != NetworkMode.NotSelected;
+
+    public void SetLocalOnly()
+    {
+        CurrentMode = NetworkMode.LocalOnly;
+    }
+
+    public void SetServerLocal()
+    {
+        CurrentMode = NetworkMode.ServerLocal;
+    }
+
+    public void SetServerOnline()
+    {
+        CurrentMode = NetworkMode.ServerOnline;
+    }
+
+    public void SetDedicatedServer()
+    {
+        CurrentMode = NetworkMode.DedicatedServer;
     }
 
     public void SetClient()
     {
-        CurrentRole = NetworkRole.Client;
+        CurrentMode = NetworkMode.Client;
     }
 
-    public void ClearRole()
+    public void ClearMode()
     {
-        CurrentRole = NetworkRole.NotSelected;
+        CurrentMode = NetworkMode.NotSelected;
+    }
+
+    private static bool IsHeadlessRun()
+    {
+        if (DisplayServer.GetName() == "headless")
+        {
+            return true;
+        }
+
+        foreach (var argument in OS.GetCmdlineArgs())
+        {
+            if (argument == "--headless")
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void UpdateSetupConfig(

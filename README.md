@@ -115,28 +115,36 @@ Supported setup goals:
 
 Match limits should track peers and players separately. For example, a match can target 8 active players while using fewer than 8 network peers if some devices have multiple local players.
 
-Networking should be managed through a `Networking` autoload node. This node is responsible for tracking the current network role before and during a match.
+Networking should be managed through a `Networking` autoload node. This node is responsible for tracking the current network mode before and during a match.
 
-Planned network role state:
+Planned network mode state:
 
 - Not selected: no network mode has been chosen yet
-- Server: this instance is hosting the match
+- Local only: no network peer, no ports opened, same-machine players only
+- Server local: host/LAN server, listens locally but does not attempt public exposure
+- Server online: online host mode, intended for future public exposure, UPnP, relay, or matchmaking
+- Dedicated server: server-only/dev mode without local player ownership, selected automatically for headless runs instead of through the host menu
 - Client: this instance is connected to a host
 
 Possible structure:
 
 ```csharp
-public enum NetworkRole
+public enum NetworkMode
 {
     NotSelected,
-    Server,
+    LocalOnly,
+    ServerLocal,
+    ServerOnline,
+    DedicatedServer,
     Client,
 }
 
-public NetworkRole CurrentRole { get; private set; } = NetworkRole.NotSelected;
+public NetworkMode CurrentMode { get; private set; } = NetworkMode.NotSelected;
 ```
 
-The rest of the game should check this shared state instead of guessing whether it is running as host, client, or offline/local.
+The host menu should expose `LocalOnly`, `ServerLocal`, and `ServerOnline`. `DedicatedServer` should not be a normal menu option; it is selected at startup when running Godot with `--headless`.
+
+The rest of the game should check this shared state instead of guessing whether it is running as local-only, LAN host, online host, dedicated server, or client.
 
 `MultiplayerData` should describe the active synced match setup. It owns connected peers/devices, accepted match players, and setup config so the game can support pure local play, pure online play, hosted split-screen play, and split-screen clients joining online sessions.
 
@@ -228,7 +236,7 @@ This project is in the early setup phase. Core gameplay, local multiplayer, onli
 - Support multiple local players per device for both hosts and clients
 - Use a 4-slot local lobby on the main menu before hosting or joining
 - Target 4v4 team matches with up to 8 active players
-- Use a `Networking` autoload as the single place for network role state
+- Use a `Networking` autoload as the single place for network mode state
 - Create reusable arena and game mode systems
 - Build a consistent destructible environment system where tile logic and visuals stay in sync
 - Keep controls simple across keyboard, controller, touch, and future platform targets
