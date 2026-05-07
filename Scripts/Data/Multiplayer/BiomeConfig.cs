@@ -5,8 +5,11 @@ public partial class BiomeConfig : Resource
 {
     public enum BiomeType
     {
-        Random,
+        Plains,
         Arena,
+        Tundra,
+        Urban,
+        Jungle,
         Forest,
         Desert,
         Snow,

@@ -3,13 +3,13 @@ using Godot;
 [GlobalClass]
 public partial class MapGenerationConfig : Resource
 {
-    public enum MapType
+    public enum StructureType
     {
-        Random,
         Arena,
         Rooms,
-        Caves,
+        Narrow,
         Islands,
+        Plain,
     }
 
     public enum SeedMode
@@ -29,34 +29,34 @@ public partial class MapGenerationConfig : Resource
     public Godot.Collections.Array<int> SeedPool { get; set; } = new();
 
     [Export]
-    public Godot.Collections.Array<MapType> EnabledMapTypes { get; set; } = new();
+    public Godot.Collections.Array<StructureType> EnabledStructureTypes { get; set; } = new();
 
-    public void AddMapType(MapType mapType)
+    public void AddStructureType(StructureType structureType)
     {
-        if (HasMapType(mapType))
+        if (HasStructureType(structureType))
         {
             return;
         }
 
-        EnabledMapTypes.Add(mapType);
+        EnabledStructureTypes.Add(structureType);
     }
 
-    public void RemoveMapType(MapType mapType)
+    public void RemoveStructureType(StructureType structureType)
     {
-        for (var i = EnabledMapTypes.Count - 1; i >= 0; i--)
+        for (var i = EnabledStructureTypes.Count - 1; i >= 0; i--)
         {
-            if (EnabledMapTypes[i] == mapType)
+            if (EnabledStructureTypes[i] == structureType)
             {
-                EnabledMapTypes.RemoveAt(i);
+                EnabledStructureTypes.RemoveAt(i);
             }
         }
     }
 
-    public bool HasMapType(MapType mapType)
+    public bool HasStructureType(StructureType structureType)
     {
-        foreach (var enabledMapType in EnabledMapTypes)
+        foreach (var enabledStructureType in EnabledStructureTypes)
         {
-            if (enabledMapType == mapType)
+            if (enabledStructureType == structureType)
             {
                 return true;
             }
@@ -78,9 +78,9 @@ public partial class MapGenerationConfig : Resource
             clone.SeedPool.Add(seed);
         }
 
-        foreach (var mapType in EnabledMapTypes)
+        foreach (var structureType in EnabledStructureTypes)
         {
-            clone.EnabledMapTypes.Add(mapType);
+            clone.EnabledStructureTypes.Add(structureType);
         }
 
         return clone;

@@ -224,7 +224,7 @@ public partial class MatchLobby : Control
     private void InitializeConfigControls()
     {
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/BiomeRow/BiomeButton").Pressed += OnBiomePressed;
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow/MapTypeButton").Pressed += OnMapTypePressed;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow/MapTypeButton").Pressed += OnStructurePressed;
         GetNode<SpinBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/SeedSpinBox").ValueChanged += OnSeedChanged;
         GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/RandomSeedCheckBox").Toggled += OnRandomSeedToggled;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameModeButton").Pressed += OnGameModePressed;
@@ -234,7 +234,7 @@ public partial class MatchLobby : Control
     {
         _isRefreshingConfig = true;
         GetNode<Label>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/InternetSection/ConnectionInfoLabel").Text = FormatConnectionInfo(setupConfig);
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow/MapTypeButton").Text = DescribeMapTypes(setupConfig.MapConfig);
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow/MapTypeButton").Text = DescribeStructures(setupConfig.MapConfig);
         GetNode<SpinBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/SeedSpinBox").Value = setupConfig.MapConfig.FixedSeed;
         GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/RandomSeedCheckBox").ButtonPressed = setupConfig.MapConfig.SelectedSeedMode == MapGenerationConfig.SeedMode.AlwaysRandom;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/BiomeRow/BiomeButton").Text = DescribeBiomes(setupConfig.BiomeConfig);
@@ -242,22 +242,22 @@ public partial class MatchLobby : Control
         _isRefreshingConfig = false;
     }
 
-    private void OnMapTypePressed()
+    private void OnStructurePressed()
     {
         ShowSelectionOverlay(
-            "Map Types",
-            Enum.GetNames(typeof(MapGenerationConfig.MapType)),
-            index => GetEditableSetupConfig().MapConfig.HasMapType((MapGenerationConfig.MapType)index),
+            "Structures",
+            GetStructureDisplayNames(),
+            index => GetEditableSetupConfig().MapConfig.HasStructureType((MapGenerationConfig.StructureType)index),
             (index, enabled) =>
             {
-                var mapType = (MapGenerationConfig.MapType)index;
+                var structureType = (MapGenerationConfig.StructureType)index;
                 if (enabled)
                 {
-                    GetEditableSetupConfig().MapConfig.AddMapType(mapType);
+                    GetEditableSetupConfig().MapConfig.AddStructureType(structureType);
                 }
                 else
                 {
-                    GetEditableSetupConfig().MapConfig.RemoveMapType(mapType);
+                    GetEditableSetupConfig().MapConfig.RemoveStructureType(structureType);
                 }
 
                 RefreshLobbyState();
@@ -406,9 +406,33 @@ public partial class MatchLobby : Control
         return DescribeSelection(biomeConfig.EnabledBiomes.Count, Enum.GetValues(typeof(BiomeConfig.BiomeType)).Length, biomeConfig.EnabledBiomes.Count == 1 ? biomeConfig.EnabledBiomes[0].ToString() : "Biome");
     }
 
-    private static string DescribeMapTypes(MapGenerationConfig mapConfig)
+    private static string DescribeStructures(MapGenerationConfig mapConfig)
     {
-        return DescribeSelection(mapConfig.EnabledMapTypes.Count, Enum.GetValues(typeof(MapGenerationConfig.MapType)).Length, mapConfig.EnabledMapTypes.Count == 1 ? mapConfig.EnabledMapTypes[0].ToString() : "Type");
+        return DescribeSelection(
+            mapConfig.EnabledStructureTypes.Count,
+            Enum.GetValues(typeof(MapGenerationConfig.StructureType)).Length,
+            mapConfig.EnabledStructureTypes.Count == 1 ? FormatStructureName(mapConfig.EnabledStructureTypes[0]) : "Structure");
+    }
+
+    private static string[] GetStructureDisplayNames()
+    {
+        var structureTypes = (MapGenerationConfig.StructureType[])Enum.GetValues(typeof(MapGenerationConfig.StructureType));
+        var displayNames = new string[structureTypes.Length];
+        for (var i = 0; i < structureTypes.Length; i++)
+        {
+            displayNames[i] = FormatStructureName(structureTypes[i]);
+        }
+
+        return displayNames;
+    }
+
+    private static string FormatStructureName(MapGenerationConfig.StructureType structureType)
+    {
+        return structureType switch
+        {
+            MapGenerationConfig.StructureType.Narrow => "Narrow",
+            _ => structureType.ToString(),
+        };
     }
 
     private static string DescribeGameModes(SetupConfig setupConfig)

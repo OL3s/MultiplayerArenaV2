@@ -1073,9 +1073,9 @@ public partial class Networking : Node
         }
 
         var mapTypes = new List<string>();
-        foreach (var mapType in setupConfig.MapConfig.EnabledMapTypes)
+        foreach (var structureType in setupConfig.MapConfig.EnabledStructureTypes)
         {
-            mapTypes.Add(((int)mapType).ToString());
+            mapTypes.Add(((int)structureType).ToString());
         }
 
         var biomes = new List<string>();
@@ -1158,7 +1158,7 @@ public partial class Networking : Node
             {
                 if (int.TryParse(mapType, out var mapTypeValue))
                 {
-                    setupConfig.MapConfig.EnabledMapTypes.Add((MapGenerationConfig.MapType)mapTypeValue);
+                    setupConfig.MapConfig.EnabledStructureTypes.Add((MapGenerationConfig.StructureType)mapTypeValue);
                 }
             }
         }
