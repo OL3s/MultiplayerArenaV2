@@ -1,0 +1,131 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/MainMenu.cs" id="1_mainmenu"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mainmenu")
+
+[node name="MainLayout" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -440.0
+offset_top = -260.0
+offset_right = 440.0
+offset_bottom = 260.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 32
+alignment = 1
+
+[node name="MenuPanel" type="VBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout/MenuPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "Multiplayer Arena"
+horizontal_alignment = 1
+
+[node name="MenuButtons" type="VBoxContainer" parent="MainLayout/MenuPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HostGameButton" type="Button" parent="MainLayout/MenuPanel/MenuButtons"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "Host Game"
+
+[node name="JoinGameButton" type="Button" parent="MainLayout/MenuPanel/MenuButtons"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "Join Game"
+
+[node name="StatisticsButton" type="Button" parent="MainLayout/MenuPanel/MenuButtons"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "Statistics"
+
+[node name="SettingsButton" type="Button" parent="MainLayout/MenuPanel/MenuButtons"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "Settings"
+
+[node name="ExitGameButton" type="Button" parent="MainLayout/MenuPanel/MenuButtons"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "Exit Game"
+
+[node name="LobbyPanel" type="VBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="LobbyTitleLabel" type="Label" parent="MainLayout/LobbyPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Local Lobby"
+horizontal_alignment = 1
+
+[node name="LobbyHelpLabel" type="Label" parent="MainLayout/LobbyPanel"]
+layout_mode = 2
+text = "4 local slots: 1 keyboard + 3 gamepads, or 4 gamepads"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="LobbySlots" type="GridContainer" parent="MainLayout/LobbyPanel"]
+layout_mode = 2
+columns = 2
+
+[node name="Slot1" type="PanelContainer" parent="MainLayout/LobbyPanel/LobbySlots"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 110)
+
+[node name="SlotLabel" type="Label" parent="MainLayout/LobbyPanel/LobbySlots/Slot1"]
+layout_mode = 2
+text = "Player 1\nKeyboard + Mouse\nIn Lobby"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot2" type="PanelContainer" parent="MainLayout/LobbyPanel/LobbySlots"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 110)
+
+[node name="SlotLabel" type="Label" parent="MainLayout/LobbyPanel/LobbySlots/Slot2"]
+layout_mode = 2
+text = "Slot 2\nPress Join\nEmpty"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot3" type="PanelContainer" parent="MainLayout/LobbyPanel/LobbySlots"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 110)
+
+[node name="SlotLabel" type="Label" parent="MainLayout/LobbyPanel/LobbySlots/Slot3"]
+layout_mode = 2
+text = "Slot 3\nPress Join\nEmpty"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot4" type="PanelContainer" parent="MainLayout/LobbyPanel/LobbySlots"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 110)
+
+[node name="SlotLabel" type="Label" parent="MainLayout/LobbyPanel/LobbySlots/Slot4"]
+layout_mode = 2
+text = "Slot 4\nPress Join\nEmpty"
+horizontal_alignment = 1
+vertical_alignment = 1
