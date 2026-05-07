@@ -51,10 +51,14 @@ Current debug tile asset:
 Current map data classes:
 
 - `ArenaMapData` stores floor tiles and wall tiles as hashsets, and hit walls in a dictionary keyed by `Vector2I`.
+- Tile coordinates are signed because they use `Vector2I`, so negative map positions are valid and do not need special handling.
 - `ArenaMapData.GenerateMap()` exists as the main generation entry point, but is intentionally empty until the real map algorithm is chosen.
 - `ArenaMapData.ResetWallTiles()` rebuilds the wall hashset from current floors using all 8 neighboring cells, so corner walls are included and no smoothing is applied.
 - `ArenaMapData.FillWallsFromFloors()` currently delegates to `ResetWallTiles()`.
 - `ArenaMapData.DamageWallTile()` tracks damage per wall tile in `WallDamageData` and destroys the wall when max damage is reached.
+- `ArenaMapData.DamageWallFromWorldPosition()` converts a world hit position back into a tile coordinate before applying single-tile wall damage.
+- `ArenaMapData.WorldToTile()` is the shared world-to-grid conversion helper for destructible wall logic.
+- `ArenaMapData.GetTilesInRadius()`, `DamageWallsInRadius()`, and `DamageWallsInWorldRadius()` support tile-accurate explosive damage instead of row-based or merged-physics damage.
 - `ArenaMapData.DestroyWallTile()` converts the destroyed wall tile into a floor tile, then rebuilds surrounding walls from the floor hashset so the data stays consistent.
 - `ArenaMapData.GenerateLayerTileMapData()` emits `MapTileData` for separate logical layers: `Floor`, `Wall`, and `WallDamage`.
 - `MapTileData` now stores both tile type and logical layer type so a renderer can rebuild visible tile layers from data without using the rendered TileMap state as authority.
@@ -64,17 +68,31 @@ Current rendering structure for destructible map testing:
 
 - `ArenaMapData` is the source of truth for floor tiles, wall tiles, and wall damage.
 - `ArenaTileLayerRenderer` is a Node2D renderer that rebuilds visible Godot `TileMapLayer` nodes from `ArenaMapData`.
+- Layer TileSet resources now live in `Assets/Tiles/TileSets/` as separate `.tres` files for floor, wall, and wall-damage overlay rendering.
 - The current layer split is:
 - `FloorLayer`: floor visuals
 - `WallLayer`: wall visuals
 - `WallDamageLayer`: visual damage overlay only
 - The renderer clears and repaints each `TileMapLayer` from generated `MapTileData`, so the rendered layers are a projection of hashset/dictionary state, not the authority themselves.
 
+Projectile and explosion damage handling rules:
+
+- TileMapLayer collision should not be treated as the authority for destructible walls.
+- Godot tile collision is authored per tile in the `TileSet`, but physics can be grouped internally by quadrants for performance.
+- Bullet and projectile hits should convert the impact world position back into map/grid coordinates before wall damage is applied.
+- Wall damage should be resolved by checking the wall hashset at that grid position, not by treating a merged collision body or a row of tiles as one destructible unit.
+- Grenade and explosion damage should iterate tile positions inside the explosion radius and apply damage tile-by-tile.
+- Explosion damage should only affect tiles that actually fall within the radius and still exist in the wall hashset.
+- A good future pattern is `DamageWallsInRadius(centerTile, radius, damageAmount)` so area damage remains grid-accurate.
+- Movement collision can come from the wall `TileMapLayer`, but destructible gameplay state should always be read from `ArenaMapData`.
+
 Current destruction test scene:
 
 - `Scenes/TestMapDestructionLogic.tscn` is a temporary root scene for destructible map backend testing.
 - `TestMapDestructionLogic` creates mock floor hashset data, calls `ResetWallTiles()`, then applies a few sample wall-damage values after normal wall generation.
-- Left-clicking a wall damages it. When enough damage is applied, the wall is destroyed, becomes floor, and surrounding walls are recalculated from the floor hashset.
+- Left-clicking a wall applies bullet-style single-tile damage from the current mouse world position.
+- `Shift + Left Click` applies explosive area damage using the current mouse world position and a larger test radius.
+- A debug radius is drawn under the mouse cursor so explosive sampling is visible while testing.
 - Right-clicking resets the mock test arena.
 
 ## Planned Game Modes

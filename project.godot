@@ -19,6 +19,11 @@ config/icon="res://icon.svg"
 
 Networking="*res://Scripts/Autoload/Networking.cs"
 
+[display]
+
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
 [dotnet]
 
 project/assembly_name="MultiplayerArenaV2"
@@ -29,6 +34,7 @@ project/assembly_name="MultiplayerArenaV2"
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

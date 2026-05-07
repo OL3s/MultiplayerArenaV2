@@ -3,8 +3,9 @@ using Godot;
 [GlobalClass]
 public partial class ArenaTileLayerRenderer : Node2D
 {
-    private const string BaseAtlasPath = "res://Assets/Tiles/debug_floor_wall_atlas.svg";
-    private const string WallDamageAtlasPath = "res://Assets/Tiles/debug_wall_damage_overlay.svg";
+    private const string FloorTileSetPath = "res://Assets/Tiles/TileSets/FloorTileset.tres";
+    private const string WallTileSetPath = "res://Assets/Tiles/TileSets/WallTileset.tres";
+    private const string WallDamageTileSetPath = "res://Assets/Tiles/TileSets/WallDamagedTileset.tres";
 
     [Export]
     public Vector2I TileSize { get; set; } = new(16, 16);
@@ -32,9 +33,9 @@ public partial class ArenaTileLayerRenderer : Node2D
         }
 
         EnsureTileSets(arenaMapData);
-        RenderLayer(FloorLayer, arenaMapData.GenerateLayerTileMapData(MapTileData.MapLayerType.Floor));
-        RenderLayer(WallLayer, arenaMapData.GenerateLayerTileMapData(MapTileData.MapLayerType.Wall));
-        RenderLayer(WallDamageLayer, arenaMapData.GenerateLayerTileMapData(MapTileData.MapLayerType.WallDamage));
+        RenderLayer(FloorLayer, arenaMapData.GenerateLayerTileMapData(MapTileData.MapLayerType.Floor), 0);
+        RenderLayer(WallLayer, arenaMapData.GenerateLayerTileMapData(MapTileData.MapLayerType.Wall), 0);
+        RenderLayer(WallDamageLayer, arenaMapData.GenerateLayerTileMapData(MapTileData.MapLayerType.WallDamage), 0);
     }
 
     public Vector2I WorldToMap(Vector2 globalPosition)
@@ -49,49 +50,18 @@ public partial class ArenaTileLayerRenderer : Node2D
             return;
         }
 
-        var tileSet = BuildTileSet(arenaMapData);
-        FloorLayer.TileSet = tileSet;
-        WallLayer.TileSet = tileSet;
-        WallDamageLayer.TileSet = tileSet;
+        FloorLayer.TileSet = GD.Load<TileSet>(FloorTileSetPath);
+        WallLayer.TileSet = GD.Load<TileSet>(WallTileSetPath);
+        WallDamageLayer.TileSet = GD.Load<TileSet>(WallDamageTileSetPath);
     }
 
-    private TileSet BuildTileSet(ArenaMapData arenaMapData)
-    {
-        var tileSet = new TileSet
-        {
-            TileSize = TileSize,
-        };
-
-        var baseAtlasSource = new TileSetAtlasSource
-        {
-            Texture = GD.Load<Texture2D>(BaseAtlasPath),
-            TextureRegionSize = TileSize,
-        };
-
-        baseAtlasSource.CreateTile(ArenaMapData.FloorAtlasCoords);
-        baseAtlasSource.CreateTile(ArenaMapData.WallAtlasCoords);
-        tileSet.AddSource(baseAtlasSource, arenaMapData.SourceId);
-
-        var damageAtlasSource = new TileSetAtlasSource
-        {
-            Texture = GD.Load<Texture2D>(WallDamageAtlasPath),
-            TextureRegionSize = TileSize,
-        };
-
-        damageAtlasSource.CreateTile(ArenaMapData.LightWallDamageAtlasCoords);
-        damageAtlasSource.CreateTile(ArenaMapData.HeavyWallDamageAtlasCoords);
-        tileSet.AddSource(damageAtlasSource, arenaMapData.WallDamageSourceId);
-
-        return tileSet;
-    }
-
-    private void RenderLayer(TileMapLayer tileMapLayer, Godot.Collections.Array<MapTileData> tiles)
+    private void RenderLayer(TileMapLayer tileMapLayer, Godot.Collections.Array<MapTileData> tiles, int sourceId)
     {
         tileMapLayer.Clear();
 
         foreach (var tile in tiles)
         {
-            tileMapLayer.SetCell(tile.Position, tile.SourceId, tile.AtlasCoords, tile.AlternativeTile);
+            tileMapLayer.SetCell(tile.Position, sourceId, tile.AtlasCoords, tile.AlternativeTile);
         }
 
         tileMapLayer.UpdateInternals();

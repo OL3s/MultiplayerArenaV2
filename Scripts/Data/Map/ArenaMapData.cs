@@ -193,6 +193,40 @@ public partial class ArenaMapData : Resource
         return true;
     }
 
+    public bool DamageWallFromWorldPosition(Vector2 worldPosition, Vector2I tileSize, int damageAmount = 1)
+    {
+        return DamageWallTile(WorldToTile(worldPosition, tileSize), damageAmount);
+    }
+
+    public Godot.Collections.Array<Vector2I> DamageWallsInRadius(Vector2I centerTile, int radius, int damageAmount = 1)
+    {
+        var changedTiles = new Godot.Collections.Array<Vector2I>();
+        if (radius < 0 || damageAmount <= 0)
+        {
+            return changedTiles;
+        }
+
+        var affectedTiles = GetTilesInRadius(centerTile, radius);
+        foreach (var tilePosition in affectedTiles)
+        {
+            if (!DamageWallTile(tilePosition, damageAmount))
+            {
+                continue;
+            }
+
+            changedTiles.Add(tilePosition);
+        }
+
+        return changedTiles;
+    }
+
+    public Godot.Collections.Array<Vector2I> DamageWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, int damageAmount = 1)
+    {
+        var centerTile = WorldToTile(worldCenter, tileSize);
+        var tileRadius = Mathf.CeilToInt(worldRadius / Mathf.Max(1, tileSize.X));
+        return DamageWallsInRadius(centerTile, tileRadius, damageAmount);
+    }
+
     public bool DestroyWallTile(Vector2I position)
     {
         if (!_wallTiles.Contains(position))
@@ -203,6 +237,44 @@ public partial class ArenaMapData : Resource
         AddFloorTile(position);
         ResetWallTiles();
         return true;
+    }
+
+    public Vector2I WorldToTile(Vector2 worldPosition, Vector2I tileSize)
+    {
+        var safeTileSize = new Vector2(
+            Mathf.Max(1, tileSize.X),
+            Mathf.Max(1, tileSize.Y));
+
+        return new Vector2I(
+            Mathf.FloorToInt(worldPosition.X / safeTileSize.X),
+            Mathf.FloorToInt(worldPosition.Y / safeTileSize.Y));
+    }
+
+    public Godot.Collections.Array<Vector2I> GetTilesInRadius(Vector2I centerTile, int radius)
+    {
+        var tiles = new Godot.Collections.Array<Vector2I>();
+        if (radius < 0)
+        {
+            return tiles;
+        }
+
+        var radiusSquared = radius * radius;
+        for (var x = centerTile.X - radius; x <= centerTile.X + radius; x++)
+        {
+            for (var y = centerTile.Y - radius; y <= centerTile.Y + radius; y++)
+            {
+                var tilePosition = new Vector2I(x, y);
+                var delta = tilePosition - centerTile;
+                if ((delta.X * delta.X) + (delta.Y * delta.Y) > radiusSquared)
+                {
+                    continue;
+                }
+
+                tiles.Add(tilePosition);
+            }
+        }
+
+        return tiles;
     }
 
     private int CalculateWallDamageStage(int damage, int maxDamage)

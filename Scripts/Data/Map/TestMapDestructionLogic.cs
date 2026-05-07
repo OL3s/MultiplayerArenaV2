@@ -2,11 +2,16 @@ using Godot;
 
 public partial class TestMapDestructionLogic : Node2D
 {
+    private static readonly Vector2I TestTileSize = new(16, 16);
+    private const float TestExplosiveRadius = 56.0f;
+    private const int TestExplosiveDamage = 2;
+    private static readonly Color DebugExplosiveRadiusColor = new(1.0f, 0.55f, 0.2f, 0.9f);
+
     private static readonly (Vector2I Position, int DamageAmount)[] InitialWallDamageSamples =
     {
         (new Vector2I(3, 4), 1),
         (new Vector2I(14, 4), 1),
-        (new Vector2I(22, 8), 2),
+        (new Vector2I(22, 8), 3),
         (new Vector2I(9, 17), 1),
     };
 
@@ -23,6 +28,18 @@ public partial class TestMapDestructionLogic : Node2D
         CenterCamera();
     }
 
+    public override void _Process(double delta)
+    {
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        var localMousePosition = GetLocalMousePosition();
+        DrawArc(localMousePosition, TestExplosiveRadius, 0.0f, Mathf.Tau, 48, DebugExplosiveRadiusColor, 2.0f);
+        DrawCircle(localMousePosition, 3.0f, DebugExplosiveRadiusColor);
+    }
+
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is not InputEventMouseButton mouseButtonEvent || !mouseButtonEvent.Pressed)
@@ -30,15 +47,24 @@ public partial class TestMapDestructionLogic : Node2D
             return;
         }
 
-        if (mouseButtonEvent.ButtonIndex == MouseButton.Left)
-        {
-            DamageWallUnderCursor();
-            return;
-        }
-
         if (mouseButtonEvent.ButtonIndex == MouseButton.Right)
         {
             BuildMockArena();
+            return;
+        }
+
+        if (mouseButtonEvent.ButtonIndex == MouseButton.Left)
+        {
+            if (mouseButtonEvent.ShiftPressed)
+            {
+                DamageWallsInExplosiveRadius();
+            }
+            else
+            {
+                DamageWallUnderCursor();
+            }
+
+            return;
         }
     }
 
@@ -72,8 +98,23 @@ public partial class TestMapDestructionLogic : Node2D
 
     private void DamageWallUnderCursor()
     {
-        var mapPosition = _tileLayerRenderer.WorldToMap(GetGlobalMousePosition());
-        if (!_arenaMapData.DamageWallTile(mapPosition))
+        if (!_arenaMapData.DamageWallFromWorldPosition(GetGlobalMousePosition(), TestTileSize))
+        {
+            return;
+        }
+
+        _tileLayerRenderer.Render(_arenaMapData);
+    }
+
+    private void DamageWallsInExplosiveRadius()
+    {
+        var changedTiles = _arenaMapData.DamageWallsInWorldRadius(
+            GetGlobalMousePosition(),
+            TestTileSize,
+            TestExplosiveRadius,
+            TestExplosiveDamage);
+
+        if (changedTiles.Count == 0)
         {
             return;
         }
