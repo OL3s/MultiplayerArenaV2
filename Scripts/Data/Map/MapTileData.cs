@@ -3,10 +3,18 @@ using Godot;
 [GlobalClass]
 public partial class MapTileData : Resource
 {
+    public enum MapLayerType
+    {
+        Floor,
+        Wall,
+        WallDamage,
+    }
+
     public enum MapTileType
     {
         Floor,
         Wall,
+        WallDamageOverlay,
     }
 
     [Export]
@@ -14,6 +22,9 @@ public partial class MapTileData : Resource
 
     [Export]
     public MapTileType TileType { get; set; }
+
+    [Export]
+    public MapLayerType LayerType { get; set; }
 
     [Export]
     public int SourceId { get; set; }

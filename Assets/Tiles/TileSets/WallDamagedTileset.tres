@@ -1,0 +1,14 @@
+[gd_resource type="TileSet" format=3 uid="uid://bbf1fmi1jee3w"]
+
+[ext_resource type="Texture2D" uid="uid://dxbnmbjj4qvlj" path="res://Assets/Tiles/debug_wall_damage_overlay.svg" id="1_damage"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_damage"]
+resource_name = "WallDamageTiles"
+texture = ExtResource("1_damage")
+texture_region_size = Vector2i(16, 16)
+0:0/0 = 0
+0:1/0 = 0
+
+[resource]
+tile_size = Vector2i(16, 16)
+sources/0 = SubResource("TileSetAtlasSource_damage")
