@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/HostServerMenu.cs" id="1_hostserver"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_button_icon"]
+size = Vector2(32, 32)
 
 [node name="HostServerMenu" type="Control"]
 layout_mode = 3
@@ -18,46 +21,52 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -360.0
-offset_top = -260.0
-offset_right = 360.0
-offset_bottom = 260.0
+offset_left = -420.0
+offset_top = -300.0
+offset_right = 420.0
+offset_bottom = 300.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 22
+theme_override_constants/separation = 24
 alignment = 1
 
 [node name="TitleLabel" type="Label" parent="MainLayout"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 42
-text = "Choose Host Type"
+theme_override_font_sizes/font_size = 44
+text = "Host Game"
 horizontal_alignment = 1
 
-[node name="HelpLabel" type="Label" parent="MainLayout"]
+[node name="PrimaryAction" type="VBoxContainer" parent="MainLayout"]
 layout_mode = 2
-text = "Pick how this machine should run the match. Dedicated server/dev mode is selected automatically when running with --headless."
-horizontal_alignment = 1
-autowrap_mode = 3
-
-[node name="ServerModeButtons" type="VBoxContainer" parent="MainLayout"]
-layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 alignment = 1
 
-[node name="LocalOnlyButton" type="Button" parent="MainLayout/ServerModeButtons"]
+[node name="ServerLocalButton" type="Button" parent="MainLayout/PrimaryAction"]
 layout_mode = 2
-custom_minimum_size = Vector2(420, 58)
+custom_minimum_size = Vector2(520, 96)
+theme_override_font_sizes/font_size = 24
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 36
+text = "Host Local"
+
+[node name="SecondaryActions" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="LocalOnlyButton" type="Button" parent="MainLayout/SecondaryActions"]
+layout_mode = 2
+custom_minimum_size = Vector2(240, 58)
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 24
 text = "Local Only"
 
-[node name="ServerLocalButton" type="Button" parent="MainLayout/ServerModeButtons"]
+[node name="ServerOnlineButton" type="Button" parent="MainLayout/SecondaryActions"]
 layout_mode = 2
-custom_minimum_size = Vector2(420, 58)
-text = "Server Local / LAN"
-
-[node name="ServerOnlineButton" type="Button" parent="MainLayout/ServerModeButtons"]
-layout_mode = 2
-custom_minimum_size = Vector2(420, 58)
-text = "Server Online"
+custom_minimum_size = Vector2(240, 58)
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 24
+text = "Host Online"
 
 [node name="BackButton" type="Button" parent="MainLayout"]
 layout_mode = 2

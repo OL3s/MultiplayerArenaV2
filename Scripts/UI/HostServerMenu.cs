@@ -6,11 +6,10 @@ public partial class HostServerMenu : Control
 
     public override void _Ready()
     {
-        GetNode<Button>("MainLayout/ServerModeButtons/LocalOnlyButton").Pressed += OnLocalOnlyPressed;
-        GetNode<Button>("MainLayout/ServerModeButtons/ServerLocalButton").Pressed += OnServerLocalPressed;
-        GetNode<Button>("MainLayout/ServerModeButtons/ServerOnlineButton").Pressed += OnServerOnlinePressed;
+        GetNode<Button>("MainLayout/SecondaryActions/LocalOnlyButton").Pressed += OnLocalOnlyPressed;
+        GetNode<Button>("MainLayout/PrimaryAction/ServerLocalButton").Pressed += OnServerLocalPressed;
+        GetNode<Button>("MainLayout/SecondaryActions/ServerOnlineButton").Pressed += OnServerOnlinePressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
-        ApplyPlaceholderIcons();
     }
 
     private void OnLocalOnlyPressed()
@@ -31,19 +30,6 @@ public partial class HostServerMenu : Control
     private void OnBackPressed()
     {
         GetTree().ChangeSceneToFile(MainMenuScenePath);
-    }
-
-    private void ApplyPlaceholderIcons()
-    {
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/ServerModeButtons/LocalOnlyButton"), "Home");
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/ServerModeButtons/ServerLocalButton"), "Network");
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/ServerModeButtons/ServerOnlineButton"), "World");
-    }
-
-    private void SetPlaceholderIcon(Button button, string iconName)
-    {
-        button.Icon = GetThemeIcon(iconName, "EditorIcons");
-        button.Set("icon_max_width", 26);
     }
 
     private Networking GetNetworking()

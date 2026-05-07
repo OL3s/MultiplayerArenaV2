@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/MainMenu.cs" id="1_mainmenu"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_button_icon"]
+size = Vector2(32, 32)
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -28,13 +31,17 @@ alignment = 2
 layout_mode = 2
 custom_minimum_size = Vector2(82, 30)
 theme_override_font_sizes/font_size = 12
-text = "[ ] Settings"
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 14
+text = "Settings"
 
 [node name="ExitGameButton" type="Button" parent="TopRightButtons"]
 layout_mode = 2
 custom_minimum_size = Vector2(68, 30)
 theme_override_font_sizes/font_size = 12
-text = "[ ] Exit"
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 14
+text = "Exit"
 
 [node name="MainLayout" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -136,9 +143,13 @@ alignment = 1
 [node name="HostGameButton" type="Button" parent="MainLayout/ActionButtons"]
 layout_mode = 2
 custom_minimum_size = Vector2(240, 72)
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 28
 text = "Host Game"
 
 [node name="JoinGameButton" type="Button" parent="MainLayout/ActionButtons"]
 layout_mode = 2
 custom_minimum_size = Vector2(240, 72)
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 28
 text = "Join Game"

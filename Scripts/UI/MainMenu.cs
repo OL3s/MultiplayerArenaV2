@@ -14,9 +14,9 @@ public partial class MainMenu : Control
         GetNode<Button>("TopRightButtons/ExitGameButton").Pressed += OnExitGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Pressed += OnHostGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Pressed += OnJoinGamePressed;
-        ApplyPlaceholderIcons();
         EnsureDefaultLocalLobby();
         RefreshLocalLobbySlots();
+        RefreshActionButtons();
     }
 
     public override void _Input(InputEvent inputEvent)
@@ -51,6 +51,7 @@ public partial class MainMenu : Control
         localPlayer.InputType = LocalPlayerData.LocalInputType.None;
         localPlayer.DeviceId = -1;
         RefreshLocalLobbySlots();
+        RefreshActionButtons();
     }
 
     private void ConfigureLocalPlayer(int slotIndex, LocalPlayerData.LocalInputType inputType, int deviceId)
@@ -61,6 +62,7 @@ public partial class MainMenu : Control
         localPlayer.DeviceId = deviceId;
         localPlayer.DisplayName = $"Player {slotIndex + 1}";
         RefreshLocalLobbySlots();
+        RefreshActionButtons();
     }
 
     private void EnsureDefaultLocalLobby()
@@ -222,20 +224,32 @@ public partial class MainMenu : Control
 
     private void OnJoinGamePressed()
     {
+        if (!HasActiveLocalPlayer())
+        {
+            return;
+        }
+
         GetTree().ChangeSceneToFile(JoinGameMenuScenePath);
     }
 
-    private void ApplyPlaceholderIcons()
+    private void RefreshActionButtons()
     {
-        SetPlaceholderIcon(GetNode<Button>("TopRightButtons/SettingsButton"), "Tools", 14);
-        SetPlaceholderIcon(GetNode<Button>("TopRightButtons/ExitGameButton"), "Close", 14);
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/ActionButtons/HostGameButton"), "Play", 28);
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/ActionButtons/JoinGameButton"), "Network", 28);
+        var joinGameButton = GetNode<Button>("MainLayout/ActionButtons/JoinGameButton");
+        joinGameButton.Disabled = !HasActiveLocalPlayer();
+        joinGameButton.Modulate = joinGameButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
     }
 
-    private void SetPlaceholderIcon(Button button, string iconName, int maxWidth)
+    private bool HasActiveLocalPlayer()
     {
-        button.Icon = GetThemeIcon(iconName, "EditorIcons");
-        button.Set("icon_max_width", maxWidth);
+        foreach (var localPlayer in LocalLobbyData.LocalPlayers)
+        {
+            if (localPlayer.IsActive)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
+
 }

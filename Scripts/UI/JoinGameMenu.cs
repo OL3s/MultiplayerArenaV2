@@ -6,12 +6,11 @@ public partial class JoinGameMenu : Control
 
     public override void _Ready()
     {
-        GetNode<Button>("MainLayout/JoinOptions/BrowseLocalButton").Pressed += OnBrowseLocalPressed;
-        GetNode<Button>("MainLayout/JoinOptions/BrowseServersButton").Pressed += OnBrowseServersPressed;
-        GetNode<Button>("MainLayout/JoinOptions/QuickmatchButton").Pressed += OnQuickmatchPressed;
+        GetNode<Button>("MainLayout/SecondaryActions/BrowseLocalButton").Pressed += OnBrowseLocalPressed;
+        GetNode<Button>("MainLayout/SecondaryActions/BrowseServersButton").Pressed += OnBrowseServersPressed;
+        GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").Pressed += OnQuickmatchPressed;
         GetNode<Button>("MainLayout/JoinByAddress/JoinAddressButton").Pressed += OnJoinAddressPressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
-        ApplyPlaceholderIcons();
     }
 
     private void OnBrowseLocalPressed()
@@ -37,20 +36,6 @@ public partial class JoinGameMenu : Control
     private void OnBackPressed()
     {
         GetTree().ChangeSceneToFile(MainMenuScenePath);
-    }
-
-    private void ApplyPlaceholderIcons()
-    {
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/JoinOptions/BrowseLocalButton"), "Network");
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/JoinOptions/BrowseServersButton"), "World");
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/JoinOptions/QuickmatchButton"), "Play");
-        SetPlaceholderIcon(GetNode<Button>("MainLayout/JoinByAddress/JoinAddressButton"), "Forward");
-    }
-
-    private void SetPlaceholderIcon(Button button, string iconName)
-    {
-        button.Icon = GetThemeIcon(iconName, "EditorIcons");
-        button.Set("icon_max_width", 26);
     }
 
     private Networking GetNetworking()

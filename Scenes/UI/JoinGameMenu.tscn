@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/JoinGameMenu.cs" id="1_joingame"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_button_icon"]
+size = Vector2(32, 32)
 
 [node name="JoinGameMenu" type="Control"]
 layout_mode = 3
@@ -18,10 +21,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -380.0
-offset_top = -290.0
-offset_right = 380.0
-offset_bottom = 290.0
+offset_left = -430.0
+offset_top = -320.0
+offset_right = 430.0
+offset_bottom = 320.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 22
@@ -29,35 +32,41 @@ alignment = 1
 
 [node name="TitleLabel" type="Label" parent="MainLayout"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 42
+theme_override_font_sizes/font_size = 44
 text = "Join Game"
 horizontal_alignment = 1
 
-[node name="HelpLabel" type="Label" parent="MainLayout"]
+[node name="PrimaryAction" type="VBoxContainer" parent="MainLayout"]
 layout_mode = 2
-text = "Choose how to find a match. Network discovery and matchmaking will be wired when connection setup exists."
-horizontal_alignment = 1
-autowrap_mode = 3
-
-[node name="JoinOptions" type="VBoxContainer" parent="MainLayout"]
-layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 alignment = 1
 
-[node name="BrowseLocalButton" type="Button" parent="MainLayout/JoinOptions"]
+[node name="QuickmatchButton" type="Button" parent="MainLayout/PrimaryAction"]
 layout_mode = 2
-custom_minimum_size = Vector2(440, 58)
+custom_minimum_size = Vector2(540, 96)
+theme_override_font_sizes/font_size = 24
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 36
+text = "Quickmatch"
+
+[node name="SecondaryActions" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="BrowseLocalButton" type="Button" parent="MainLayout/SecondaryActions"]
+layout_mode = 2
+custom_minimum_size = Vector2(220, 58)
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 24
 text = "Browse Local"
 
-[node name="BrowseServersButton" type="Button" parent="MainLayout/JoinOptions"]
+[node name="BrowseServersButton" type="Button" parent="MainLayout/SecondaryActions"]
 layout_mode = 2
-custom_minimum_size = Vector2(440, 58)
+custom_minimum_size = Vector2(220, 58)
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 24
 text = "Browse Servers"
-
-[node name="QuickmatchButton" type="Button" parent="MainLayout/JoinOptions"]
-layout_mode = 2
-custom_minimum_size = Vector2(440, 58)
-text = "Quickmatch"
 
 [node name="JoinByAddress" type="HBoxContainer" parent="MainLayout"]
 layout_mode = 2
@@ -66,13 +75,15 @@ alignment = 1
 
 [node name="AddressInput" type="LineEdit" parent="MainLayout/JoinByAddress"]
 layout_mode = 2
-custom_minimum_size = Vector2(300, 48)
-placeholder_text = "Address, e.g. 127.0.0.1:7777"
+custom_minimum_size = Vector2(390, 54)
+placeholder_text = "Custom IP / address, e.g. 127.0.0.1:7777"
 
 [node name="JoinAddressButton" type="Button" parent="MainLayout/JoinByAddress"]
 layout_mode = 2
-custom_minimum_size = Vector2(130, 48)
-text = "Join"
+custom_minimum_size = Vector2(150, 54)
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 22
+text = "Join IP"
 
 [node name="BackButton" type="Button" parent="MainLayout"]
 layout_mode = 2
