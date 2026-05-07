@@ -7,10 +7,17 @@ public partial class MatchLobby : Control
     private const string MainMenuScenePath = "res://Scenes/UI/MainMenu.tscn";
     private const string LobbyPlayerCardScenePath = "res://Scenes/UI/LobbyPlayerCard.tscn";
     private const string ConfigSelectionOverlayScenePath = "res://Scenes/UI/ConfigSelectionOverlay.tscn";
-    private static readonly int[] DefaultTeamIds = { 0, 1, 2 };
+    private const string GameModePlaylistOverlayScenePath = "res://Scenes/UI/GameModePlaylistOverlay.tscn";
+    private static readonly int[] DefaultTeamIds = { 0, 1, 2, 3, 4 };
+    private static readonly GameModeConfig.GameModeType[] AvailableGameModes =
+    {
+        GameModeConfig.GameModeType.Deathmatch,
+        GameModeConfig.GameModeType.CaptureTheFlag,
+    };
 
     private PackedScene _lobbyPlayerCardScene;
     private PackedScene _configSelectionOverlayScene;
+    private PackedScene _gameModePlaylistOverlayScene;
     private bool _isRefreshingConfig;
     private string _lastShownConfigApplyMessage = string.Empty;
 
@@ -18,6 +25,7 @@ public partial class MatchLobby : Control
     {
         _lobbyPlayerCardScene = GD.Load<PackedScene>(LobbyPlayerCardScenePath);
         _configSelectionOverlayScene = GD.Load<PackedScene>(ConfigSelectionOverlayScenePath);
+        _gameModePlaylistOverlayScene = GD.Load<PackedScene>(GameModePlaylistOverlayScenePath);
         GetNetworking().LobbyStateChanged += RefreshLobbyState;
         GetNetworking().ConnectionStateChanged += RefreshLobbyState;
         GetNetworking().ConfigApplyStateChanged += OnConfigApplyStateChanged;
@@ -53,7 +61,10 @@ public partial class MatchLobby : Control
 
         var startButton = GetNode<Button>("MainLayout/Actions/StartButton");
         startButton.Visible = networking.IsServer || networking.IsLocalOnly;
-        startButton.Disabled = !startButton.Visible || networking.HasPendingSetupConfigChanges || networking.CurrentMode == Networking.NetworkMode.NotSelected;
+        startButton.Disabled = !startButton.Visible
+            || networking.HasPendingSetupConfigChanges
+            || networking.CurrentMode == Networking.NetworkMode.NotSelected
+            || !CanStartMatch(GetEditableSetupConfig());
         startButton.Modulate = startButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
 
         var applyButton = GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/ApplyConfigButton");
@@ -154,17 +165,12 @@ public partial class MatchLobby : Control
 
     private static IEnumerable<int> GetVisibleTeamIds(SetupConfig setupConfig)
     {
-        if (setupConfig.ForceFreeForAllTeams)
-        {
-            return new[] { MultiplayerData.FreeForAllTeamId };
-        }
-
         return DefaultTeamIds;
     }
 
     private static string FormatTeamName(int teamId)
     {
-        return teamId == MultiplayerData.FreeForAllTeamId ? "FFA" : $"Team {teamId}";
+        return $"Team {teamId}";
     }
 
     private static string FormatModeName(Networking.NetworkMode networkMode)
@@ -189,6 +195,7 @@ public partial class MatchLobby : Control
         {
             Text = $"[{FormatTeamName(teamId)}]",
             CustomMinimumSize = new Vector2(0, 34),
+            Disabled = GetNetworking().IsLocalOnly,
         };
         teamButton.AddThemeFontSizeOverride("font_size", 18);
         teamButton.Pressed += () => OnTeamHeaderPressed(teamId);
@@ -228,6 +235,7 @@ public partial class MatchLobby : Control
         GetNode<SpinBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/SeedSpinBox").ValueChanged += OnSeedChanged;
         GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/RandomSeedCheckBox").Toggled += OnRandomSeedToggled;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameModeButton").Pressed += OnGameModePressed;
+        GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/RandomOrderCheckBox").Toggled += OnRandomOrderToggled;
     }
 
     private void RefreshConfigControls(SetupConfig setupConfig)
@@ -239,6 +247,7 @@ public partial class MatchLobby : Control
         GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/RandomSeedCheckBox").ButtonPressed = setupConfig.MapConfig.SelectedSeedMode == MapGenerationConfig.SeedMode.AlwaysRandom;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/BiomeRow/BiomeButton").Text = DescribeBiomes(setupConfig.BiomeConfig);
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameModeButton").Text = DescribeGameModes(setupConfig);
+        GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/RandomOrderCheckBox").ButtonPressed = setupConfig.GameplayScoring.RandomizeGameModeOrder;
         _isRefreshingConfig = false;
     }
 
@@ -302,43 +311,31 @@ public partial class MatchLobby : Control
 
     private void OnGameModePressed()
     {
-        ShowSelectionOverlay(
-            "Game Modes",
-            new[] { "Free For All", "Team Deathmatch", "Objective" },
-            index => GetEditableSetupConfig().HasGameMode((GameModeConfig.GameModeType)index),
-            (index, enabled) =>
-            {
-                var modeType = (GameModeConfig.GameModeType)index;
-                if (enabled)
-                {
-                    OnGameModeToggled(modeType, GetGameModeDisplayName(modeType), true);
-                }
-                else
-                {
-                    OnGameModeToggled(modeType, GetGameModeDisplayName(modeType), false);
-                }
-
-                RefreshLobbyState();
-            });
-    }
-
-    private void OnGameModeToggled(GameModeConfig.GameModeType modeType, string displayName, bool enabled)
-    {
-        if (_isRefreshingConfig) return;
-
-        var setupConfig = GetEditableSetupConfig();
-        if (enabled)
+        var overlay = SceneOverlay.GetOrCreate(this);
+        if (overlay == null || _gameModePlaylistOverlayScene == null)
         {
-            setupConfig.AddGameMode(new GameModeConfig
-            {
-                ModeType = modeType,
-                DisplayName = displayName,
-                IsEnabled = true,
-            });
             return;
         }
 
-        setupConfig.RemoveGameMode(modeType);
+        var playlistOverlay = _gameModePlaylistOverlayScene.Instantiate<GameModePlaylistOverlay>();
+        playlistOverlay.Configure(
+            AddGameModeEntry,
+            MoveGameModeEntryUp,
+            MoveGameModeEntryDown,
+            RemoveGameModeEntry);
+        playlistOverlay.RefreshList(GetEditableSetupConfig());
+        overlay.AddOverlay(playlistOverlay, true);
+    }
+
+    private void OnRandomOrderToggled(bool enabled)
+    {
+        if (_isRefreshingConfig)
+        {
+            return;
+        }
+
+        GetEditableSetupConfig().GameplayScoring.RandomizeGameModeOrder = enabled;
+        RefreshLobbyState();
     }
 
     private void ShowSelectionOverlay(string title, string[] options, Func<int, bool> isSelected, Action<int, bool> onToggled)
@@ -437,7 +434,131 @@ public partial class MatchLobby : Control
 
     private static string DescribeGameModes(SetupConfig setupConfig)
     {
-        return DescribeSelection(setupConfig.GameModes.Count, Enum.GetValues(typeof(GameModeConfig.GameModeType)).Length, setupConfig.GameModes.Count == 1 ? setupConfig.GameModes[0].DisplayName : "Game Mode");
+        var totalConfiguredModes = GetConfiguredGameModeCount(setupConfig);
+        if (totalConfiguredModes <= 0)
+        {
+            return "Custom";
+        }
+
+        if (totalConfiguredModes == 1)
+        {
+            return "One";
+        }
+
+        return HasDefaultGameModeList(setupConfig) ? "All" : "Custom";
+    }
+
+    private static int GetConfiguredGameModeCount(SetupConfig setupConfig)
+    {
+        var count = 0;
+        foreach (var gameMode in setupConfig.GameModes)
+        {
+            if (gameMode != null)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool HasDefaultGameModeList(SetupConfig setupConfig)
+    {
+        if (setupConfig == null || setupConfig.GameModes.Count != AvailableGameModes.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < AvailableGameModes.Length; i++)
+        {
+            if (setupConfig.GameModes[i] == null || setupConfig.GameModes[i].ModeType != AvailableGameModes[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void AddGameModeEntry(GameModeConfig.GameModeType modeType)
+    {
+        GetEditableSetupConfig().GameModes.Add(new GameModeConfig
+        {
+            ModeType = modeType,
+            DisplayName = GetGameModeDisplayName(modeType),
+            IsEnabled = true,
+        });
+        RefreshLobbyState();
+        RefreshTopPlaylistOverlay();
+    }
+
+    private void MoveGameModeEntryUp(int index)
+    {
+        var gameModes = GetEditableSetupConfig().GameModes;
+        if (index <= 0 || index >= gameModes.Count)
+        {
+            return;
+        }
+
+        var gameMode = gameModes[index];
+        gameModes.RemoveAt(index);
+        gameModes.Insert(index - 1, gameMode);
+        RefreshLobbyState();
+        RefreshTopPlaylistOverlay();
+    }
+
+    private void MoveGameModeEntryDown(int index)
+    {
+        var gameModes = GetEditableSetupConfig().GameModes;
+        if (index < 0 || index >= gameModes.Count - 1)
+        {
+            return;
+        }
+
+        var gameMode = gameModes[index];
+        gameModes.RemoveAt(index);
+        gameModes.Insert(index + 1, gameMode);
+        RefreshLobbyState();
+        RefreshTopPlaylistOverlay();
+    }
+
+    private void RemoveGameModeEntry(int index)
+    {
+        var gameModes = GetEditableSetupConfig().GameModes;
+        if (index < 0 || index >= gameModes.Count)
+        {
+            return;
+        }
+
+        gameModes.RemoveAt(index);
+        RefreshLobbyState();
+        RefreshTopPlaylistOverlay();
+    }
+
+    private void RefreshTopPlaylistOverlay()
+    {
+        var overlay = SceneOverlay.Get(this);
+        if (overlay == null)
+        {
+            return;
+        }
+
+        for (var i = overlay.GetChildCount() - 1; i >= 0; i--)
+        {
+            if (overlay.GetChild(i) is GameModePlaylistOverlay playlistOverlay)
+            {
+                playlistOverlay.RefreshList(GetEditableSetupConfig());
+                return;
+            }
+        }
+    }
+
+    private static bool CanStartMatch(SetupConfig setupConfig)
+    {
+        return setupConfig != null
+            && setupConfig.BiomeConfig.EnabledBiomes.Count > 0
+            && setupConfig.MapConfig.EnabledStructureTypes.Count > 0
+            && GetConfiguredGameModeCount(setupConfig) > 0;
     }
 
     private static string DescribeSelection(int selectedCount, int totalCount, string singleValue)
@@ -464,9 +585,8 @@ public partial class MatchLobby : Control
     {
         return modeType switch
         {
-            GameModeConfig.GameModeType.FreeForAll => "Free For All",
-            GameModeConfig.GameModeType.TeamDeathmatch => "Team Deathmatch",
-            GameModeConfig.GameModeType.Objective => "Objective",
+            GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
+            GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
             _ => modeType.ToString(),
         };
     }

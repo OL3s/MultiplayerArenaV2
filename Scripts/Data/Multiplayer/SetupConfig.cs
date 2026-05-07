@@ -13,16 +13,16 @@ public partial class SetupConfig : Resource
     public bool OnlineEnabled { get; set; }
 
     [Export]
-    public bool ForceFreeForAllTeams { get; set; }
-
-    [Export]
     public string ServerAddress { get; set; } = "127.0.0.1";
 
     [Export]
     public int ServerPort { get; set; } = 7777;
 
     [Export]
-    public string GameModeId { get; set; } = "free_for_all";
+    public string GameModeId { get; set; } = "deathmatch";
+
+    [Export]
+    public GameplayScoring GameplayScoring { get; set; } = new();
 
     [Export]
     public Godot.Collections.Array<GameModeConfig> GameModes { get; set; } = new();
@@ -35,7 +35,7 @@ public partial class SetupConfig : Resource
 
     public void AddGameMode(GameModeConfig gameModeConfig)
     {
-        if (gameModeConfig == null || HasGameMode(gameModeConfig.ModeType))
+        if (gameModeConfig == null)
         {
             return;
         }
@@ -74,10 +74,10 @@ public partial class SetupConfig : Resource
             MaxPlayers = MaxPlayers,
             LocalPlayerCount = LocalPlayerCount,
             OnlineEnabled = OnlineEnabled,
-            ForceFreeForAllTeams = ForceFreeForAllTeams,
             ServerAddress = ServerAddress,
             ServerPort = ServerPort,
             GameModeId = GameModeId,
+            GameplayScoring = GameplayScoring?.Clone() ?? new GameplayScoring(),
             MapConfig = MapConfig?.Clone() ?? new MapGenerationConfig(),
             BiomeConfig = BiomeConfig?.Clone() ?? new BiomeConfig(),
         };
@@ -103,10 +103,10 @@ public partial class SetupConfig : Resource
         MaxPlayers = source.MaxPlayers;
         LocalPlayerCount = source.LocalPlayerCount;
         OnlineEnabled = source.OnlineEnabled;
-        ForceFreeForAllTeams = source.ForceFreeForAllTeams;
         ServerAddress = source.ServerAddress;
         ServerPort = source.ServerPort;
         GameModeId = source.GameModeId;
+        GameplayScoring = source.GameplayScoring?.Clone() ?? new GameplayScoring();
         MapConfig = source.MapConfig?.Clone() ?? new MapGenerationConfig();
         BiomeConfig = source.BiomeConfig?.Clone() ?? new BiomeConfig();
         GameModes.Clear();
