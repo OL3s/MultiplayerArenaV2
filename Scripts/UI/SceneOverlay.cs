@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 public partial class SceneOverlay : CanvasLayer
 {
@@ -10,10 +11,17 @@ public partial class SceneOverlay : CanvasLayer
     private static readonly Shader BlurShader = ResourceLoader.Load<Shader>(BlurShaderPath);
 
     private ColorRect _blurBackdrop;
+    private readonly Dictionary<ulong, Control> _overlayFocusRestoreTargets = new();
+    private Control _pendingRestoreFocus;
 
     public override void _Ready()
     {
         EnsureBlurBackdrop();
+    }
+
+    public override void _Process(double delta)
+    {
+        EnsureTopOverlayOwnsFocus();
     }
 
     public static SceneOverlay Get(Node context)
@@ -64,8 +72,13 @@ public partial class SceneOverlay : CanvasLayer
             overlay.TreeExited += HideBlurBackdropIfUnused;
         }
 
+        var overlayId = overlay.GetInstanceId();
+        _overlayFocusRestoreTargets[overlayId] = GetViewport()?.GuiGetFocusOwner();
+
         AddChild(overlay);
         MoveOverlayToFront(overlay);
+        overlay.TreeExited += () => OnOverlayTreeExited(overlayId);
+        CallDeferred(MethodName.FocusTopOverlay);
     }
 
     public void AddOverlay(PackedScene overlayScene, bool useBlur = false)
@@ -145,6 +158,123 @@ public partial class SceneOverlay : CanvasLayer
     private void MoveOverlayToFront(Control overlay)
     {
         MoveChild(overlay, GetChildCount() - 1);
+    }
+
+    private void FocusTopOverlay()
+    {
+        var topOverlay = GetTopOverlay();
+        if (topOverlay == null)
+        {
+            return;
+        }
+
+        var focusTarget = FindFirstFocusableControl(topOverlay);
+        focusTarget?.GrabFocus();
+    }
+
+    private void OnOverlayTreeExited(ulong overlayId)
+    {
+        if (_overlayFocusRestoreTargets.TryGetValue(overlayId, out var previousFocus))
+        {
+            _pendingRestoreFocus = previousFocus;
+            _overlayFocusRestoreTargets.Remove(overlayId);
+        }
+
+        CallDeferred(MethodName.RefreshFocusAfterOverlay);
+    }
+
+    private void RefreshFocusAfterOverlay()
+    {
+        var topOverlay = GetTopOverlay();
+        if (topOverlay != null)
+        {
+            var overlayFocusTarget = FindFirstFocusableControl(topOverlay);
+            overlayFocusTarget?.GrabFocus();
+            return;
+        }
+
+        if (GodotObject.IsInstanceValid(_pendingRestoreFocus))
+        {
+            _pendingRestoreFocus.GrabFocus();
+        }
+
+        _pendingRestoreFocus = null;
+    }
+
+    private void EnsureTopOverlayOwnsFocus()
+    {
+        var topOverlay = GetTopOverlay();
+        if (topOverlay == null)
+        {
+            return;
+        }
+
+        var focusOwner = GetViewport()?.GuiGetFocusOwner();
+        if (focusOwner != null && OwnsFocus(topOverlay, focusOwner))
+        {
+            return;
+        }
+
+        var focusTarget = FindFirstFocusableControl(topOverlay);
+        focusTarget?.GrabFocus();
+    }
+
+    private Control GetTopOverlay()
+    {
+        for (var i = GetChildCount() - 1; i >= 0; i--)
+        {
+            if (GetChild(i) is Control overlay && overlay != _blurBackdrop)
+            {
+                return overlay;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool OwnsFocus(Control overlay, Control focusOwner)
+    {
+        return focusOwner == overlay || overlay.IsAncestorOf(focusOwner);
+    }
+
+    private static Control FindFirstFocusableControl(Control root)
+    {
+        if (root == null)
+        {
+            return null;
+        }
+
+        if (IsFocusable(root))
+        {
+            return root;
+        }
+
+        foreach (var child in root.GetChildren())
+        {
+            if (child is not Control controlChild)
+            {
+                continue;
+            }
+
+            var focusableDescendant = FindFirstFocusableControl(controlChild);
+            if (focusableDescendant != null)
+            {
+                return focusableDescendant;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsFocusable(Control control)
+    {
+        if (control is BaseButton button && button.Disabled)
+        {
+            return false;
+        }
+
+        return control.FocusMode != Control.FocusModeEnum.None
+            && control.IsVisibleInTree();
     }
 
     private void ShowBlurBackdrop()

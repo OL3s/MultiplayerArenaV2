@@ -8,6 +8,7 @@ public partial class MatchLobby : Control
     private const string LobbyPlayerCardScenePath = "res://Scenes/UI/LobbyPlayerCard.tscn";
     private const string ConfigSelectionOverlayScenePath = "res://Scenes/UI/ConfigSelectionOverlay.tscn";
     private const string GameModePlaylistOverlayScenePath = "res://Scenes/UI/GameModePlaylistOverlay.tscn";
+    private const string ConfirmationOverlayScenePath = "res://Scenes/UI/ConfirmationOverlay.tscn";
     private static readonly int[] DefaultTeamIds = { 0, 1, 2, 3, 4 };
     private static readonly GameModeConfig.GameModeType[] AvailableGameModes =
     {
@@ -18,14 +19,17 @@ public partial class MatchLobby : Control
     private PackedScene _lobbyPlayerCardScene;
     private PackedScene _configSelectionOverlayScene;
     private PackedScene _gameModePlaylistOverlayScene;
+    private PackedScene _confirmationOverlayScene;
     private bool _isRefreshingConfig;
     private string _lastShownConfigApplyMessage = string.Empty;
 
     public override void _Ready()
     {
+        UiInputActions.EnsureConfigured();
         _lobbyPlayerCardScene = GD.Load<PackedScene>(LobbyPlayerCardScenePath);
         _configSelectionOverlayScene = GD.Load<PackedScene>(ConfigSelectionOverlayScenePath);
         _gameModePlaylistOverlayScene = GD.Load<PackedScene>(GameModePlaylistOverlayScenePath);
+        _confirmationOverlayScene = GD.Load<PackedScene>(ConfirmationOverlayScenePath);
         GetNetworking().LobbyStateChanged += RefreshLobbyState;
         GetNetworking().ConnectionStateChanged += RefreshLobbyState;
         GetNetworking().ConfigApplyStateChanged += OnConfigApplyStateChanged;
@@ -35,6 +39,17 @@ public partial class MatchLobby : Control
         GetNode<Button>("MainLayout/Actions/BackButton").Pressed += OnBackPressed;
         InitializeConfigControls();
         RefreshLobbyState();
+    }
+
+    public override void _UnhandledInput(InputEvent inputEvent)
+    {
+        if (!inputEvent.IsActionPressed("ui_cancel"))
+        {
+            return;
+        }
+
+        GetViewport()?.SetInputAsHandled();
+        OnBackPressed();
     }
 
     public override void _ExitTree()
@@ -638,8 +653,16 @@ public partial class MatchLobby : Control
 
     private void OnBackPressed()
     {
-        GetNetworking().ResetSessionState();
-        GetTree().ChangeSceneToFile(MainMenuScenePath);
+        ShowConfirmationOverlay(
+            "Leave Lobby?",
+            "Are you sure you want to leave the lobby and return to the main menu?",
+            "Leave",
+            "Stay",
+            () =>
+            {
+                GetNetworking().ResetSessionState();
+                GetTree().ChangeSceneToFile(MainMenuScenePath);
+            });
     }
 
     private Networking GetNetworking()
@@ -650,5 +673,24 @@ public partial class MatchLobby : Control
     private SetupConfig GetEditableSetupConfig()
     {
         return GetNetworking().GetEditableSetupConfig();
+    }
+
+    private void ShowConfirmationOverlay(string title, string message, string confirmText, string cancelText, Action onConfirmed)
+    {
+        if (_confirmationOverlayScene == null)
+        {
+            GD.PushError($"Failed to load confirmation overlay scene at '{ConfirmationOverlayScenePath}'.");
+            return;
+        }
+
+        var overlay = SceneOverlay.GetOrCreate(this);
+        if (overlay == null)
+        {
+            return;
+        }
+
+        var confirmationOverlay = _confirmationOverlayScene.Instantiate<ConfirmationOverlay>();
+        confirmationOverlay.Configure(title, message, confirmText, cancelText, onConfirmed);
+        overlay.AddOverlay(confirmationOverlay, true);
     }
 }

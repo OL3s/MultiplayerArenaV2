@@ -7,10 +7,23 @@ public partial class HostServerMenu : Control
 
     public override void _Ready()
     {
+        UiInputActions.EnsureConfigured();
         GetNode<Button>("MainLayout/SecondaryActions/LocalOnlyButton").Pressed += OnLocalOnlyPressed;
         GetNode<Button>("MainLayout/PrimaryAction/ServerLocalButton").Pressed += OnServerLocalPressed;
         GetNode<Button>("MainLayout/SecondaryActions/ServerOnlineButton").Pressed += OnServerOnlinePressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
+        CallDeferred(MethodName.FocusDefaultButton);
+    }
+
+    public override void _UnhandledInput(InputEvent inputEvent)
+    {
+        if (!inputEvent.IsActionPressed("ui_cancel"))
+        {
+            return;
+        }
+
+        GetViewport().SetInputAsHandled();
+        OnBackPressed();
     }
 
     private void OnLocalOnlyPressed()
@@ -45,6 +58,11 @@ public partial class HostServerMenu : Control
         }
 
         GetTree().ChangeSceneToFile(MatchLobbyScenePath);
+    }
+
+    private void FocusDefaultButton()
+    {
+        GetNode<Button>("MainLayout/PrimaryAction/ServerLocalButton").GrabFocus();
     }
 
     private Networking GetNetworking()

@@ -13,12 +13,25 @@ public partial class JoinGameMenu : Control
 
     public override void _Ready()
     {
+        UiInputActions.EnsureConfigured();
         _serverBrowserOverlayScene = GD.Load<PackedScene>(ServerBrowserOverlayScenePath);
         GetNode<Button>("MainLayout/SecondaryActions/BrowseLocalButton").Pressed += OnBrowseLocalPressed;
         GetNode<Button>("MainLayout/SecondaryActions/BrowseServersButton").Pressed += OnBrowseServersPressed;
         GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").Pressed += OnQuickmatchPressed;
         GetNode<Button>("MainLayout/JoinByAddress/JoinAddressButton").Pressed += OnJoinAddressPressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
+        CallDeferred(MethodName.FocusDefaultButton);
+    }
+
+    public override void _UnhandledInput(InputEvent inputEvent)
+    {
+        if (!inputEvent.IsActionPressed("ui_cancel"))
+        {
+            return;
+        }
+
+        GetViewport().SetInputAsHandled();
+        OnBackPressed();
     }
 
     private async void OnBrowseLocalPressed()
@@ -170,5 +183,10 @@ public partial class JoinGameMenu : Control
     private Networking GetNetworking()
     {
         return GetNode<Networking>("/root/Networking");
+    }
+
+    private void FocusDefaultButton()
+    {
+        GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").GrabFocus();
     }
 }
