@@ -79,9 +79,9 @@ Current destruction test scene:
 
 ## Planned Game Modes
 
-- Free-for-all
-- Team deathmatch
-- Objective-based modes
+- `Deathmatch`
+- `CaptureTheFlag`
+- Free-for-all is not a separate mode in the current design. A deathmatch setup with one player per team covers the same gameplay shape for now.
 - More modes may be added as the core gameplay develops
 
 ## Multiplayer Focus
