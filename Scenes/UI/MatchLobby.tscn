@@ -17,9 +17,9 @@ script = ExtResource("1_matchlobby")
 [node name="SummaryPanel" type="PanelContainer" parent="." unique_id=2014905221]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 20.0
+offset_top = 12.0
 offset_right = 300.0
-offset_bottom = 150.0
+offset_bottom = 105.0
 
 [node name="SummaryLabel" type="Label" parent="SummaryPanel" unique_id=697738715]
 layout_mode = 2
@@ -180,7 +180,7 @@ text = "Game"
 layout_mode = 2
 text = "Custom"
 
-[node name="RandomOrderCheckBox" type="CheckBox" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection"]
+[node name="RandomOrderCheckBox" type="CheckBox" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection" unique_id=1181391373]
 layout_mode = 2
 text = "Randomize Mode Order"
 

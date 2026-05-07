@@ -167,11 +167,18 @@ Peers and players should be separate arrays. `PeerData` describes the connected 
 
 Important identity rule: `PlayerData` is looked up by `(PeerId, LocalId)`, not by `GlobalId`. `LocalId` can repeat across peers, because every machine has its own local player `0`, `1`, `2`, etc. `PeerId` disambiguates which device that local player belongs to. `GlobalId` is still stored on the player, but it is the accepted match player number, not the ownership key.
 
-Team ids start at `1`. `-1` and `0` should be treated as unset/invalid ids and normalized to the default team before gameplay uses them.
+Real team ids currently run from `1` to `4`. Team `0` is treated as an auto-assign request, not a persistent gameplay team. When a peer joins, or when the lobby `Auto-Assign` action is pressed, the server resolves that peer to the least-populated real team.
 
 Team resolution is peer-based for the current lobby model. `PeerData.TeamId` is the authoritative team for that peer/device, so split-screen players owned by the same peer move teams as a group. Gameplay code should call `MultiplayerData.GetTeam(...)` instead of reading team fields directly.
 
-The match lobby should show a small top-left setup summary, a centered players section, and a right-side config section. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped under clickable team headers like `[Team 1]`, `[Team 2]`, and `[Team 3]`. Clicking a team header moves all players owned by the local peer to that team.
+The match lobby should show a small top-left setup summary, a centered players section, and a right-side config section. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped under clickable team headers like `[Auto-Assign]`, `[Team 1]`, `[Team 2]`, and `[Team 3]`. Clicking a team header moves all players owned by the local peer to that team. `Auto-Assign` immediately reassigns that peer to the least-populated real team.
+
+Current LAN host port behavior:
+
+- LAN/server hosting no longer hard-locks to port `7777`.
+- Hosting now scans from `7700` through `8700` and binds to the first available port.
+- The selected port is written back into setup state and used for LAN discovery responses and direct joins.
+- TODO later: allow choosing and preferring a specific port before falling back to the auto-increment scan.
 
 Match setup should be resource-driven. `SetupConfig` owns the selected/available game modes, map generation settings, biome settings, player limits, address/port, and team behavior. Game modes are represented as `GameModeConfig` resources in an array so multiple modes can be enabled for voting, rotation, quickmatch filtering, or future playlist logic. Map and biome setup are separate resources so procedural generation can grow without turning `SetupConfig` into a large flat object. The match lobby config UI should edit these resources directly through grouped sections for internet settings, map/biome settings, and game settings.
 
@@ -196,7 +203,7 @@ Current data structure:
 ```csharp
 public partial class MultiplayerData : Resource
 {
-    public const int DefaultTeamId = 1;
+    public const int DefaultTeamId = 0;
     public Godot.Collections.Array<PeerData> Peers { get; set; } = new();
     public Godot.Collections.Array<PlayerData> Players { get; set; } = new();
     public SetupConfig SetupConfig { get; set; } = new();

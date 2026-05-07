@@ -138,6 +138,8 @@ public partial class MatchLobby : Control
         var teamSections = GetNode<VBoxContainer>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/TeamSections");
         ClearChildren(teamSections);
 
+        teamSections.AddChild(CreateTeamSection(global::MultiplayerData.DefaultTeamId));
+
         var playerDataByTeam = new SortedDictionary<int, List<PlayerData>>();
         var visibleTeamIds = GetVisibleTeamIds(multiplayerData.SetupConfig);
         foreach (var teamId in visibleTeamIds)
@@ -166,7 +168,7 @@ public partial class MatchLobby : Control
         foreach (var teamPlayers in playerDataByTeam)
         {
             var teamSection = CreateTeamSection(teamPlayers.Key);
-            var playerList = teamSection.GetNode<VBoxContainer>("PlayerCards");
+            var playerList = teamSection.GetNode<HBoxContainer>("PlayerCards");
             foreach (var playerData in teamPlayers.Value)
             {
                 var playerCard = _lobbyPlayerCardScene.Instantiate<LobbyPlayerCard>();
@@ -205,18 +207,21 @@ public partial class MatchLobby : Control
     {
         var teamSection = new VBoxContainer();
         teamSection.AddThemeConstantOverride("separation", 8);
+        teamSection.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
         var teamButton = new Button
         {
             Text = $"[{FormatTeamName(teamId)}]",
             CustomMinimumSize = new Vector2(0, 34),
             Disabled = GetNetworking().IsLocalOnly,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         teamButton.AddThemeFontSizeOverride("font_size", 18);
         teamButton.Pressed += () => OnTeamHeaderPressed(teamId);
 
-        var playerCards = new VBoxContainer { Name = "PlayerCards" };
+        var playerCards = new HBoxContainer { Name = "PlayerCards" };
         playerCards.AddThemeConstantOverride("separation", 8);
+        playerCards.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
         teamSection.AddChild(teamButton);
         teamSection.AddChild(playerCards);
