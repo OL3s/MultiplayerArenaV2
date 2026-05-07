@@ -146,6 +146,21 @@ The host menu should expose `LocalOnly`, `ServerLocal`, and `ServerOnline`. `Ded
 
 The rest of the game should check this shared state instead of guessing whether it is running as local-only, LAN host, online host, dedicated server, or client.
 
+## Networking Transport
+
+The intended networking stack for this project is Easy Networking with RTC-first transport flow.
+
+- Easy Networking should own the higher-level session flow, connection lifecycle, and multiplayer plumbing.
+- RTC should be the main realtime transport for match and lobby traffic.
+- Local LAN testing can use a simpler direct transport path while the full Easy Networking + RTC stack is still being integrated.
+- The `Networking` autoload should stay transport-aware but gameplay/UI-facing code should remain transport-agnostic.
+- Join flow should be driven through a `JoinType` enum in `Networking` so quickplay, LAN browsing, direct address join, and future online matchmaking all converge on the same lobby sync path.
+
+Current implementation note:
+
+- This repository does not currently include the Easy Networking addon or RTC signaling layer.
+- Until those pieces are added, the join flow uses Godot's built-in multiplayer transport for working local multi-instance testing while preserving the same `Networking` authority and snapshot-sync flow the RTC path should use.
+
 `MultiplayerData` should describe the active synced match setup. It owns connected peers/devices, accepted match players, and setup config so the game can support pure local play, pure online play, hosted split-screen play, and split-screen clients joining online sessions.
 
 Peers and players should be separate arrays. `PeerData` describes the connected device and its requested local-player capacity. `PlayerData` describes an actual accepted in-game player and links back to the device through `PeerId`. This keeps the player list easy for gameplay systems while still supporting several players on one connection.

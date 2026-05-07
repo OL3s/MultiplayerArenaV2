@@ -1,12 +1,19 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Godot;
 
 public partial class JoinGameMenu : Control
 {
     private const string MatchLobbyScenePath = "res://Scenes/UI/MatchLobby.tscn";
     private const string MainMenuScenePath = "res://Scenes/UI/MainMenu.tscn";
+    private const string ServerBrowserOverlayScenePath = "res://Scenes/UI/ServerBrowserOverlay.tscn";
+
+    private PackedScene _serverBrowserOverlayScene;
 
     public override void _Ready()
     {
+        _serverBrowserOverlayScene = GD.Load<PackedScene>(ServerBrowserOverlayScenePath);
         GetNode<Button>("MainLayout/SecondaryActions/BrowseLocalButton").Pressed += OnBrowseLocalPressed;
         GetNode<Button>("MainLayout/SecondaryActions/BrowseServersButton").Pressed += OnBrowseServersPressed;
         GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").Pressed += OnQuickmatchPressed;
@@ -14,27 +21,61 @@ public partial class JoinGameMenu : Control
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
     }
 
-    private void OnBrowseLocalPressed()
+    private async void OnBrowseLocalPressed()
     {
-        GetNetworking().SetClient();
-        OpenMatchLobby();
+        var listings = await GetNetworking().DiscoverLocalServerListingsAsync();
+        ShowServerBrowser(
+            "Local Servers",
+            listings.Count > 0 ? $"{listings.Count} local server(s) found." : "Searching local network.",
+            listings,
+            "No local servers found.");
     }
 
     private void OnBrowseServersPressed()
     {
-        GetNetworking().SetClient();
-        OpenMatchLobby();
+        var listings = GetNetworking().GetOnlineServerListings();
+        ShowServerBrowser(
+            "Online Servers",
+            "Online browsing is waiting on a matchmaking service.",
+            listings,
+            "No online matches found.");
     }
 
-    private void OnQuickmatchPressed()
+    private async void OnQuickmatchPressed()
     {
-        GetNetworking().SetClient();
-        OpenMatchLobby();
+        var networking = GetNetworking();
+        var localListings = await networking.DiscoverLocalServerListingsAsync();
+        if (localListings.Count > 0)
+        {
+            ConnectToServer(localListings[0], Networking.JoinType.Quickplay);
+            return;
+        }
+
+        var onlineListings = networking.GetOnlineServerListings();
+        if (onlineListings.Count > 0)
+        {
+            ConnectToServer(onlineListings[0], Networking.JoinType.Quickplay);
+            return;
+        }
+
+        ShowMessageOverlay("Quickplay", "No local or online matches found.");
     }
 
     private void OnJoinAddressPressed()
     {
-        GetNetworking().SetClient();
+        var addressInput = GetNode<LineEdit>("MainLayout/JoinByAddress/AddressInput").Text;
+        if (!TryParseAddress(addressInput, out var address, out var port))
+        {
+            ShowMessageOverlay("Join Failed", "Enter a valid address like 127.0.0.1:7777.");
+            return;
+        }
+
+        if (!GetNetworking().BeginDirectClientConnection(address, port))
+        {
+            ShowMessageOverlay("Join Failed", "Could not prepare a direct connection for that address.");
+            return;
+        }
+
         OpenMatchLobby();
     }
 
@@ -45,8 +86,85 @@ public partial class JoinGameMenu : Control
 
     private void OpenMatchLobby()
     {
-        GetNetworking().RegisterLocalLobbyPlayers();
         GetTree().ChangeSceneToFile(MatchLobbyScenePath);
+    }
+
+    private void ShowServerBrowser(
+        string title,
+        string statusText,
+        IReadOnlyList<Networking.ServerListing> listings,
+        string emptyMessage)
+    {
+        if (_serverBrowserOverlayScene == null)
+        {
+            GD.PushError($"Failed to load server browser overlay scene at '{ServerBrowserOverlayScenePath}'.");
+            return;
+        }
+
+        var sceneOverlay = SceneOverlay.GetOrCreate(this);
+        if (sceneOverlay == null)
+        {
+            return;
+        }
+
+        var browserOverlay = _serverBrowserOverlayScene.Instantiate<ServerBrowserOverlay>();
+        browserOverlay.Configure(title, statusText, listings, emptyMessage, listing => ConnectToServer(listing, ResolveJoinType(title)));
+        sceneOverlay.AddOverlay(browserOverlay, true);
+    }
+
+    private void ShowMessageOverlay(string title, string message)
+    {
+        ShowServerBrowser(title, message, Array.Empty<Networking.ServerListing>(), string.Empty);
+    }
+
+    private void ConnectToServer(Networking.ServerListing listing, Networking.JoinType joinType)
+    {
+        if (!GetNetworking().BeginClientConnection(listing, joinType))
+        {
+            ShowMessageOverlay("Connection Failed", "The selected server could not be opened.");
+            return;
+        }
+
+        OpenMatchLobby();
+    }
+
+    private static Networking.JoinType ResolveJoinType(string title)
+    {
+        return title switch
+        {
+            "Local Servers" => Networking.JoinType.BrowseLocal,
+            "Online Servers" => Networking.JoinType.BrowseOnline,
+            _ => Networking.JoinType.None,
+        };
+    }
+
+    private static bool TryParseAddress(string input, out string address, out int port)
+    {
+        address = string.Empty;
+        port = 7777;
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        var trimmedInput = input.Trim();
+        var separatorIndex = trimmedInput.LastIndexOf(':');
+        if (separatorIndex <= 0 || separatorIndex == trimmedInput.Length - 1)
+        {
+            address = trimmedInput;
+            return true;
+        }
+
+        var addressPart = trimmedInput[..separatorIndex].Trim();
+        var portPart = trimmedInput[(separatorIndex + 1)..].Trim();
+        if (string.IsNullOrWhiteSpace(addressPart) || !int.TryParse(portPart, out port) || port <= 0 || port > 65535)
+        {
+            return false;
+        }
+
+        address = addressPart;
+        return true;
     }
 
     private Networking GetNetworking()

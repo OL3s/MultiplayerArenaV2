@@ -38,7 +38,12 @@ public partial class HostServerMenu : Control
 
     private void OpenMatchLobby()
     {
-        GetNetworking().RegisterLocalLobbyPlayers();
+        if (!GetNetworking().BeginHostingSession())
+        {
+            GD.PushError(GetNetworking().LastConnectionError);
+            return;
+        }
+
         GetTree().ChangeSceneToFile(MatchLobbyScenePath);
     }
 

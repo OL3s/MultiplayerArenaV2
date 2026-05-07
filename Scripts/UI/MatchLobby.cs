@@ -12,15 +12,34 @@ public partial class MatchLobby : Control
     private PackedScene _lobbyPlayerCardScene;
     private PackedScene _configSelectionOverlayScene;
     private bool _isRefreshingConfig;
+    private string _lastShownConfigApplyMessage = string.Empty;
 
     public override void _Ready()
     {
         _lobbyPlayerCardScene = GD.Load<PackedScene>(LobbyPlayerCardScenePath);
         _configSelectionOverlayScene = GD.Load<PackedScene>(ConfigSelectionOverlayScenePath);
+        GetNetworking().LobbyStateChanged += RefreshLobbyState;
+        GetNetworking().ConnectionStateChanged += RefreshLobbyState;
+        GetNetworking().ConfigApplyStateChanged += OnConfigApplyStateChanged;
         GetNode<Button>("MainLayout/Actions/StartButton").Pressed += OnStartPressed;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/ApplyConfigButton").Pressed += OnApplyConfigPressed;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/RevertConfigButton").Pressed += OnRevertConfigPressed;
         GetNode<Button>("MainLayout/Actions/BackButton").Pressed += OnBackPressed;
         InitializeConfigControls();
         RefreshLobbyState();
+    }
+
+    public override void _ExitTree()
+    {
+        var networking = GetNodeOrNull<Networking>("/root/Networking");
+        if (networking == null)
+        {
+            return;
+        }
+
+        networking.LobbyStateChanged -= RefreshLobbyState;
+        networking.ConnectionStateChanged -= RefreshLobbyState;
+        networking.ConfigApplyStateChanged -= OnConfigApplyStateChanged;
     }
 
     private void RefreshLobbyState()
@@ -29,12 +48,23 @@ public partial class MatchLobby : Control
         GetNode<Label>("MainLayout/TitleLabel").Text = GetTitle(networking.CurrentMode);
         GetNode<Label>("MainLayout/StatusLabel").Text = GetStatusText(networking);
         GetNode<Label>("SummaryPanel/SummaryLabel").Text = FormatSummary(networking);
-        RefreshConfigControls(networking.MultiplayerData.SetupConfig);
+        RefreshConfigControls(GetEditableSetupConfig());
         RefreshPlayerSections(networking.MultiplayerData);
 
         var startButton = GetNode<Button>("MainLayout/Actions/StartButton");
-        startButton.Disabled = networking.IsClient || networking.CurrentMode == Networking.NetworkMode.NotSelected;
+        startButton.Visible = networking.IsServer || networking.IsLocalOnly;
+        startButton.Disabled = !startButton.Visible || networking.HasPendingSetupConfigChanges || networking.CurrentMode == Networking.NetworkMode.NotSelected;
         startButton.Modulate = startButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
+
+        var applyButton = GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/ApplyConfigButton");
+        applyButton.Visible = networking.HasSelectedMode;
+        applyButton.Disabled = !networking.HasPendingSetupConfigChanges;
+        applyButton.Modulate = applyButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
+
+        var revertButton = GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/RevertConfigButton");
+        revertButton.Visible = networking.HasSelectedMode;
+        revertButton.Disabled = !networking.HasPendingSetupConfigChanges;
+        revertButton.Modulate = revertButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
     }
 
     private static string GetTitle(Networking.NetworkMode networkMode)
@@ -54,12 +84,12 @@ public partial class MatchLobby : Control
     {
         if (networking.IsServer)
         {
-            return "Status: Server authority. Waiting for players or ready to start.";
+            return networking.ConnectionStatusText;
         }
 
         if (networking.IsClient)
         {
-            return "Status: Client. Waiting for server lobby data.";
+            return networking.ConnectionStatusText;
         }
 
         if (networking.IsLocalOnly)
@@ -177,6 +207,20 @@ public partial class MatchLobby : Control
         RefreshLobbyState();
     }
 
+    private void OnConfigApplyStateChanged()
+    {
+        RefreshLobbyState();
+
+        var message = GetNetworking().LastConfigApplyMessage;
+        if (string.IsNullOrWhiteSpace(message) || message == _lastShownConfigApplyMessage)
+        {
+            return;
+        }
+
+        _lastShownConfigApplyMessage = message;
+        ShowMessageOverlay("Config Applied", message);
+    }
+
     private void InitializeConfigControls()
     {
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/BiomeRow/BiomeButton").Pressed += OnBiomePressed;
@@ -188,8 +232,6 @@ public partial class MatchLobby : Control
 
     private void RefreshConfigControls(SetupConfig setupConfig)
     {
-        EnsureDefaultGameMode(setupConfig);
-
         _isRefreshingConfig = true;
         GetNode<Label>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/InternetSection/ConnectionInfoLabel").Text = FormatConnectionInfo(setupConfig);
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow/MapTypeButton").Text = DescribeMapTypes(setupConfig.MapConfig);
@@ -205,17 +247,17 @@ public partial class MatchLobby : Control
         ShowSelectionOverlay(
             "Map Types",
             Enum.GetNames(typeof(MapGenerationConfig.MapType)),
-            index => GetSetupConfig().MapConfig.HasMapType((MapGenerationConfig.MapType)index),
+            index => GetEditableSetupConfig().MapConfig.HasMapType((MapGenerationConfig.MapType)index),
             (index, enabled) =>
             {
                 var mapType = (MapGenerationConfig.MapType)index;
                 if (enabled)
                 {
-                    GetSetupConfig().MapConfig.AddMapType(mapType);
+                    GetEditableSetupConfig().MapConfig.AddMapType(mapType);
                 }
                 else
                 {
-                    GetSetupConfig().MapConfig.RemoveMapType(mapType);
+                    GetEditableSetupConfig().MapConfig.RemoveMapType(mapType);
                 }
 
                 RefreshLobbyState();
@@ -225,13 +267,15 @@ public partial class MatchLobby : Control
     private void OnSeedChanged(double seed)
     {
         if (_isRefreshingConfig) return;
-        GetSetupConfig().MapConfig.FixedSeed = (int)seed;
+        GetEditableSetupConfig().MapConfig.FixedSeed = (int)seed;
+        RefreshLobbyState();
     }
 
     private void OnRandomSeedToggled(bool enabled)
     {
         if (_isRefreshingConfig) return;
-        GetSetupConfig().MapConfig.SelectedSeedMode = enabled ? MapGenerationConfig.SeedMode.AlwaysRandom : MapGenerationConfig.SeedMode.FixedSeed;
+        GetEditableSetupConfig().MapConfig.SelectedSeedMode = enabled ? MapGenerationConfig.SeedMode.AlwaysRandom : MapGenerationConfig.SeedMode.FixedSeed;
+        RefreshLobbyState();
     }
 
     private void OnBiomePressed()
@@ -239,17 +283,17 @@ public partial class MatchLobby : Control
         ShowSelectionOverlay(
             "Biomes",
             Enum.GetNames(typeof(BiomeConfig.BiomeType)),
-            index => GetSetupConfig().BiomeConfig.HasBiome((BiomeConfig.BiomeType)index),
+            index => GetEditableSetupConfig().BiomeConfig.HasBiome((BiomeConfig.BiomeType)index),
             (index, enabled) =>
             {
                 var biomeType = (BiomeConfig.BiomeType)index;
                 if (enabled)
                 {
-                    GetSetupConfig().BiomeConfig.AddBiome(biomeType);
+                    GetEditableSetupConfig().BiomeConfig.AddBiome(biomeType);
                 }
                 else
                 {
-                    GetSetupConfig().BiomeConfig.RemoveBiome(biomeType);
+                    GetEditableSetupConfig().BiomeConfig.RemoveBiome(biomeType);
                 }
 
                 RefreshLobbyState();
@@ -261,7 +305,7 @@ public partial class MatchLobby : Control
         ShowSelectionOverlay(
             "Game Modes",
             new[] { "Free For All", "Team Deathmatch", "Objective" },
-            index => GetSetupConfig().HasGameMode((GameModeConfig.GameModeType)index),
+            index => GetEditableSetupConfig().HasGameMode((GameModeConfig.GameModeType)index),
             (index, enabled) =>
             {
                 var modeType = (GameModeConfig.GameModeType)index;
@@ -282,7 +326,7 @@ public partial class MatchLobby : Control
     {
         if (_isRefreshingConfig) return;
 
-        var setupConfig = GetSetupConfig();
+        var setupConfig = GetEditableSetupConfig();
         if (enabled)
         {
             setupConfig.AddGameMode(new GameModeConfig
@@ -297,27 +341,64 @@ public partial class MatchLobby : Control
         setupConfig.RemoveGameMode(modeType);
     }
 
-    private static void EnsureDefaultGameMode(SetupConfig setupConfig)
-    {
-        if (setupConfig.GameModes.Count > 0)
-        {
-            return;
-        }
-
-        setupConfig.AddGameMode(new GameModeConfig
-        {
-            ModeType = GameModeConfig.GameModeType.FreeForAll,
-            DisplayName = "Free For All",
-            IsEnabled = true,
-        });
-    }
-
     private void ShowSelectionOverlay(string title, string[] options, Func<int, bool> isSelected, Action<int, bool> onToggled)
     {
         var overlay = SceneOverlay.GetOrCreate(this);
         var selectionOverlay = _configSelectionOverlayScene.Instantiate<ConfigSelectionOverlay>();
         selectionOverlay.Configure(title, options, isSelected, onToggled);
         overlay?.AddOverlay(selectionOverlay, true);
+    }
+
+    private void ShowMessageOverlay(string title, string message)
+    {
+        var overlay = SceneOverlay.GetOrCreate(this);
+        if (overlay == null)
+        {
+            return;
+        }
+
+        var panel = new PanelContainer
+        {
+            CustomMinimumSize = new Vector2(420, 200),
+        };
+        panel.SetAnchorsPreset(LayoutPreset.Center);
+
+        var margin = new MarginContainer();
+        margin.AddThemeConstantOverride("margin_left", 18);
+        margin.AddThemeConstantOverride("margin_top", 18);
+        margin.AddThemeConstantOverride("margin_right", 18);
+        margin.AddThemeConstantOverride("margin_bottom", 18);
+
+        var content = new VBoxContainer();
+        content.AddThemeConstantOverride("separation", 12);
+
+        var titleLabel = new Label
+        {
+            Text = title,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        titleLabel.AddThemeFontSizeOverride("font_size", 24);
+
+        var messageLabel = new Label
+        {
+            Text = message,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+
+        var closeButton = new Button
+        {
+            Text = "Close",
+            CustomMinimumSize = new Vector2(140, 42),
+        };
+        closeButton.Pressed += panel.QueueFree;
+
+        content.AddChild(titleLabel);
+        content.AddChild(messageLabel);
+        content.AddChild(closeButton);
+        margin.AddChild(content);
+        panel.AddChild(margin);
+        overlay.AddOverlay(panel, true);
     }
 
     private static string DescribeBiomes(BiomeConfig biomeConfig)
@@ -391,9 +472,29 @@ public partial class MatchLobby : Control
     {
     }
 
+    private void OnApplyConfigPressed()
+    {
+        if (!GetNetworking().ApplyCachedSetupConfigChanges())
+        {
+            return;
+        }
+
+        RefreshLobbyState();
+    }
+
+    private void OnRevertConfigPressed()
+    {
+        if (!GetNetworking().RevertCachedSetupConfigChanges())
+        {
+            return;
+        }
+
+        RefreshLobbyState();
+    }
+
     private void OnBackPressed()
     {
-        GetNetworking().ClearMode();
+        GetNetworking().ResetSessionState();
         GetTree().ChangeSceneToFile(MainMenuScenePath);
     }
 
@@ -402,8 +503,8 @@ public partial class MatchLobby : Control
         return GetNode<Networking>("/root/Networking");
     }
 
-    private SetupConfig GetSetupConfig()
+    private SetupConfig GetEditableSetupConfig()
     {
-        return GetNetworking().MultiplayerData.SetupConfig;
+        return GetNetworking().GetEditableSetupConfig();
     }
 }

@@ -64,4 +64,25 @@ public partial class MapGenerationConfig : Resource
 
         return false;
     }
+
+    public MapGenerationConfig Clone()
+    {
+        var clone = new MapGenerationConfig
+        {
+            SelectedSeedMode = SelectedSeedMode,
+            FixedSeed = FixedSeed,
+        };
+
+        foreach (var seed in SeedPool)
+        {
+            clone.SeedPool.Add(seed);
+        }
+
+        foreach (var mapType in EnabledMapTypes)
+        {
+            clone.EnabledMapTypes.Add(mapType);
+        }
+
+        return clone;
+    }
 }

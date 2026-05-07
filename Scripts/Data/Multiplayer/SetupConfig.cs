@@ -66,4 +66,57 @@ public partial class SetupConfig : Resource
 
         return false;
     }
+
+    public SetupConfig Clone()
+    {
+        var clone = new SetupConfig
+        {
+            MaxPlayers = MaxPlayers,
+            LocalPlayerCount = LocalPlayerCount,
+            OnlineEnabled = OnlineEnabled,
+            ForceFreeForAllTeams = ForceFreeForAllTeams,
+            ServerAddress = ServerAddress,
+            ServerPort = ServerPort,
+            GameModeId = GameModeId,
+            MapConfig = MapConfig?.Clone() ?? new MapGenerationConfig(),
+            BiomeConfig = BiomeConfig?.Clone() ?? new BiomeConfig(),
+        };
+
+        foreach (var gameModeConfig in GameModes)
+        {
+            if (gameModeConfig != null)
+            {
+                clone.GameModes.Add(gameModeConfig.Clone());
+            }
+        }
+
+        return clone;
+    }
+
+    public void CopyFrom(SetupConfig source)
+    {
+        if (source == null)
+        {
+            return;
+        }
+
+        MaxPlayers = source.MaxPlayers;
+        LocalPlayerCount = source.LocalPlayerCount;
+        OnlineEnabled = source.OnlineEnabled;
+        ForceFreeForAllTeams = source.ForceFreeForAllTeams;
+        ServerAddress = source.ServerAddress;
+        ServerPort = source.ServerPort;
+        GameModeId = source.GameModeId;
+        MapConfig = source.MapConfig?.Clone() ?? new MapGenerationConfig();
+        BiomeConfig = source.BiomeConfig?.Clone() ?? new BiomeConfig();
+        GameModes.Clear();
+
+        foreach (var gameModeConfig in source.GameModes)
+        {
+            if (gameModeConfig != null)
+            {
+                GameModes.Add(gameModeConfig.Clone());
+            }
+        }
+    }
 }

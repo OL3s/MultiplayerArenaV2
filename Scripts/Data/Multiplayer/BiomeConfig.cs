@@ -49,4 +49,15 @@ public partial class BiomeConfig : Resource
 
         return false;
     }
+
+    public BiomeConfig Clone()
+    {
+        var clone = new BiomeConfig();
+        foreach (var biome in EnabledBiomes)
+        {
+            clone.EnabledBiomes.Add(biome);
+        }
+
+        return clone;
+    }
 }

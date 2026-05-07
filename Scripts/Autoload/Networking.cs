@@ -1,8 +1,17 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading.Tasks;
 using Godot;
 
 public partial class Networking : Node
 {
     private const int ServerPeerId = 1;
+    private const int DefaultServerPort = 7777;
+    private const int DiscoveryPort = 7778;
+    private const int MaxClients = 8;
+    private const string DiscoveryRequestMessage = "MULTIPLAYERARENA_DISCOVER";
+    private const string DiscoveryResponsePrefix = "MULTIPLAYERARENA_SERVER";
 
     public enum NetworkMode
     {
@@ -14,20 +23,84 @@ public partial class Networking : Node
         Client,
     }
 
+    public enum JoinType
+    {
+        None,
+        BrowseLocal,
+        BrowseOnline,
+        Quickplay,
+        DirectAddress,
+    }
+
+    public sealed class ServerListing
+    {
+        public string ListingId { get; set; } = string.Empty;
+
+        public string DisplayName { get; set; } = "Server";
+
+        public string Address { get; set; } = "127.0.0.1";
+
+        public int Port { get; set; } = DefaultServerPort;
+
+        public bool IsOnline { get; set; }
+
+        public int PlayerCount { get; set; }
+
+        public int MaxPlayers { get; set; } = MaxClients;
+
+        public string GameModeId { get; set; } = "free_for_all";
+    }
+
+    [Signal]
+    public delegate void LobbyStateChangedEventHandler();
+
+    [Signal]
+    public delegate void ConnectionStateChangedEventHandler();
+
+    [Signal]
+    public delegate void ConfigApplyStateChangedEventHandler();
+
     public NetworkMode CurrentMode { get; private set; } = NetworkMode.NotSelected;
+
+    public JoinType CurrentJoinType { get; private set; } = JoinType.None;
+
+    public string ConnectionStatusText { get; private set; } = "Status: No mode selected.";
+
+    public string LastConnectionError { get; private set; } = string.Empty;
+
+    public string CurrentServerName { get; private set; } = string.Empty;
+
+    public string LastConfigApplyMessage { get; private set; } = string.Empty;
 
     [Export]
     public MultiplayerData MultiplayerData { get; private set; } = new();
 
+    public SetupConfig CachedSetupConfig { get; private set; } = new();
+
     [Export]
     public LocalLobbyData LocalLobbyData { get; private set; } = new();
 
+    private readonly List<ServerListing> _localServerListings = new();
+    private PacketPeerUdp _discoveryServer;
+
     public override void _Ready()
     {
+        Multiplayer.PeerConnected += OnPeerConnected;
+        Multiplayer.PeerDisconnected += OnPeerDisconnected;
+        Multiplayer.ConnectedToServer += OnConnectedToServer;
+        Multiplayer.ConnectionFailed += OnConnectionFailed;
+        Multiplayer.ServerDisconnected += OnServerDisconnected;
+        SyncCachedSetupConfig();
+
         if (IsHeadlessRun())
         {
             SetDedicatedServer();
         }
+    }
+
+    public override void _Process(double delta)
+    {
+        PollDiscoveryRequests();
     }
 
     public bool IsLocalOnly => CurrentMode == NetworkMode.LocalOnly;
@@ -42,52 +115,280 @@ public partial class Networking : Node
 
     public bool HasSelectedMode => CurrentMode != NetworkMode.NotSelected;
 
+    public bool HasPendingSetupConfigChanges => HasSelectedMode && !AreSetupConfigsEquivalent(MultiplayerData.SetupConfig, CachedSetupConfig);
+
+    public SetupConfig GetEditableSetupConfig()
+    {
+        return CachedSetupConfig;
+    }
+
+    public IReadOnlyList<ServerListing> GetLocalServerListings()
+    {
+        var listings = new List<ServerListing>(_localServerListings.Count);
+        foreach (var listing in _localServerListings)
+        {
+            listings.Add(CloneServerListing(listing));
+        }
+
+        return listings;
+    }
+
+    public IReadOnlyList<ServerListing> GetOnlineServerListings()
+    {
+        return Array.Empty<ServerListing>();
+    }
+
+    public async Task<IReadOnlyList<ServerListing>> DiscoverLocalServerListingsAsync()
+    {
+        _localServerListings.Clear();
+        EmitLobbyStateChanged();
+
+        using var discoveryClient = new PacketPeerUdp();
+        var bindError = discoveryClient.Bind(0);
+        if (bindError != Error.Ok)
+        {
+            LastConnectionError = $"Could not bind discovery client: {bindError}.";
+            EmitConnectionStateChanged();
+            return GetLocalServerListings();
+        }
+
+        discoveryClient.SetBroadcastEnabled(true);
+        discoveryClient.SetDestAddress("255.255.255.255", DiscoveryPort);
+        discoveryClient.PutPacket(Encoding.UTF8.GetBytes(DiscoveryRequestMessage));
+
+        for (var i = 0; i < 8; i++)
+        {
+            PollDiscoveryResponses(discoveryClient);
+            await ToSignal(GetTree().CreateTimer(0.08), SceneTreeTimer.SignalName.Timeout);
+        }
+
+        PollDiscoveryResponses(discoveryClient);
+        return GetLocalServerListings();
+    }
+
     public void SetLocalOnly()
     {
         CurrentMode = NetworkMode.LocalOnly;
+        EmitConnectionStateChanged();
     }
 
     public void SetServerLocal()
     {
         CurrentMode = NetworkMode.ServerLocal;
+        EmitConnectionStateChanged();
     }
 
     public void SetServerOnline()
     {
         CurrentMode = NetworkMode.ServerOnline;
+        EmitConnectionStateChanged();
     }
 
     public void SetDedicatedServer()
     {
         CurrentMode = NetworkMode.DedicatedServer;
+        EmitConnectionStateChanged();
     }
 
     public void SetClient()
     {
         CurrentMode = NetworkMode.Client;
+        EmitConnectionStateChanged();
     }
 
     public void ClearMode()
     {
         CurrentMode = NetworkMode.NotSelected;
+        EmitConnectionStateChanged();
+    }
+
+    public bool BeginHostingSession()
+    {
+        LastConnectionError = string.Empty;
+        LastConfigApplyMessage = string.Empty;
+        CurrentJoinType = JoinType.None;
+        CurrentServerName = string.Empty;
+        ClearMultiplayerDataLocal();
+        SyncCachedSetupConfig();
+        EnsureDefaultGameMode(MultiplayerData.SetupConfig);
+        SyncCachedSetupConfig();
+
+        if (IsLocalOnly)
+        {
+            CloseNetworkPeer();
+            StopDiscoveryServer();
+            ConnectionStatusText = "Status: Local game ready.";
+            RegisterLocalLobbyPlayers();
+            EmitConnectionStateChanged();
+            return true;
+        }
+
+        var peer = new ENetMultiplayerPeer();
+        var port = GetConfiguredServerPort();
+        var error = peer.CreateServer(port, MaxClients);
+        if (error != Error.Ok)
+        {
+            LastConnectionError = $"Could not start server on port {port}: {error}.";
+            ConnectionStatusText = "Status: Failed to start server.";
+            EmitConnectionStateChanged();
+            return false;
+        }
+
+        Multiplayer.MultiplayerPeer = peer;
+        MultiplayerData.SetupConfig.ServerAddress = GetAdvertisedServerAddress();
+        MultiplayerData.SetupConfig.ServerPort = port;
+        MultiplayerData.SetupConfig.OnlineEnabled = CurrentMode == NetworkMode.ServerOnline;
+        ConnectionStatusText = $"Status: Hosting on {MultiplayerData.SetupConfig.ServerAddress}:{port}.";
+        StartDiscoveryServer();
+        RegisterLocalLobbyPlayers();
+        EmitConnectionStateChanged();
+        return true;
+    }
+
+    public bool BeginClientConnection(ServerListing listing, JoinType joinType)
+    {
+        if (listing == null)
+        {
+            return false;
+        }
+
+        CloseNetworkPeer();
+        StopDiscoveryServer();
+        ClearMultiplayerDataLocal();
+        SyncCachedSetupConfig();
+        LastConnectionError = string.Empty;
+        LastConfigApplyMessage = string.Empty;
+        CurrentServerName = listing.DisplayName;
+        CurrentJoinType = joinType;
+        SetClient();
+
+        MultiplayerData.SetupConfig.ServerAddress = listing.Address;
+        MultiplayerData.SetupConfig.ServerPort = listing.Port;
+        MultiplayerData.SetupConfig.OnlineEnabled = listing.IsOnline;
+        MultiplayerData.SetupConfig.GameModeId = listing.GameModeId;
+        MultiplayerData.SetupConfig.MaxPlayers = listing.MaxPlayers;
+        MultiplayerData.SetupConfig.LocalPlayerCount = GetActiveLocalPlayerCount();
+        EnsureDefaultGameMode(MultiplayerData.SetupConfig);
+        SyncCachedSetupConfig();
+
+        var peer = new ENetMultiplayerPeer();
+        var error = peer.CreateClient(listing.Address, listing.Port);
+        if (error != Error.Ok)
+        {
+            LastConnectionError = $"Could not connect to {listing.Address}:{listing.Port}: {error}.";
+            ConnectionStatusText = "Status: Failed to create client connection.";
+            EmitConnectionStateChanged();
+            return false;
+        }
+
+        Multiplayer.MultiplayerPeer = peer;
+        ConnectionStatusText = $"Status: Connecting to {listing.Address}:{listing.Port}.";
+        EmitConnectionStateChanged();
+        return true;
+    }
+
+    public bool BeginDirectClientConnection(string address, int port)
+    {
+        if (string.IsNullOrWhiteSpace(address) || port <= 0 || port > 65535)
+        {
+            return false;
+        }
+
+        return BeginClientConnection(
+            new ServerListing
+            {
+                ListingId = $"direct-{address}:{port}",
+                DisplayName = $"Direct Join ({address}:{port})",
+                Address = address,
+                Port = port,
+            },
+            JoinType.DirectAddress);
+    }
+
+    public void ResetSessionState()
+    {
+        CloseNetworkPeer();
+        StopDiscoveryServer();
+        _localServerListings.Clear();
+        LastConnectionError = string.Empty;
+        CurrentServerName = string.Empty;
+        CurrentJoinType = JoinType.None;
+        CurrentMode = NetworkMode.NotSelected;
+        ConnectionStatusText = "Status: No mode selected.";
+        ClearMultiplayerDataLocal();
+        SyncCachedSetupConfig();
+        LastConfigApplyMessage = string.Empty;
+        EmitConnectionStateChanged();
+        EmitConfigApplyStateChanged();
+    }
+
+    public bool ApplyCachedSetupConfigChanges()
+    {
+        if (!HasSelectedMode)
+        {
+            return false;
+        }
+
+        if (!HasPendingSetupConfigChanges)
+        {
+            LastConfigApplyMessage = "No config changes to apply.";
+            EmitConfigApplyStateChanged();
+            return false;
+        }
+
+        if (!IsClient)
+        {
+            SyncAuthoritativeSetupConfig(CachedSetupConfig);
+            LastConfigApplyMessage = "Config settings changed by host.";
+            EmitConfigApplyStateChanged();
+            return true;
+        }
+
+        if (!HasNetworkPeer())
+        {
+            return false;
+        }
+
+        LastConfigApplyMessage = string.Empty;
+        RpcId(ServerPeerId, nameof(RpcRequestApplyCachedSetupConfig), SerializeSetupConfig(CachedSetupConfig));
+        EmitConfigApplyStateChanged();
+        return true;
+    }
+
+    public bool RevertCachedSetupConfigChanges()
+    {
+        if (!HasSelectedMode)
+        {
+            return false;
+        }
+
+        SyncCachedSetupConfig();
+        LastConfigApplyMessage = "Config changes reverted.";
+        EmitLobbyStateChanged();
+        EmitConfigApplyStateChanged();
+        return true;
     }
 
     public void RegisterLocalLobbyPlayers()
     {
         if (IsDedicatedServer)
         {
+            EmitLobbyStateChanged();
             return;
         }
 
         var peerId = GetLocalPeerId();
         if (peerId == -1)
         {
+            EmitLobbyStateChanged();
             return;
         }
 
         var activeLocalPlayerCount = GetActiveLocalPlayerCount();
         MultiplayerData.Peers.Clear();
         MultiplayerData.Players.Clear();
+        MultiplayerData.SetupConfig.LocalPlayerCount = activeLocalPlayerCount;
+        MultiplayerData.SetupConfig.OnlineEnabled = CurrentMode == NetworkMode.ServerOnline;
         MultiplayerData.SetupConfig.ForceFreeForAllTeams = CurrentMode == NetworkMode.LocalOnly;
 
         UpdatePeer(peerId, IsServer, global::MultiplayerData.FreeForAllTeamId, activeLocalPlayerCount, 4);
@@ -118,6 +419,12 @@ public partial class Networking : Node
             return;
         }
 
+        if (IsClient && HasNetworkPeer())
+        {
+            RpcId(ServerPeerId, nameof(RpcRequestSetLocalPeerTeam), teamId);
+            return;
+        }
+
         SetPeerTeam(peerId, teamId);
     }
 
@@ -133,66 +440,6 @@ public partial class Networking : Node
             normalizedTeamId,
             peerData.RequestedLocalPlayerCount,
             peerData.MaxLocalPlayers);
-    }
-
-    private int GetRegisteredLocalPeerId()
-    {
-        foreach (var playerData in MultiplayerData.Players)
-        {
-            if (playerData.IsLocalPlayer)
-            {
-                return playerData.PeerId;
-            }
-        }
-
-        return GetLocalPeerId();
-    }
-
-    private int GetLocalPeerId()
-    {
-        if (CurrentMode is NetworkMode.LocalOnly or NetworkMode.ServerLocal or NetworkMode.ServerOnline)
-        {
-            return ServerPeerId;
-        }
-
-        if (HasNetworkPeer())
-        {
-            return Multiplayer.GetUniqueId();
-        }
-
-        return -1;
-    }
-
-    private int GetActiveLocalPlayerCount()
-    {
-        var count = 0;
-        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
-        {
-            if (localPlayerData.IsActive)
-            {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    private static bool IsHeadlessRun()
-    {
-        if (DisplayServer.GetName() == "headless")
-        {
-            return true;
-        }
-
-        foreach (var argument in OS.GetCmdlineArgs())
-        {
-            if (argument == "--headless")
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public void UpdateSetupConfig(
@@ -217,6 +464,37 @@ public partial class Networking : Node
         }
 
         RpcUpdateSetupConfig(maxPlayers, localPlayerCount, onlineEnabled, serverAddress, serverPort, gameModeId);
+    }
+
+    public void SyncAuthoritativeSetupConfig(SetupConfig setupConfig)
+    {
+        if (setupConfig == null)
+        {
+            return;
+        }
+
+        MultiplayerData.SetupConfig.CopyFrom(setupConfig);
+        SyncCachedSetupConfig();
+
+        UpdateSetupConfig(
+            setupConfig.MaxPlayers,
+            setupConfig.LocalPlayerCount,
+            setupConfig.OnlineEnabled,
+            setupConfig.ServerAddress,
+            setupConfig.ServerPort,
+            setupConfig.GameModeId);
+
+        var serializedSetupConfig = SerializeSetupConfig(setupConfig);
+        if (HasNetworkPeer())
+        {
+            Rpc(nameof(RpcReplaceFullSetupConfig), serializedSetupConfig);
+        }
+        else
+        {
+            RpcReplaceFullSetupConfig(serializedSetupConfig);
+        }
+
+        EmitConfigApplyStateChanged();
     }
 
     public void UpdatePlayer(
@@ -296,6 +574,60 @@ public partial class Networking : Node
         RpcClearPeers();
     }
 
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestJoinServer(Godot.Collections.Array<int> localIds, Godot.Collections.Array<string> displayNames)
+    {
+        if (!IsAuthoritativeServer())
+        {
+            return;
+        }
+
+        var remotePeerId = Multiplayer.GetRemoteSenderId();
+        RegisterRemotePeerPlayers(remotePeerId, localIds, displayNames);
+        SendFullLobbyStateToPeer(remotePeerId);
+        ConnectionStatusText = $"Status: Peer {remotePeerId} joined the lobby.";
+        EmitConnectionStateChanged();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestSetLocalPeerTeam(int teamId)
+    {
+        if (!IsAuthoritativeServer())
+        {
+            return;
+        }
+
+        var remotePeerId = Multiplayer.GetRemoteSenderId();
+        SetPeerTeam(remotePeerId, teamId);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestApplyCachedSetupConfig(string serializedSetupConfig)
+    {
+        if (!IsAuthoritativeServer())
+        {
+            return;
+        }
+
+        var remotePeerId = Multiplayer.GetRemoteSenderId();
+        var requestedSetupConfig = DeserializeSetupConfig(serializedSetupConfig);
+        if (requestedSetupConfig == null)
+        {
+            return;
+        }
+
+        requestedSetupConfig.ServerAddress = MultiplayerData.SetupConfig.ServerAddress;
+        requestedSetupConfig.ServerPort = MultiplayerData.SetupConfig.ServerPort;
+        requestedSetupConfig.OnlineEnabled = MultiplayerData.SetupConfig.OnlineEnabled;
+        requestedSetupConfig.LocalPlayerCount = MultiplayerData.SetupConfig.LocalPlayerCount;
+
+        var appliedMessage = $"Config settings changed by peer {remotePeerId}.";
+        SyncAuthoritativeSetupConfig(requestedSetupConfig);
+        LastConfigApplyMessage = appliedMessage;
+        Rpc(nameof(RpcNotifyConfigApplied), appliedMessage);
+        EmitConfigApplyStateChanged();
+    }
+
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcUpdateSetupConfig(
         int maxPlayers,
@@ -311,6 +643,32 @@ public partial class Networking : Node
         MultiplayerData.SetupConfig.ServerAddress = serverAddress;
         MultiplayerData.SetupConfig.ServerPort = serverPort;
         MultiplayerData.SetupConfig.GameModeId = gameModeId;
+        SyncCachedSetupConfig();
+        EmitLobbyStateChanged();
+        EmitConfigApplyStateChanged();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcReplaceFullSetupConfig(string serializedSetupConfig)
+    {
+        var deserializedSetupConfig = DeserializeSetupConfig(serializedSetupConfig);
+        if (deserializedSetupConfig == null)
+        {
+            return;
+        }
+
+        MultiplayerData.SetupConfig.CopyFrom(deserializedSetupConfig);
+        SyncCachedSetupConfig();
+        EmitLobbyStateChanged();
+        EmitConfigApplyStateChanged();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcNotifyConfigApplied(string message)
+    {
+        LastConfigApplyMessage = message;
+        SyncCachedSetupConfig();
+        EmitConfigApplyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -326,7 +684,8 @@ public partial class Networking : Node
         var playerData = GetOrCreatePlayerData(peerId, localId);
         playerData.GlobalId = globalId;
         playerData.DisplayName = displayName;
-        playerData.IsLocalPlayer = isLocalPlayer;
+        playerData.IsLocalPlayer = HasNetworkPeer() ? peerId == Multiplayer.GetUniqueId() : isLocalPlayer;
+        EmitLobbyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -337,6 +696,7 @@ public partial class Networking : Node
         peerData.TeamId = global::MultiplayerData.NormalizeTeamId(teamId);
         peerData.RequestedLocalPlayerCount = requestedLocalPlayerCount;
         peerData.MaxLocalPlayers = maxLocalPlayers;
+        EmitLobbyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -348,9 +708,12 @@ public partial class Networking : Node
             {
                 MultiplayerData.Peers.RemoveAt(i);
                 RemovePlayersOwnedByPeer(peerId);
+                EmitLobbyStateChanged();
                 return;
             }
         }
+
+        EmitLobbyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -361,15 +724,19 @@ public partial class Networking : Node
             if (MultiplayerData.Players[i].PeerId == peerId && MultiplayerData.Players[i].LocalId == localId)
             {
                 MultiplayerData.Players.RemoveAt(i);
+                EmitLobbyStateChanged();
                 return;
             }
         }
+
+        EmitLobbyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcClearPlayers()
     {
         MultiplayerData.Players.Clear();
+        EmitLobbyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -377,6 +744,565 @@ public partial class Networking : Node
     {
         MultiplayerData.Peers.Clear();
         MultiplayerData.Players.Clear();
+        EmitLobbyStateChanged();
+    }
+
+    private void OnPeerConnected(long peerId)
+    {
+        if (!IsAuthoritativeServer())
+        {
+            return;
+        }
+
+        ConnectionStatusText = $"Status: Peer {peerId} connected. Waiting for lobby data.";
+        EmitConnectionStateChanged();
+    }
+
+    private void OnPeerDisconnected(long peerId)
+    {
+        if (!IsAuthoritativeServer())
+        {
+            return;
+        }
+
+        RemovePeer((int)peerId);
+        ConnectionStatusText = $"Status: Peer {peerId} disconnected.";
+        EmitConnectionStateChanged();
+    }
+
+    private void OnConnectedToServer()
+    {
+        ConnectionStatusText = "Status: Connected. Syncing lobby data from server.";
+        EmitConnectionStateChanged();
+        RpcId(ServerPeerId, nameof(RpcRequestJoinServer), BuildActiveLocalIdArray(), BuildActiveLocalNameArray());
+    }
+
+    private void OnConnectionFailed()
+    {
+        LastConnectionError = "Connection failed.";
+        ConnectionStatusText = "Status: Connection failed.";
+        CloseNetworkPeer();
+        EmitConnectionStateChanged();
+    }
+
+    private void OnServerDisconnected()
+    {
+        LastConnectionError = "Server disconnected.";
+        ConnectionStatusText = "Status: Disconnected from server.";
+        CloseNetworkPeer();
+        ClearMultiplayerDataLocal();
+        EmitConnectionStateChanged();
+    }
+
+    private void RegisterRemotePeerPlayers(int peerId, Godot.Collections.Array<int> localIds, Godot.Collections.Array<string> displayNames)
+    {
+        RemovePeer(peerId);
+
+        var requestedLocalPlayerCount = Math.Min(localIds.Count, displayNames.Count);
+        UpdatePeer(peerId, false, global::MultiplayerData.FreeForAllTeamId, requestedLocalPlayerCount, 4);
+
+        var globalId = MultiplayerData.Players.Count;
+        for (var i = 0; i < requestedLocalPlayerCount; i++)
+        {
+            UpdatePlayer(
+                globalId,
+                peerId,
+                localIds[i],
+                displayNames[i],
+                false);
+            globalId++;
+        }
+    }
+
+    private void SendFullLobbyStateToPeer(int targetPeerId)
+    {
+        RpcId(targetPeerId, nameof(RpcClearPeers));
+
+        var setupConfig = MultiplayerData.SetupConfig;
+        RpcId(
+            targetPeerId,
+            nameof(RpcUpdateSetupConfig),
+            setupConfig.MaxPlayers,
+            setupConfig.LocalPlayerCount,
+            setupConfig.OnlineEnabled,
+            setupConfig.ServerAddress,
+            setupConfig.ServerPort,
+            setupConfig.GameModeId);
+        RpcId(targetPeerId, nameof(RpcReplaceFullSetupConfig), SerializeSetupConfig(setupConfig));
+
+        foreach (var peerData in MultiplayerData.Peers)
+        {
+            RpcId(
+                targetPeerId,
+                nameof(RpcUpdatePeer),
+                peerData.PeerId,
+                peerData.IsHost,
+                peerData.TeamId,
+                peerData.RequestedLocalPlayerCount,
+                peerData.MaxLocalPlayers);
+        }
+
+        foreach (var playerData in MultiplayerData.Players)
+        {
+            RpcId(
+                targetPeerId,
+                nameof(RpcUpdatePlayer),
+                playerData.GlobalId,
+                playerData.PeerId,
+                playerData.LocalId,
+                playerData.DisplayName,
+                false);
+        }
+    }
+
+    private void StartDiscoveryServer()
+    {
+        StopDiscoveryServer();
+
+        _discoveryServer = new PacketPeerUdp();
+        var bindError = _discoveryServer.Bind(DiscoveryPort, "*");
+        if (bindError != Error.Ok)
+        {
+            _discoveryServer.Dispose();
+            _discoveryServer = null;
+        }
+    }
+
+    private void StopDiscoveryServer()
+    {
+        if (_discoveryServer == null)
+        {
+            return;
+        }
+
+        _discoveryServer.Close();
+        _discoveryServer.Dispose();
+        _discoveryServer = null;
+    }
+
+    private void PollDiscoveryRequests()
+    {
+        if (_discoveryServer == null || !IsServer || !HasNetworkPeer())
+        {
+            return;
+        }
+
+        while (_discoveryServer.GetAvailablePacketCount() > 0)
+        {
+            var packet = _discoveryServer.GetPacket();
+            var message = Encoding.UTF8.GetString(packet);
+            if (message != DiscoveryRequestMessage)
+            {
+                continue;
+            }
+
+            var senderAddress = _discoveryServer.GetPacketIP();
+            var senderPort = _discoveryServer.GetPacketPort();
+            if (string.IsNullOrWhiteSpace(senderAddress) || senderPort <= 0)
+            {
+                continue;
+            }
+
+            _discoveryServer.SetDestAddress(senderAddress, senderPort);
+            _discoveryServer.PutPacket(Encoding.UTF8.GetBytes(BuildDiscoveryResponse()));
+        }
+    }
+
+    private void PollDiscoveryResponses(PacketPeerUdp discoveryClient)
+    {
+        while (discoveryClient.GetAvailablePacketCount() > 0)
+        {
+            var packet = discoveryClient.GetPacket();
+            var message = Encoding.UTF8.GetString(packet);
+            if (!TryParseDiscoveryResponse(message, out var listing))
+            {
+                continue;
+            }
+
+            AddOrReplaceLocalListing(listing);
+        }
+    }
+
+    private void AddOrReplaceLocalListing(ServerListing listing)
+    {
+        for (var i = 0; i < _localServerListings.Count; i++)
+        {
+            if (_localServerListings[i].ListingId == listing.ListingId)
+            {
+                _localServerListings[i] = listing;
+                EmitLobbyStateChanged();
+                return;
+            }
+        }
+
+        _localServerListings.Add(listing);
+        EmitLobbyStateChanged();
+    }
+
+    private string BuildDiscoveryResponse()
+    {
+        return string.Join(
+            "\t",
+            DiscoveryResponsePrefix,
+            System.Environment.MachineName,
+            GetAdvertisedServerAddress(),
+            GetConfiguredServerPort().ToString(),
+            MultiplayerData.Players.Count.ToString(),
+            MultiplayerData.SetupConfig.MaxPlayers.ToString(),
+            CurrentMode == NetworkMode.ServerOnline ? "1" : "0",
+            MultiplayerData.SetupConfig.GameModeId);
+    }
+
+    private static bool TryParseDiscoveryResponse(string message, out ServerListing listing)
+    {
+        listing = null;
+        var parts = message.Split('\t');
+        if (parts.Length < 8 || parts[0] != DiscoveryResponsePrefix)
+        {
+            return false;
+        }
+
+        if (!int.TryParse(parts[3], out var port)
+            || !int.TryParse(parts[4], out var playerCount)
+            || !int.TryParse(parts[5], out var maxPlayers))
+        {
+            return false;
+        }
+
+        listing = new ServerListing
+        {
+            ListingId = $"{parts[2]}:{port}",
+            DisplayName = parts[1],
+            Address = parts[2],
+            Port = port,
+            PlayerCount = playerCount,
+            MaxPlayers = maxPlayers,
+            IsOnline = parts[6] == "1",
+            GameModeId = parts[7],
+        };
+        return true;
+    }
+
+    private static ServerListing CloneServerListing(ServerListing listing)
+    {
+        return new ServerListing
+        {
+            ListingId = listing.ListingId,
+            DisplayName = listing.DisplayName,
+            Address = listing.Address,
+            Port = listing.Port,
+            IsOnline = listing.IsOnline,
+            PlayerCount = listing.PlayerCount,
+            MaxPlayers = listing.MaxPlayers,
+            GameModeId = listing.GameModeId,
+        };
+    }
+
+    private Godot.Collections.Array<int> BuildActiveLocalIdArray()
+    {
+        var localIds = new Godot.Collections.Array<int>();
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
+        {
+            if (localPlayerData.IsActive)
+            {
+                localIds.Add(localPlayerData.LocalId);
+            }
+        }
+
+        return localIds;
+    }
+
+    private Godot.Collections.Array<string> BuildActiveLocalNameArray()
+    {
+        var displayNames = new Godot.Collections.Array<string>();
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
+        {
+            if (localPlayerData.IsActive)
+            {
+                displayNames.Add(localPlayerData.DisplayName);
+            }
+        }
+
+        return displayNames;
+    }
+
+    private void ClearMultiplayerDataLocal()
+    {
+        MultiplayerData.SetupConfig = new SetupConfig();
+        MultiplayerData.Peers.Clear();
+        MultiplayerData.Players.Clear();
+        SyncCachedSetupConfig();
+        EmitLobbyStateChanged();
+    }
+
+    private void SyncCachedSetupConfig()
+    {
+        CachedSetupConfig = MultiplayerData.SetupConfig?.Clone() ?? new SetupConfig();
+    }
+
+    private static void EnsureDefaultGameMode(SetupConfig setupConfig)
+    {
+        if (setupConfig == null || setupConfig.GameModes.Count > 0)
+        {
+            return;
+        }
+
+        setupConfig.AddGameMode(new GameModeConfig
+        {
+            ModeType = GameModeConfig.GameModeType.FreeForAll,
+            DisplayName = "Free For All",
+            IsEnabled = true,
+        });
+    }
+
+    private static bool AreSetupConfigsEquivalent(SetupConfig left, SetupConfig right)
+    {
+        if (left == null || right == null)
+        {
+            return left == right;
+        }
+
+        return SerializeSetupConfig(left) == SerializeSetupConfig(right);
+    }
+
+    private static string SerializeSetupConfig(SetupConfig setupConfig)
+    {
+        if (setupConfig == null)
+        {
+            return string.Empty;
+        }
+
+        var mapTypes = new List<string>();
+        foreach (var mapType in setupConfig.MapConfig.EnabledMapTypes)
+        {
+            mapTypes.Add(((int)mapType).ToString());
+        }
+
+        var biomes = new List<string>();
+        foreach (var biome in setupConfig.BiomeConfig.EnabledBiomes)
+        {
+            biomes.Add(((int)biome).ToString());
+        }
+
+        var gameModes = new List<string>();
+        foreach (var gameMode in setupConfig.GameModes)
+        {
+            if (gameMode == null)
+            {
+                continue;
+            }
+
+            gameModes.Add($"{(int)gameMode.ModeType},{EscapeConfigValue(gameMode.DisplayName)},{(gameMode.IsEnabled ? 1 : 0)}");
+        }
+
+        return string.Join(
+            "|",
+            setupConfig.MaxPlayers,
+            setupConfig.LocalPlayerCount,
+            setupConfig.OnlineEnabled ? 1 : 0,
+            setupConfig.ForceFreeForAllTeams ? 1 : 0,
+            EscapeConfigValue(setupConfig.ServerAddress),
+            setupConfig.ServerPort,
+            EscapeConfigValue(setupConfig.GameModeId),
+            (int)setupConfig.MapConfig.SelectedSeedMode,
+            setupConfig.MapConfig.FixedSeed,
+            string.Join(",", mapTypes),
+            string.Join(",", biomes),
+            string.Join(";", gameModes));
+    }
+
+    private static SetupConfig DeserializeSetupConfig(string serializedSetupConfig)
+    {
+        if (string.IsNullOrWhiteSpace(serializedSetupConfig))
+        {
+            return null;
+        }
+
+        var parts = serializedSetupConfig.Split('|');
+        if (parts.Length < 12)
+        {
+            return null;
+        }
+
+        if (!int.TryParse(parts[0], out var maxPlayers)
+            || !int.TryParse(parts[1], out var localPlayerCount)
+            || !int.TryParse(parts[2], out var onlineEnabled)
+            || !int.TryParse(parts[3], out var forceFreeForAllTeams)
+            || !int.TryParse(parts[5], out var serverPort)
+            || !int.TryParse(parts[7], out var seedMode)
+            || !int.TryParse(parts[8], out var fixedSeed))
+        {
+            return null;
+        }
+
+        var setupConfig = new SetupConfig
+        {
+            MaxPlayers = maxPlayers,
+            LocalPlayerCount = localPlayerCount,
+            OnlineEnabled = onlineEnabled == 1,
+            ForceFreeForAllTeams = forceFreeForAllTeams == 1,
+            ServerAddress = UnescapeConfigValue(parts[4]),
+            ServerPort = serverPort,
+            GameModeId = UnescapeConfigValue(parts[6]),
+            MapConfig = new MapGenerationConfig
+            {
+                SelectedSeedMode = (MapGenerationConfig.SeedMode)seedMode,
+                FixedSeed = fixedSeed,
+            },
+            BiomeConfig = new BiomeConfig(),
+        };
+
+        if (!string.IsNullOrWhiteSpace(parts[9]))
+        {
+            foreach (var mapType in parts[9].Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (int.TryParse(mapType, out var mapTypeValue))
+                {
+                    setupConfig.MapConfig.EnabledMapTypes.Add((MapGenerationConfig.MapType)mapTypeValue);
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(parts[10]))
+        {
+            foreach (var biome in parts[10].Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (int.TryParse(biome, out var biomeValue))
+                {
+                    setupConfig.BiomeConfig.EnabledBiomes.Add((BiomeConfig.BiomeType)biomeValue);
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(parts[11]))
+        {
+            foreach (var gameModeEntry in parts[11].Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var gameModeParts = gameModeEntry.Split(',');
+                if (gameModeParts.Length != 3
+                    || !int.TryParse(gameModeParts[0], out var modeType)
+                    || !int.TryParse(gameModeParts[2], out var isEnabled))
+                {
+                    continue;
+                }
+
+                setupConfig.GameModes.Add(new GameModeConfig
+                {
+                    ModeType = (GameModeConfig.GameModeType)modeType,
+                    DisplayName = UnescapeConfigValue(gameModeParts[1]),
+                    IsEnabled = isEnabled == 1,
+                });
+            }
+        }
+
+        return setupConfig;
+    }
+
+    private static string EscapeConfigValue(string value)
+    {
+        return string.IsNullOrEmpty(value) ? string.Empty : value.Replace("%", "%25").Replace("|", "%7C").Replace(",", "%2C").Replace(";", "%3B");
+    }
+
+    private static string UnescapeConfigValue(string value)
+    {
+        return string.IsNullOrEmpty(value) ? string.Empty : value.Replace("%3B", ";").Replace("%2C", ",").Replace("%7C", "|").Replace("%25", "%");
+    }
+
+    private void CloseNetworkPeer()
+    {
+        if (!HasNetworkPeer())
+        {
+            return;
+        }
+
+        switch (Multiplayer.MultiplayerPeer)
+        {
+            case ENetMultiplayerPeer enetPeer:
+                enetPeer.Close();
+                break;
+            case WebSocketMultiplayerPeer webSocketPeer:
+                webSocketPeer.Close();
+                break;
+        }
+
+        Multiplayer.MultiplayerPeer = null;
+    }
+
+    private bool IsAuthoritativeServer()
+    {
+        return IsServer && HasNetworkPeer() && Multiplayer.GetUniqueId() == ServerPeerId;
+    }
+
+    private int GetRegisteredLocalPeerId()
+    {
+        foreach (var playerData in MultiplayerData.Players)
+        {
+            if (playerData.IsLocalPlayer)
+            {
+                return playerData.PeerId;
+            }
+        }
+
+        return GetLocalPeerId();
+    }
+
+    private int GetLocalPeerId()
+    {
+        if (CurrentMode is NetworkMode.LocalOnly or NetworkMode.ServerLocal or NetworkMode.ServerOnline)
+        {
+            return ServerPeerId;
+        }
+
+        if (HasNetworkPeer())
+        {
+            return Multiplayer.GetUniqueId();
+        }
+
+        return -1;
+    }
+
+    private int GetActiveLocalPlayerCount()
+    {
+        var count = 0;
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
+        {
+            if (localPlayerData.IsActive)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private int GetConfiguredServerPort()
+    {
+        return MultiplayerData.SetupConfig.ServerPort <= 0 ? DefaultServerPort : MultiplayerData.SetupConfig.ServerPort;
+    }
+
+    private string GetAdvertisedServerAddress()
+    {
+        return string.IsNullOrWhiteSpace(MultiplayerData.SetupConfig.ServerAddress)
+            ? "127.0.0.1"
+            : MultiplayerData.SetupConfig.ServerAddress;
+    }
+
+    private static bool IsHeadlessRun()
+    {
+        if (DisplayServer.GetName() == "headless")
+        {
+            return true;
+        }
+
+        foreach (var argument in OS.GetCmdlineArgs())
+        {
+            if (argument == "--headless")
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private PeerData GetOrCreatePeerData(int peerId)
@@ -432,5 +1358,20 @@ public partial class Networking : Node
     private bool HasNetworkPeer()
     {
         return Multiplayer.MultiplayerPeer != null;
+    }
+
+    private void EmitLobbyStateChanged()
+    {
+        EmitSignal(SignalName.LobbyStateChanged);
+    }
+
+    private void EmitConnectionStateChanged()
+    {
+        EmitSignal(SignalName.ConnectionStateChanged);
+    }
+
+    private void EmitConfigApplyStateChanged()
+    {
+        EmitSignal(SignalName.ConfigApplyStateChanged);
     }
 }

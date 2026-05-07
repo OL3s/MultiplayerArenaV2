@@ -18,4 +18,14 @@ public partial class GameModeConfig : Resource
 
     [Export]
     public bool IsEnabled { get; set; } = true;
+
+    public GameModeConfig Clone()
+    {
+        return new GameModeConfig
+        {
+            ModeType = ModeType,
+            DisplayName = DisplayName,
+            IsEnabled = IsEnabled,
+        };
+    }
 }
