@@ -2,6 +2,8 @@ using Godot;
 
 public partial class Networking : Node
 {
+    private const int ServerPeerId = 1;
+
     public enum NetworkMode
     {
         NotSelected,
@@ -16,6 +18,9 @@ public partial class Networking : Node
 
     [Export]
     public MultiplayerData MultiplayerData { get; private set; } = new();
+
+    [Export]
+    public LocalLobbyData LocalLobbyData { get; private set; } = new();
 
     public override void _Ready()
     {
@@ -67,6 +72,111 @@ public partial class Networking : Node
         CurrentMode = NetworkMode.NotSelected;
     }
 
+    public void RegisterLocalLobbyPlayers()
+    {
+        if (IsDedicatedServer)
+        {
+            return;
+        }
+
+        var peerId = GetLocalPeerId();
+        if (peerId == -1)
+        {
+            return;
+        }
+
+        var activeLocalPlayerCount = GetActiveLocalPlayerCount();
+        MultiplayerData.Peers.Clear();
+        MultiplayerData.Players.Clear();
+        MultiplayerData.SetupConfig.ForceFreeForAllTeams = CurrentMode == NetworkMode.LocalOnly;
+
+        UpdatePeer(peerId, IsServer, global::MultiplayerData.FreeForAllTeamId, activeLocalPlayerCount, 4);
+
+        var globalId = 0;
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
+        {
+            if (!localPlayerData.IsActive)
+            {
+                continue;
+            }
+
+            UpdatePlayer(
+                globalId,
+                peerId,
+                localPlayerData.LocalId,
+                localPlayerData.DisplayName,
+                true);
+            globalId++;
+        }
+    }
+
+    public void SetLocalPeerTeam(int teamId)
+    {
+        var peerId = GetRegisteredLocalPeerId();
+        if (peerId == -1)
+        {
+            return;
+        }
+
+        SetPeerTeam(peerId, teamId);
+    }
+
+    public void SetPeerTeam(int peerId, int teamId)
+    {
+        var normalizedTeamId = global::MultiplayerData.NormalizeTeamId(teamId);
+        MultiplayerData.SetupConfig.ForceFreeForAllTeams = normalizedTeamId == global::MultiplayerData.FreeForAllTeamId;
+
+        var peerData = GetOrCreatePeerData(peerId);
+        UpdatePeer(
+            peerId,
+            peerData.IsHost,
+            normalizedTeamId,
+            peerData.RequestedLocalPlayerCount,
+            peerData.MaxLocalPlayers);
+    }
+
+    private int GetRegisteredLocalPeerId()
+    {
+        foreach (var playerData in MultiplayerData.Players)
+        {
+            if (playerData.IsLocalPlayer)
+            {
+                return playerData.PeerId;
+            }
+        }
+
+        return GetLocalPeerId();
+    }
+
+    private int GetLocalPeerId()
+    {
+        if (CurrentMode is NetworkMode.LocalOnly or NetworkMode.ServerLocal or NetworkMode.ServerOnline)
+        {
+            return ServerPeerId;
+        }
+
+        if (HasNetworkPeer())
+        {
+            return Multiplayer.GetUniqueId();
+        }
+
+        return -1;
+    }
+
+    private int GetActiveLocalPlayerCount()
+    {
+        var count = 0;
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
+        {
+            if (localPlayerData.IsActive)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     private static bool IsHeadlessRun()
     {
         if (DisplayServer.GetName() == "headless")
@@ -114,7 +224,6 @@ public partial class Networking : Node
         int peerId,
         int localId,
         string displayName,
-        int teamId,
         bool isLocalPlayer)
     {
         if (HasNetworkPeer())
@@ -125,12 +234,11 @@ public partial class Networking : Node
                 peerId,
                 localId,
                 displayName,
-                teamId,
                 isLocalPlayer);
             return;
         }
 
-        RpcUpdatePlayer(globalId, peerId, localId, displayName, teamId, isLocalPlayer);
+        RpcUpdatePlayer(globalId, peerId, localId, displayName, isLocalPlayer);
     }
 
     public void UpdatePeer(int peerId, bool isHost, int teamId, int requestedLocalPlayerCount, int maxLocalPlayers)
@@ -211,7 +319,6 @@ public partial class Networking : Node
         int peerId,
         int localId,
         string displayName,
-        int teamId,
         bool isLocalPlayer)
     {
         GetOrCreatePeerData(peerId);
@@ -219,7 +326,6 @@ public partial class Networking : Node
         var playerData = GetOrCreatePlayerData(peerId, localId);
         playerData.GlobalId = globalId;
         playerData.DisplayName = displayName;
-        playerData.TeamId = global::MultiplayerData.NormalizeTeamId(teamId);
         playerData.IsLocalPlayer = isLocalPlayer;
     }
 
@@ -231,7 +337,6 @@ public partial class Networking : Node
         peerData.TeamId = global::MultiplayerData.NormalizeTeamId(teamId);
         peerData.RequestedLocalPlayerCount = requestedLocalPlayerCount;
         peerData.MaxLocalPlayers = maxLocalPlayers;
-        ApplyPeerTeamToPlayers(peerId, peerData.TeamId);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -320,22 +425,6 @@ public partial class Networking : Node
             if (MultiplayerData.Players[i].PeerId == peerId)
             {
                 MultiplayerData.Players.RemoveAt(i);
-            }
-        }
-    }
-
-    private void ApplyPeerTeamToPlayers(int peerId, int teamId)
-    {
-        if (MultiplayerData.SetupConfig.OnlineEnabled)
-        {
-            return;
-        }
-
-        foreach (var playerData in MultiplayerData.Players)
-        {
-            if (playerData.PeerId == peerId)
-            {
-                playerData.TeamId = teamId;
             }
         }
     }

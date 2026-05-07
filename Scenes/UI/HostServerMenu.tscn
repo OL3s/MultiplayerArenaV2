@@ -47,7 +47,7 @@ custom_minimum_size = Vector2(520, 96)
 theme_override_font_sizes/font_size = 24
 icon = SubResource("PlaceholderTexture2D_button_icon")
 icon_max_width = 36
-text = "Host Local"
+text = "Host LAN"
 
 [node name="SecondaryActions" type="HBoxContainer" parent="MainLayout"]
 layout_mode = 2

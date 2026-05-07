@@ -15,9 +15,5 @@ public partial class PlayerData : Resource
     [Export]
     public string DisplayName { get; set; } = "Player";
 
-    [Export]
-    public int TeamId { get; set; } = MultiplayerData.FreeForAllTeamId;
-
-    [Export]
     public bool IsLocalPlayer { get; set; }
 }

@@ -21,9 +21,9 @@ public partial class MultiplayerData : Resource
             return FreeForAllTeamId;
         }
 
-        if (SetupConfig.OnlineEnabled)
+        if (SetupConfig.ForceFreeForAllTeams)
         {
-            return NormalizeTeamId(playerData.TeamId);
+            return FreeForAllTeamId;
         }
 
         var peerData = GetPeer(playerData.PeerId);

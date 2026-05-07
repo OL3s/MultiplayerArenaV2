@@ -2,6 +2,7 @@ using Godot;
 
 public partial class HostServerMenu : Control
 {
+    private const string MatchLobbyScenePath = "res://Scenes/UI/MatchLobby.tscn";
     private const string MainMenuScenePath = "res://Scenes/UI/MainMenu.tscn";
 
     public override void _Ready()
@@ -15,21 +16,30 @@ public partial class HostServerMenu : Control
     private void OnLocalOnlyPressed()
     {
         GetNetworking().SetLocalOnly();
+        OpenMatchLobby();
     }
 
     private void OnServerLocalPressed()
     {
         GetNetworking().SetServerLocal();
+        OpenMatchLobby();
     }
 
     private void OnServerOnlinePressed()
     {
         GetNetworking().SetServerOnline();
+        OpenMatchLobby();
     }
 
     private void OnBackPressed()
     {
         GetTree().ChangeSceneToFile(MainMenuScenePath);
+    }
+
+    private void OpenMatchLobby()
+    {
+        GetNetworking().RegisterLocalLobbyPlayers();
+        GetTree().ChangeSceneToFile(MatchLobbyScenePath);
     }
 
     private Networking GetNetworking()

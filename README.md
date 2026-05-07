@@ -76,7 +76,7 @@ On PC, supported local lobby setups should include:
 - 1 keyboard/mouse player and up to 3 gamepad players
 - Up to 4 gamepad players
 
-Local lobby slots should be stored as `LocalPlayerData` resources inside `LocalLobbyData`. This keeps local input ownership separate from online player replication and makes it possible for one peer/device to request several in-game players.
+Local lobby slots should be stored as `LocalPlayerData` resources inside `LocalLobbyData`. This keeps local input ownership separate from online player replication and makes it possible for one peer/device to request several in-game players. The active local lobby is owned by the `Networking` autoload so selected local players survive scene changes from the main menu into host/join menus and the match lobby.
 
 `LocalId` is the local player number on one device. It represents which player this is locally, usually matching the local lobby slot: `0`, `1`, `2`, or `3`. `PeerId` is the network peer/device that owns or represents that local player. Together, `PeerId + LocalId` identify player ownership.
 
@@ -154,7 +154,13 @@ Important identity rule: `PlayerData` is looked up by `(PeerId, LocalId)`, not b
 
 Team id `0` means free-for-all/no-team. Team ids `1` and above are real team ids. `-1` should stay reserved for unset/invalid ids and should be normalized to `0` before gameplay uses it.
 
-Team resolution depends on match type. In local-only games, `PeerData.TeamId` is used so split-screen players owned by the same peer move teams as a group. In online games, `PlayerData.TeamId` is used so the server can assign or change accepted player teams directly. Gameplay code should call `MultiplayerData.GetTeam(...)` instead of reading `TeamId` fields directly.
+Team resolution is peer-based for the current lobby model. `PeerData.TeamId` is the authoritative team for that peer/device, so split-screen players owned by the same peer move teams as a group. Gameplay code should call `MultiplayerData.GetTeam(...)` instead of reading team fields directly. `SetupConfig.ForceFreeForAllTeams` can force all players to resolve as FFA when the mode should ignore teams.
+
+The match lobby should show a small top-left setup summary, a centered players section, and a right-side config section. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped under clickable team headers like `[FFA]`, `[Team 1]`, and `[Team 2]`. Clicking a team header moves all players owned by the local peer to that team.
+
+Match setup should be resource-driven. `SetupConfig` owns the selected/available game modes, map generation settings, biome settings, player limits, address/port, and team behavior. Game modes are represented as `GameModeConfig` resources in an array so multiple modes can be enabled for voting, rotation, quickmatch filtering, or future playlist logic. Map and biome setup are separate resources so procedural generation can grow without turning `SetupConfig` into a large flat object. The match lobby config UI should edit these resources directly through grouped sections for internet settings, map/biome settings, and game settings.
+
+Overlay UI should be managed through a reusable `SceneOverlay` scene, and it is not an autoload in this project. Instead, game code should call `SceneOverlay.GetOrCreate(context)` so the overlay layer is created inside the current room/current scene only when needed. `SceneOverlay` can add overlays from a `Control` instance or `PackedScene`, close the top overlay, close all overlays, and optionally enable a blur backdrop for any overlay, not just popup panels.
 
 The `Networking` autoload should expose simple RPC update methods for shared multiplayer state. These methods should use basic arguments instead of sending complex objects directly, which keeps the netcode easier to reason about and compatible with Godot's RPC system.
 
@@ -162,7 +168,7 @@ Initial update targets:
 
 - `UpdateSetupConfig(...)`: syncs match setup like max players, local player count, online enabled, address, port, and game mode.
 - `UpdatePeer(...)`: adds or updates one connected peer/device using primitive values for peer id, host state, team id, requested local player count, and max local players.
-- `UpdatePlayer(...)`: adds or updates one accepted player using primitive values for global id, peer id, local id, name, team id, and local-player status.
+- `UpdatePlayer(...)`: adds or updates one accepted player using primitive values for global id, peer id, local id, name, and local-player status.
 - `RemovePeer(...)`: removes one connected peer/device and its players.
 - `RemovePlayer(...)`: removes one player from a specific peer.
 - `ClearPlayers()`: clears the accepted match player list.
@@ -200,8 +206,78 @@ public partial class PlayerData : Resource
     public int LocalId { get; set; }
     public int PeerId { get; set; }
     public string DisplayName { get; set; }
-    public int TeamId { get; set; }
     public bool IsLocalPlayer { get; set; }
+}
+
+public partial class SetupConfig : Resource
+{
+    public int MaxPlayers { get; set; }
+    public int LocalPlayerCount { get; set; }
+    public bool OnlineEnabled { get; set; }
+    public bool ForceFreeForAllTeams { get; set; }
+    public string ServerAddress { get; set; }
+    public int ServerPort { get; set; }
+    public string GameModeId { get; set; }
+    public Godot.Collections.Array<GameModeConfig> GameModes { get; set; } = new();
+    public MapGenerationConfig MapConfig { get; set; } = new();
+    public BiomeConfig BiomeConfig { get; set; } = new();
+
+    public void AddGameMode(GameModeConfig gameModeConfig) { ... }
+    public void RemoveGameMode(GameModeConfig.GameModeType modeType) { ... }
+    public bool HasGameMode(GameModeConfig.GameModeType modeType) { ... }
+}
+
+public partial class GameModeConfig : Resource
+{
+    public enum GameModeType
+    {
+        FreeForAll,
+        TeamDeathmatch,
+        Objective,
+    }
+
+    public GameModeType ModeType { get; set; }
+    public string DisplayName { get; set; }
+    public bool IsEnabled { get; set; }
+}
+
+public partial class MapGenerationConfig : Resource
+{
+    public enum MapType
+    {
+        Arena,
+        Rooms,
+        Caves,
+        Islands,
+    }
+
+    public enum SeedMode
+    {
+        AlwaysRandom,
+        FixedSeed,
+        SeedPool,
+    }
+
+    public MapType SelectedMapType { get; set; }
+    public SeedMode SelectedSeedMode { get; set; }
+    public int FixedSeed { get; set; }
+    public Godot.Collections.Array<int> SeedPool { get; set; } = new();
+}
+
+public partial class BiomeConfig : Resource
+{
+    public enum BiomeType
+    {
+        Arena,
+        Forest,
+        Desert,
+        Snow,
+        Industrial,
+    }
+
+    public BiomeType SelectedBiome { get; set; }
+    public bool AllowRandomBiome { get; set; }
+    public Godot.Collections.Array<BiomeType> EnabledBiomes { get; set; } = new();
 }
 
 public partial class LocalLobbyData : Resource

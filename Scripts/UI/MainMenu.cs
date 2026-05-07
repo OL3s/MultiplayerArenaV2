@@ -6,8 +6,7 @@ public partial class MainMenu : Control
     private const string HostServerMenuScenePath = "res://Scenes/UI/HostServerMenu.tscn";
     private const string JoinGameMenuScenePath = "res://Scenes/UI/JoinGameMenu.tscn";
 
-    [Export]
-    public LocalLobbyData LocalLobbyData { get; private set; } = new();
+    private LocalLobbyData LocalLobbyData => GetNetworking().LocalLobbyData;
 
     public override void _Ready()
     {
@@ -16,7 +15,7 @@ public partial class MainMenu : Control
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Pressed += OnJoinGamePressed;
         EnsureDefaultLocalLobby();
         RefreshLocalLobbySlots();
-        RefreshActionButtons();
+        RefreshActionButtonsVisibility();
     }
 
     public override void _Input(InputEvent inputEvent)
@@ -51,7 +50,7 @@ public partial class MainMenu : Control
         localPlayer.InputType = LocalPlayerData.LocalInputType.None;
         localPlayer.DeviceId = -1;
         RefreshLocalLobbySlots();
-        RefreshActionButtons();
+        RefreshActionButtonsVisibility();
     }
 
     private void ConfigureLocalPlayer(int slotIndex, LocalPlayerData.LocalInputType inputType, int deviceId)
@@ -62,7 +61,7 @@ public partial class MainMenu : Control
         localPlayer.DeviceId = deviceId;
         localPlayer.DisplayName = $"Player {slotIndex + 1}";
         RefreshLocalLobbySlots();
-        RefreshActionButtons();
+        RefreshActionButtonsVisibility();
     }
 
     private void EnsureDefaultLocalLobby()
@@ -219,6 +218,11 @@ public partial class MainMenu : Control
 
     private void OnHostGamePressed()
     {
+        if (!HasActiveLocalPlayer())
+        {
+            return;
+        }
+
         GetTree().ChangeSceneToFile(HostServerMenuScenePath);
     }
 
@@ -232,11 +236,13 @@ public partial class MainMenu : Control
         GetTree().ChangeSceneToFile(JoinGameMenuScenePath);
     }
 
-    private void RefreshActionButtons()
+    private void RefreshActionButtonsVisibility()
     {
+        var hasActiveLocalPlayer = HasActiveLocalPlayer();
+        GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Visible = hasActiveLocalPlayer;
+
         var joinGameButton = GetNode<Button>("MainLayout/ActionButtons/JoinGameButton");
-        joinGameButton.Disabled = !HasActiveLocalPlayer();
-        joinGameButton.Modulate = joinGameButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
+        joinGameButton.Visible = hasActiveLocalPlayer;
     }
 
     private bool HasActiveLocalPlayer()
@@ -250,6 +256,11 @@ public partial class MainMenu : Control
         }
 
         return false;
+    }
+
+    private Networking GetNetworking()
+    {
+        return GetNode<Networking>("/root/Networking");
     }
 
 }

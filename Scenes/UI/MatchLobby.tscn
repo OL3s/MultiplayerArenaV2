@@ -1,0 +1,195 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/UI/MatchLobby.cs" id="1_matchlobby"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_button_icon"]
+size = Vector2(32, 32)
+
+[node name="MatchLobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_matchlobby")
+
+[node name="SummaryPanel" type="PanelContainer" parent="."]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 300.0
+offset_bottom = 150.0
+
+[node name="SummaryLabel" type="Label" parent="SummaryPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Type: Not selected\nPeers connected: 0"
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -560.0
+offset_top = -330.0
+offset_right = 560.0
+offset_bottom = 330.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 44
+text = "Match Lobby"
+horizontal_alignment = 1
+
+[node name="StatusLabel" type="Label" parent="MainLayout"]
+layout_mode = 2
+text = "Status: Waiting."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="LobbyBody" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="PlayersPanel" type="PanelContainer" parent="MainLayout/LobbyBody"]
+layout_mode = 2
+custom_minimum_size = Vector2(650, 430)
+size_flags_horizontal = 3
+
+[node name="PlayersLayout" type="VBoxContainer" parent="MainLayout/LobbyBody/PlayersPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PlayersTitleLabel" type="Label" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Players"
+horizontal_alignment = 1
+
+[node name="TeamSections" type="VBoxContainer" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="ConfigPanel" type="PanelContainer" parent="MainLayout/LobbyBody"]
+layout_mode = 2
+custom_minimum_size = Vector2(360, 430)
+
+[node name="ConfigLayout" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Match Config"
+horizontal_alignment = 1
+
+[node name="InternetSection" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="InternetLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/InternetSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Connection"
+
+[node name="ConnectionInfoLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/InternetSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Online: no\nAddress: 127.0.0.1\nPort: 7777"
+autowrap_mode = 3
+
+[node name="MapSection" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="MapLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Map"
+
+[node name="BiomeRow" type="HBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BiomeLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/BiomeRow"]
+layout_mode = 2
+text = "Biome"
+
+[node name="BiomeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/BiomeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Random"
+
+[node name="MapTypeRow" type="HBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MapTypeLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow"]
+layout_mode = 2
+text = "Type"
+
+[node name="MapTypeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Random"
+
+[node name="SeedRow" type="HBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SeedLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow"]
+layout_mode = 2
+text = "Seed"
+
+[node name="SeedSpinBox" type="SpinBox" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -2147483648.0
+max_value = 2147483647.0
+
+[node name="RandomSeedCheckBox" type="CheckBox" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow"]
+layout_mode = 2
+text = "Random"
+
+[node name="GameSection" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="GameLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Game"
+
+[node name="GameModeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection"]
+layout_mode = 2
+text = "Free For All"
+
+[node name="Actions" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="StartButton" type="Button" parent="MainLayout/Actions"]
+layout_mode = 2
+custom_minimum_size = Vector2(220, 58)
+icon = SubResource("PlaceholderTexture2D_button_icon")
+icon_max_width = 24
+text = "Start Match"
+
+[node name="BackButton" type="Button" parent="MainLayout/Actions"]
+layout_mode = 2
+custom_minimum_size = Vector2(160, 58)
+text = "Back"
