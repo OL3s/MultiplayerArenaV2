@@ -17,12 +17,14 @@ public partial class TestMapDestructionLogic : Node2D
 
     private ArenaMapData _arenaMapData;
     private ArenaTileLayerRenderer _tileLayerRenderer;
+    private DebugExplosionRadiusDrawer _debugRadiusDrawer;
     private Camera2D _camera;
 
     public override void _Ready()
     {
         _tileLayerRenderer = GetNode<ArenaTileLayerRenderer>("ArenaTileLayerRenderer");
         _camera = GetNode<Camera2D>("Camera2D");
+        _debugRadiusDrawer = CreateDebugRadiusDrawer();
 
         BuildMockArena();
         CenterCamera();
@@ -30,14 +32,7 @@ public partial class TestMapDestructionLogic : Node2D
 
     public override void _Process(double delta)
     {
-        QueueRedraw();
-    }
-
-    public override void _Draw()
-    {
-        var localMousePosition = GetLocalMousePosition();
-        DrawArc(localMousePosition, TestExplosiveRadius, 0.0f, Mathf.Tau, 48, DebugExplosiveRadiusColor, 2.0f);
-        DrawCircle(localMousePosition, 3.0f, DebugExplosiveRadiusColor);
+        _debugRadiusDrawer.QueueRedraw();
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -128,6 +123,20 @@ public partial class TestMapDestructionLogic : Node2D
         {
             _arenaMapData.DamageWallTile(position, damageAmount);
         }
+    }
+
+    private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer()
+    {
+        var debugRadiusDrawer = new DebugExplosionRadiusDrawer
+        {
+            Name = "DebugExplosionRadiusDrawer",
+            Radius = TestExplosiveRadius,
+            DrawColor = DebugExplosiveRadiusColor,
+            ZIndex = 10,
+        };
+
+        AddChild(debugRadiusDrawer);
+        return debugRadiusDrawer;
     }
 
     private void CenterCamera()
