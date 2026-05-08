@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>D-pad right icon</title>
+  <circle cx="64" cy="64" r="52" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <path d="M104 64 L70 88 V72 H24 V56 H70 V40 Z" fill="#E8EDF2"/>
+</svg>

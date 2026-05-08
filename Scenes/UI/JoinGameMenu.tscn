@@ -1,9 +1,10 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/JoinGameMenu.cs" id="1_joingame"]
-
-[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_button_icon"]
-size = Vector2(32, 32)
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_not_selected.svg" id="2_network_any"]
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_lan.svg" id="3_network_lan"]
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_online.svg" id="4_network_online"]
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_client.svg" id="5_network_client"]
 
 [node name="JoinGameMenu" type="Control"]
 layout_mode = 3
@@ -45,7 +46,7 @@ alignment = 1
 layout_mode = 2
 custom_minimum_size = Vector2(540, 96)
 theme_override_font_sizes/font_size = 24
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("2_network_any")
 icon_max_width = 36
 text = "Quickmatch"
 
@@ -57,14 +58,14 @@ alignment = 1
 [node name="BrowseLocalButton" type="Button" parent="MainLayout/SecondaryActions"]
 layout_mode = 2
 custom_minimum_size = Vector2(220, 58)
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("3_network_lan")
 icon_max_width = 24
 text = "Browse Local"
 
 [node name="BrowseServersButton" type="Button" parent="MainLayout/SecondaryActions"]
 layout_mode = 2
 custom_minimum_size = Vector2(220, 58)
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("4_network_online")
 icon_max_width = 24
 text = "Browse Servers"
 
@@ -81,7 +82,7 @@ placeholder_text = "Custom IP / address, e.g. 127.0.0.1:7777"
 [node name="JoinAddressButton" type="Button" parent="MainLayout/JoinByAddress"]
 layout_mode = 2
 custom_minimum_size = Vector2(150, 54)
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("5_network_client")
 icon_max_width = 22
 text = "Join IP"
 

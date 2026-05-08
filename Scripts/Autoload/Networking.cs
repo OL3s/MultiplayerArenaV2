@@ -12,12 +12,12 @@ public partial class Networking : Node {
     private const int MaxClients = 8;
     private const string DiscoveryRequestMessage = "MULTIPLAYERARENA_DISCOVER";
     private const string DiscoveryResponsePrefix = "MULTIPLAYERARENA_SERVER";
-    private const string NetworkDebugIconNotSelectedPath = "res://Assets/Debug/NetworkModes/network_not_selected.svg";
-    private const string NetworkDebugIconLocalPath = "res://Assets/Debug/NetworkModes/network_local.svg";
-    private const string NetworkDebugIconLanPath = "res://Assets/Debug/NetworkModes/network_lan.svg";
-    private const string NetworkDebugIconOnlinePath = "res://Assets/Debug/NetworkModes/network_online.svg";
-    private const string NetworkDebugIconClientPath = "res://Assets/Debug/NetworkModes/network_client.svg";
-    private const string NetworkDebugIconConnectionLostPath = "res://Assets/Debug/NetworkModes/network_connection_lost.svg";
+    private const string NetworkDebugIconNotSelectedPath = "res://Assets/Network/NetworkModes/network_not_selected.svg";
+    private const string NetworkDebugIconLocalPath = "res://Assets/Network/NetworkModes/network_local.svg";
+    private const string NetworkDebugIconLanPath = "res://Assets/Network/NetworkModes/network_lan.svg";
+    private const string NetworkDebugIconOnlinePath = "res://Assets/Network/NetworkModes/network_online.svg";
+    private const string NetworkDebugIconClientPath = "res://Assets/Network/NetworkModes/network_client.svg";
+    private const string NetworkDebugIconConnectionLostPath = "res://Assets/Network/NetworkModes/network_connection_lost.svg";
 
     public enum NetworkMode {
         NotSelected,

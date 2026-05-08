@@ -6,6 +6,13 @@ public partial class MainMenu : Control {
     private const string JoinGameMenuScenePath = "res://Scenes/UI/JoinGameMenu.tscn";
     private const string SettingsMenuScenePath = "res://Scenes/UI/SettingsMenu.tscn";
     private const string ConfirmationOverlayScenePath = "res://Scenes/UI/ConfirmationOverlay.tscn";
+    private const string XboxButtonXIconPath = "res://Assets/InputIcons/Xbox/button_x.svg";
+    private const string XboxButtonYIconPath = "res://Assets/InputIcons/Xbox/button_y.svg";
+    private const string KeyboardEnterIconPath = "res://Assets/InputIcons/Keyboard/enter.svg";
+    private const string KeyboardEscIconPath = "res://Assets/InputIcons/Keyboard/esc.svg";
+    private const string KeyboardBackspaceIconPath = "res://Assets/InputIcons/Keyboard/backspace.svg";
+    private const string NetworkIconLanPath = "res://Assets/Network/NetworkModes/network_lan.svg";
+    private const string NetworkIconClientPath = "res://Assets/Network/NetworkModes/network_client.svg";
 
     private PackedScene _confirmationOverlayScene;
 
@@ -18,6 +25,7 @@ public partial class MainMenu : Control {
         GetNode<Button>("TopRightButtons/ExitGameButton").Pressed += OnExitGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Pressed += OnHostGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Pressed += OnJoinGamePressed;
+        ApplyButtonIcons();
         EnsureDefaultLocalLobby();
         RefreshLocalLobbySlots();
         RefreshActionButtonsVisibility();
@@ -186,16 +194,108 @@ public partial class MainMenu : Control {
     private void RefreshLocalLobbySlots() {
         var hasKeyboardPlayer = HasKeyboardPlayer();
         var nextOpenSlotIndex = GetFirstOpenSlotIndex();
-        GetNode<Label>("MainLayout/LobbyPanel/LobbyHelpLabel").Text = FormatLobbyHelpText(hasKeyboardPlayer);
+        GetNode<Label>("MainLayout/LobbyPanel/LobbyHelpLabel").Text = "Use stick or d-pad to navigate. Select and cancel with the shown controller buttons.";
 
         for (var slotIndex = 0; slotIndex < LocalLobbySlotCount; slotIndex++) {
             var localPlayer = GetLocalPlayer(slotIndex);
             var slotPanel = GetNode<PanelContainer>($"MainLayout/LobbyPanel/LobbySlots/Slot{slotIndex + 1}");
-            var slotLabel = GetNode<Label>($"MainLayout/LobbyPanel/LobbySlots/Slot{slotIndex + 1}/SlotLabel");
             var isNextOpenSlot = slotIndex == nextOpenSlotIndex;
             slotPanel.Modulate = GetSlotColor(localPlayer, isNextOpenSlot);
-            slotLabel.Text = FormatSlotText(localPlayer, hasKeyboardPlayer, isNextOpenSlot);
+            ReplaceSlotContent(slotPanel, CreateSlotContent(localPlayer, hasKeyboardPlayer, isNextOpenSlot));
         }
+    }
+
+    private Control CreateSlotContent(LocalPlayerData localPlayer, bool hasKeyboardPlayer, bool isNextOpenSlot) {
+        var content = new VBoxContainer {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        content.AddThemeConstantOverride("separation", 5);
+
+        content.AddChild(CreateCenteredLabel(localPlayer.IsActive ? localPlayer.DisplayName : $"Player {localPlayer.LocalId + 1}", 18));
+
+        if (!localPlayer.IsActive) {
+            if (!isNextOpenSlot) {
+                content.AddChild(CreateCenteredLabel("Waiting", 16));
+                content.AddChild(CreateCenteredLabel("Empty", 16));
+                return content;
+            }
+
+            content.AddChild(CreatePromptBlock("join", hasKeyboardPlayer ? new[] { XboxButtonXIconPath } : new[] { XboxButtonXIconPath, KeyboardEnterIconPath }));
+            content.AddChild(CreateCenteredLabel("Empty", 16));
+            return content;
+        }
+
+        content.AddChild(CreateCenteredLabel(GetInputName(localPlayer), 16));
+        content.AddChild(CreatePromptBlock("leave", GetLeaveIconPaths(localPlayer)));
+        content.AddChild(CreateCenteredLabel("In Lobby", 16));
+        return content;
+    }
+
+    private static string GetInputName(LocalPlayerData localPlayer) {
+        return localPlayer.InputType switch {
+            LocalPlayerData.LocalInputType.KeyboardMouse => "Keyboard + Mouse",
+            LocalPlayerData.LocalInputType.Gamepad => $"Gamepad {localPlayer.DeviceId}",
+            _ => "No Input",
+        };
+    }
+
+    private static string[] GetLeaveIconPaths(LocalPlayerData localPlayer) {
+        return localPlayer.InputType switch {
+            LocalPlayerData.LocalInputType.KeyboardMouse => new[] { KeyboardEscIconPath },
+            LocalPlayerData.LocalInputType.Gamepad => new[] { XboxButtonYIconPath },
+            _ => System.Array.Empty<string>(),
+        };
+    }
+
+    private static Label CreateCenteredLabel(string text, int fontSize) {
+        var label = new Label {
+            Text = text,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        label.AddThemeFontSizeOverride("font_size", fontSize);
+        return label;
+    }
+
+    private static VBoxContainer CreatePromptBlock(string action, string[] iconPaths) {
+        var prompt = new VBoxContainer {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        prompt.AddThemeConstantOverride("separation", 2);
+        prompt.AddChild(CreateCenteredLabel("Press", 15));
+
+        var icons = new HBoxContainer {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        icons.AddThemeConstantOverride("separation", 6);
+        foreach (var iconPath in iconPaths)
+            icons.AddChild(CreatePromptIcon(iconPath));
+
+        prompt.AddChild(icons);
+        prompt.AddChild(CreateCenteredLabel($"to {action}", 15));
+        return prompt;
+    }
+
+    private static TextureRect CreatePromptIcon(string iconPath) {
+        return new TextureRect {
+            Texture = GD.Load<Texture2D>(iconPath),
+            CustomMinimumSize = new Vector2(34.0f, 34.0f),
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+    }
+
+    private static void ReplaceSlotContent(PanelContainer slotPanel, Control content) {
+        foreach (var child in slotPanel.GetChildren()) {
+            slotPanel.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        slotPanel.AddChild(content);
     }
 
     private static Color GetSlotColor(LocalPlayerData localPlayer, bool isNextOpenSlot) {
@@ -203,33 +303,6 @@ public partial class MainMenu : Control {
             return new Color(0.55f, 1.0f, 0.6f);
 
         return isNextOpenSlot ? Colors.White : new Color(0.42f, 0.42f, 0.42f);
-    }
-
-    private static string FormatSlotText(LocalPlayerData localPlayer, bool hasKeyboardPlayer, bool isNextOpenSlot) {
-        if (!localPlayer.IsActive) {
-            if (!isNextOpenSlot) {
-                return $"Player {localPlayer.LocalId + 1}\nWaiting\nEmpty";
-            }
-
-            var joinPrompt = FormatJoinPrompt(hasKeyboardPlayer);
-            return $"Player {localPlayer.LocalId + 1}\n{joinPrompt}\nEmpty";
-        }
-
-        var inputLabel = localPlayer.InputType switch {
-            LocalPlayerData.LocalInputType.KeyboardMouse => "Keyboard + Mouse\nEsc or Backspace leaves",
-            LocalPlayerData.LocalInputType.Gamepad => $"Gamepad {localPlayer.DeviceId}\nY leaves",
-            _ => "No Input",
-        };
-
-        return $"{localPlayer.DisplayName}\n{inputLabel}\nIn Lobby";
-    }
-
-    private static string FormatJoinPrompt(bool hasKeyboardPlayer) {
-        return hasKeyboardPlayer ? "Press X" : "Press X or Enter";
-    }
-
-    private static string FormatLobbyHelpText(bool hasKeyboardPlayer) {
-        return $"{FormatJoinPrompt(hasKeyboardPlayer)} to join. Use stick or d-pad, A to select, B to cancel, and Y or Esc to leave";
     }
 
     private void OnExitGamePressed() {
@@ -266,6 +339,11 @@ public partial class MainMenu : Control {
         var joinGameButton = GetNode<Button>("MainLayout/ActionButtons/JoinGameButton");
         joinGameButton.Visible = hasActiveLocalPlayer;
         RefreshDefaultFocus();
+    }
+
+    private void ApplyButtonIcons() {
+        GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Icon = GD.Load<Texture2D>(NetworkIconLanPath);
+        GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
     }
 
     private void RefreshDefaultFocus() {

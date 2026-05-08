@@ -47,6 +47,7 @@ if (a == b)
 
 - `docs/player-items-inventory-plan.md` tracks the planned player item, inventory, weight, backstrap, magazine reserve, and purchase-mode model.
 - `docs/focuspoints.md` tracks the next-session implementation focus. Current focus is turning the player item/inventory resource model into a working Godot test scene.
+- `docs/svg-input-icon-generation.md` documents the SVG input-icon generation approach, including why button labels are generated as vector geometry instead of SVG `<text>`.
 
 ## Game Concept
 
@@ -275,7 +276,7 @@ The rest of the game should check this shared state instead of guessing whether 
 Runtime network mode debug UI:
 
 - The `Networking` autoload creates a small always-on-top network mode icon in the top-left corner for debug builds/runs.
-- The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `Assets/Debug/NetworkModes/`.
+- The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `Assets/Network/NetworkModes/`.
 - Non-client modes also show a small peer-count label beside the icon so host/server peer state is readable while developing.
 - `SettingsConfig.ShowNetworkDebugOverlay` controls whether the network debug overlay is visible.
 - The setting is exposed in the main menu Settings screen under the `Online` tab.
