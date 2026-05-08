@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerMagazineStorage : Resource
-{
+public partial class PlayerMagazineStorage : Resource {
     [Export]
     public int Small { get; set; }
 

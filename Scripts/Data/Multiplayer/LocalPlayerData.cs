@@ -1,10 +1,8 @@
 using Godot;
 
 [GlobalClass]
-public partial class LocalPlayerData : Resource
-{
-    public enum LocalInputType
-    {
+public partial class LocalPlayerData : Resource {
+    public enum LocalInputType {
         None,
         KeyboardMouse,
         Gamepad,

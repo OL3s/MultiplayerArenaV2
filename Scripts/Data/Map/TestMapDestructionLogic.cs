@@ -1,14 +1,12 @@
 using Godot;
 
-public partial class TestMapDestructionLogic : Node2D
-{
+public partial class TestMapDestructionLogic : Node2D {
     private static readonly Vector2I TestTileSize = new(16, 16);
     private const float TestExplosiveRadius = 56.0f;
     private const int TestExplosiveDamage = 2;
     private static readonly Color DebugExplosiveRadiusColor = new(1.0f, 0.55f, 0.2f, 0.9f);
 
-    private static readonly (Vector2I Position, int DamageAmount)[] InitialWallDamageSamples =
-    {
+    private static readonly (Vector2I Position, int DamageAmount)[] InitialWallDamageSamples = {
         (new Vector2I(3, 4), 1),
         (new Vector2I(14, 4), 1),
         (new Vector2I(22, 8), 3),
@@ -20,8 +18,7 @@ public partial class TestMapDestructionLogic : Node2D
     private DebugExplosionRadiusDrawer _debugRadiusDrawer;
     private Camera2D _camera;
 
-    public override void _Ready()
-    {
+    public override void _Ready() {
         _tileLayerRenderer = GetNode<ArenaTileLayerRenderer>("ArenaTileLayerRenderer");
         _camera = GetNode<Camera2D>("Camera2D");
         _debugRadiusDrawer = CreateDebugRadiusDrawer();
@@ -30,32 +27,23 @@ public partial class TestMapDestructionLogic : Node2D
         CenterCamera();
     }
 
-    public override void _Process(double delta)
-    {
+    public override void _Process(double delta) {
         _debugRadiusDrawer.QueueRedraw();
     }
 
-    public override void _UnhandledInput(InputEvent @event)
-    {
+    public override void _UnhandledInput(InputEvent @event) {
         if (@event is not InputEventMouseButton mouseButtonEvent || !mouseButtonEvent.Pressed)
-        {
             return;
-        }
 
-        if (mouseButtonEvent.ButtonIndex == MouseButton.Right)
-        {
+        if (mouseButtonEvent.ButtonIndex == MouseButton.Right) {
             BuildMockArena();
             return;
         }
 
-        if (mouseButtonEvent.ButtonIndex == MouseButton.Left)
-        {
+        if (mouseButtonEvent.ButtonIndex == MouseButton.Left) {
             if (mouseButtonEvent.ShiftPressed)
-            {
                 DamageWallsInExplosiveRadius();
-            }
-            else
-            {
+            else {
                 DamageWallUnderCursor();
             }
 
@@ -63,10 +51,8 @@ public partial class TestMapDestructionLogic : Node2D
         }
     }
 
-    private void BuildMockArena()
-    {
-        _arenaMapData = new ArenaMapData
-        {
+    private void BuildMockArena() {
+        _arenaMapData = new ArenaMapData {
             SourceId = 0,
             WallDamageSourceId = 1,
             DefaultWallMaxDamage = 3,
@@ -80,29 +66,21 @@ public partial class TestMapDestructionLogic : Node2D
         _tileLayerRenderer.Render(_arenaMapData);
     }
 
-    private void AddFloorRectangle(Rect2I rect)
-    {
-        for (var x = rect.Position.X; x < rect.End.X; x++)
-        {
+    private void AddFloorRectangle(Rect2I rect) {
+        for (var x = rect.Position.X; x < rect.End.X; x++) {
             for (var y = rect.Position.Y; y < rect.End.Y; y++)
-            {
                 _arenaMapData.AddFloorTile(new Vector2I(x, y));
-            }
         }
     }
 
-    private void DamageWallUnderCursor()
-    {
+    private void DamageWallUnderCursor() {
         if (!_arenaMapData.DamageWallFromWorldPosition(GetGlobalMousePosition(), TestTileSize))
-        {
             return;
-        }
 
         _tileLayerRenderer.Render(_arenaMapData);
     }
 
-    private void DamageWallsInExplosiveRadius()
-    {
+    private void DamageWallsInExplosiveRadius() {
         var changedTiles = _arenaMapData.DamageWallsInWorldRadius(
             GetGlobalMousePosition(),
             TestTileSize,
@@ -110,25 +88,18 @@ public partial class TestMapDestructionLogic : Node2D
             TestExplosiveDamage);
 
         if (changedTiles.Count == 0)
-        {
             return;
-        }
 
         _tileLayerRenderer.Render(_arenaMapData);
     }
 
-    private void ApplyInitialWallDamage()
-    {
+    private void ApplyInitialWallDamage() {
         foreach (var (position, damageAmount) in InitialWallDamageSamples)
-        {
             _arenaMapData.DamageWallTile(position, damageAmount);
-        }
     }
 
-    private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer()
-    {
-        var debugRadiusDrawer = new DebugExplosionRadiusDrawer
-        {
+    private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer() {
+        var debugRadiusDrawer = new DebugExplosionRadiusDrawer {
             Name = "DebugExplosionRadiusDrawer",
             Radius = TestExplosiveRadius,
             DrawColor = DebugExplosiveRadiusColor,
@@ -139,13 +110,10 @@ public partial class TestMapDestructionLogic : Node2D
         return debugRadiusDrawer;
     }
 
-    private void CenterCamera()
-    {
+    private void CenterCamera() {
         var usedRect = _tileLayerRenderer.FloorLayer.GetUsedRect();
         if (usedRect.Size == Vector2I.Zero)
-        {
             return;
-        }
 
         var centerCell = usedRect.Position + (usedRect.Size / 2);
         _camera.Position = _tileLayerRenderer.FloorLayer.MapToLocal(centerCell);

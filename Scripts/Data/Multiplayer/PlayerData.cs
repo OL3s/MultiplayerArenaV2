@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerData : Resource
-{
+public partial class PlayerData : Resource {
     [Export]
     public int GlobalId { get; set; } = -1;
 

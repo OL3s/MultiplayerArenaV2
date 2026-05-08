@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PeerData : Resource
-{
+public partial class PeerData : Resource {
     [Export]
     public int PeerId { get; set; } = -1;
 

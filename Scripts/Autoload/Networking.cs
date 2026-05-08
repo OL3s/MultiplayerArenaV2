@@ -4,8 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Godot;
 
-public partial class Networking : Node
-{
+public partial class Networking : Node {
     private const int ServerPeerId = 1;
     private const int DefaultServerPort = 7700;
     private const int MaxServerPort = 8700;
@@ -20,8 +19,7 @@ public partial class Networking : Node
     private const string NetworkDebugIconClientPath = "res://Assets/Debug/NetworkModes/network_client.svg";
     private const string NetworkDebugIconConnectionLostPath = "res://Assets/Debug/NetworkModes/network_connection_lost.svg";
 
-    public enum NetworkMode
-    {
+    public enum NetworkMode {
         NotSelected,
         Local,
         Lan,
@@ -29,8 +27,7 @@ public partial class Networking : Node
         Client,
     }
 
-    public enum JoinType
-    {
+    public enum JoinType {
         None,
         BrowseLocal,
         BrowseOnline,
@@ -38,8 +35,7 @@ public partial class Networking : Node
         DirectAddress,
     }
 
-    public sealed class ServerListing
-    {
+    public sealed class ServerListing {
         public string ListingId { get; set; } = string.Empty;
 
         public string DisplayName { get; set; } = "Server";
@@ -103,8 +99,7 @@ public partial class Networking : Node
     private TextureRect _networkModeDebugIcon;
     private Label _networkModeDebugPeerLabel;
 
-    public override void _Ready()
-    {
+    public override void _Ready() {
         Multiplayer.PeerConnected += OnPeerConnected;
         Multiplayer.PeerDisconnected += OnPeerDisconnected;
         Multiplayer.ConnectedToServer += OnConnectedToServer;
@@ -117,15 +112,12 @@ public partial class Networking : Node
         ApplyCommandLineNetworkModeOverrides();
 
         if (IsHeadlessRun() && !HasSelectedMode)
-        {
             SetLan();
-        }
 
         UpdateNetworkModeDebugIcon();
     }
 
-    public override void _Process(double delta)
-    {
+    public override void _Process(double delta) {
         PollDiscoveryRequests();
     }
 
@@ -145,36 +137,29 @@ public partial class Networking : Node
 
     public bool HasPendingSetupConfigChanges => HasSelectedMode && !AreSetupConfigsEquivalent(MultiplayerData.SetupConfig, CachedSetupConfig);
 
-    public SetupConfig GetEditableSetupConfig()
-    {
+    public SetupConfig GetEditableSetupConfig() {
         return CachedSetupConfig;
     }
 
-    public IReadOnlyList<ServerListing> GetLocalServerListings()
-    {
+    public IReadOnlyList<ServerListing> GetLocalServerListings() {
         var listings = new List<ServerListing>(_localServerListings.Count);
         foreach (var listing in _localServerListings)
-        {
             listings.Add(CloneServerListing(listing));
-        }
 
         return listings;
     }
 
-    public IReadOnlyList<ServerListing> GetOnlineServerListings()
-    {
+    public IReadOnlyList<ServerListing> GetOnlineServerListings() {
         return Array.Empty<ServerListing>();
     }
 
-    public async Task<IReadOnlyList<ServerListing>> DiscoverLocalServerListingsAsync()
-    {
+    public async Task<IReadOnlyList<ServerListing>> DiscoverLocalServerListingsAsync() {
         _localServerListings.Clear();
         EmitLobbyStateChanged();
 
         using var discoveryClient = new PacketPeerUdp();
         var bindError = discoveryClient.Bind(0);
-        if (bindError != Error.Ok)
-        {
+        if (bindError != Error.Ok) {
             LastConnectionError = $"Could not bind discovery client: {bindError}.";
             EmitConnectionStateChanged();
             return GetLocalServerListings();
@@ -184,8 +169,7 @@ public partial class Networking : Node
         discoveryClient.SetDestAddress("255.255.255.255", DiscoveryPort);
         discoveryClient.PutPacket(Encoding.UTF8.GetBytes(DiscoveryRequestMessage));
 
-        for (var i = 0; i < 8; i++)
-        {
+        for (var i = 0; i < 8; i++) {
             PollDiscoveryResponses(discoveryClient);
             await ToSignal(GetTree().CreateTimer(0.08), SceneTreeTimer.SignalName.Timeout);
         }
@@ -194,48 +178,38 @@ public partial class Networking : Node
         return GetLocalServerListings();
     }
 
-    public void SetLocal()
-    {
+    public void SetLocal() {
         SetNetworkMode(NetworkMode.Local);
     }
 
-    public void SetLan()
-    {
+    public void SetLan() {
         SetNetworkMode(NetworkMode.Lan);
     }
 
-    public void SetOnline()
-    {
+    public void SetOnline() {
         SetNetworkMode(NetworkMode.Online);
     }
 
-    public void SetClient()
-    {
+    public void SetClient() {
         SetNetworkMode(NetworkMode.Client);
     }
 
-    public void ClearMode()
-    {
+    public void ClearMode() {
         SetNetworkMode(NetworkMode.NotSelected);
     }
 
-    public void SetShowNetworkDebugOverlay(bool showNetworkDebugOverlay)
-    {
+    public void SetShowNetworkDebugOverlay(bool showNetworkDebugOverlay) {
         SettingsConfig.ShowNetworkDebugOverlay = showNetworkDebugOverlay;
         UpdateNetworkModeDebugIcon();
     }
 
-    public void SaveSettingsConfig()
-    {
+    public void SaveSettingsConfig() {
         SettingsConfig.Save();
     }
 
-    public void SetNetworkMode(NetworkMode networkMode)
-    {
-        if (CurrentMode == networkMode)
-        {
-            if (HasLostConnection)
-            {
+    public void SetNetworkMode(NetworkMode networkMode) {
+        if (CurrentMode == networkMode) {
+            if (HasLostConnection) {
                 HasLostConnection = false;
                 UpdateNetworkModeDebugIcon();
                 EmitConnectionStateChanged();
@@ -250,30 +224,24 @@ public partial class Networking : Node
         EmitConnectionStateChanged();
     }
 
-    private void CreateNetworkModeDebugController()
-    {
+    private void CreateNetworkModeDebugController() {
         if (DisplayServer.GetName() == "headless" || _networkModeDebugIcon != null)
-        {
             return;
-        }
 
-        _networkModeDebugLayer = new CanvasLayer
-        {
+        _networkModeDebugLayer = new CanvasLayer {
             Name = "NetworkModeDebugLayer",
             Layer = 128,
             Visible = SettingsConfig.ShowNetworkDebugOverlay,
         };
 
-        var debugLayout = new HBoxContainer
-        {
+        var debugLayout = new HBoxContainer {
             Name = "NetworkModeDebugLayout",
             Position = new Vector2(12.0f, 12.0f),
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         debugLayout.AddThemeConstantOverride("separation", 8);
 
-        _networkModeDebugIcon = new TextureRect
-        {
+        _networkModeDebugIcon = new TextureRect {
             Name = "NetworkModeDebugIcon",
             CustomMinimumSize = new Vector2(42.0f, 42.0f),
             Size = new Vector2(42.0f, 42.0f),
@@ -282,8 +250,7 @@ public partial class Networking : Node
             Modulate = new Color(1.0f, 1.0f, 1.0f, 0.75f),
         };
 
-        _networkModeDebugPeerLabel = new Label
-        {
+        _networkModeDebugPeerLabel = new Label {
             Name = "NetworkModeDebugPeerLabel",
             VerticalAlignment = VerticalAlignment.Top,
             MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -298,22 +265,16 @@ public partial class Networking : Node
         UpdateNetworkModeDebugIcon();
     }
 
-    private void UpdateNetworkModeDebugIcon()
-    {
+    private void UpdateNetworkModeDebugIcon() {
         if (_networkModeDebugLayer != null)
-        {
             _networkModeDebugLayer.Visible = SettingsConfig.ShowNetworkDebugOverlay;
-        }
 
         if (_networkModeDebugIcon == null)
-        {
             return;
-        }
 
         var iconPath = GetNetworkModeDebugIconPath();
         _networkModeDebugIcon.Texture = GD.Load<Texture2D>(iconPath);
-        if (_networkModeDebugIcon.Texture == null)
-        {
+        if (_networkModeDebugIcon.Texture == null) {
             GD.PushWarning($"Failed to load network debug icon at '{iconPath}'.");
         }
 
@@ -321,22 +282,17 @@ public partial class Networking : Node
             ? $"Network mode: {CurrentMode} - connection lost"
             : $"Network mode: {CurrentMode}";
 
-        if (_networkModeDebugPeerLabel != null)
-        {
+        if (_networkModeDebugPeerLabel != null) {
             _networkModeDebugPeerLabel.Visible = CurrentMode is NetworkMode.Lan or NetworkMode.Online;
             _networkModeDebugPeerLabel.Text = $"Peers: {GetConnectedPeerCount()}";
         }
     }
 
-    private string GetNetworkModeDebugIconPath()
-    {
+    private string GetNetworkModeDebugIconPath() {
         if (HasLostConnection)
-        {
             return NetworkDebugIconConnectionLostPath;
-        }
 
-        return CurrentMode switch
-        {
+        return CurrentMode switch {
             NetworkMode.Local => NetworkDebugIconLocalPath,
             NetworkMode.Lan => NetworkDebugIconLanPath,
             NetworkMode.Online => NetworkDebugIconOnlinePath,
@@ -345,47 +301,38 @@ public partial class Networking : Node
         };
     }
 
-    private void ApplyCommandLineNetworkModeOverrides()
-    {
+    private void ApplyCommandLineNetworkModeOverrides() {
         var arguments = OS.GetCmdlineUserArgs();
-        for (var i = 0; i < arguments.Length; i++)
-        {
+        for (var i = 0; i < arguments.Length; i++) {
             var argument = arguments[i];
-            if (argument == "--role" && TryGetNextCommandLineArgument(arguments, ref i, out var roleValue))
-            {
+            if (argument == "--role" && TryGetNextCommandLineArgument(arguments, ref i, out var roleValue)) {
                 ApplyCommandLineRole(roleValue);
                 continue;
             }
 
             if (argument.StartsWith("--role="))
-            {
                 ApplyCommandLineRole(argument[7..]);
-            }
         }
     }
 
-    private void ApplyCommandLineRole(string roleValue)
-    {
+    private void ApplyCommandLineRole(string roleValue) {
         if (string.Equals(roleValue, "host", StringComparison.OrdinalIgnoreCase)
             || string.Equals(roleValue, "server", StringComparison.OrdinalIgnoreCase)
             || string.Equals(roleValue, "server-local", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(roleValue, "lan", StringComparison.OrdinalIgnoreCase))
-        {
+            || string.Equals(roleValue, "lan", StringComparison.OrdinalIgnoreCase)) {
             SetLan();
             PrintMultiplayerLog("Command line role selected Lan.");
             return;
         }
 
-        if (string.Equals(roleValue, "client", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(roleValue, "client", StringComparison.OrdinalIgnoreCase)) {
             SetClient();
             PrintMultiplayerLog("Command line role selected Client.");
             return;
         }
 
         if (string.Equals(roleValue, "local", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(roleValue, "local-only", StringComparison.OrdinalIgnoreCase))
-        {
+            || string.Equals(roleValue, "local-only", StringComparison.OrdinalIgnoreCase)) {
             SetLocal();
             PrintMultiplayerLog("Command line role selected Local.");
             return;
@@ -393,28 +340,23 @@ public partial class Networking : Node
 
         if (string.Equals(roleValue, "online-host", StringComparison.OrdinalIgnoreCase)
             || string.Equals(roleValue, "server-online", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(roleValue, "online", StringComparison.OrdinalIgnoreCase))
-        {
+            || string.Equals(roleValue, "online", StringComparison.OrdinalIgnoreCase)) {
             SetOnline();
             PrintMultiplayerLog("Command line role selected Online.");
         }
     }
 
-    private static bool TryGetNextCommandLineArgument(string[] arguments, ref int index, out string value)
-    {
+    private static bool TryGetNextCommandLineArgument(string[] arguments, ref int index, out string value) {
         value = string.Empty;
         if (index + 1 >= arguments.Length)
-        {
             return false;
-        }
 
         index++;
         value = arguments[index];
         return true;
     }
 
-    public bool BeginHostingSession()
-    {
+    public bool BeginHostingSession() {
         PrintMultiplayerLog("Begin host session requested.");
         LastConnectionError = string.Empty;
         HasLostConnection = false;
@@ -426,8 +368,7 @@ public partial class Networking : Node
         EnsureDefaultSetupSelections(MultiplayerData.SetupConfig);
         SyncCachedSetupConfig();
 
-        if (IsLocal)
-        {
+        if (IsLocal) {
             CloseNetworkPeer();
             StopDiscoveryServer();
             ConnectionStatusText = "Status: Local game ready.";
@@ -438,8 +379,7 @@ public partial class Networking : Node
 
         var peer = new ENetMultiplayerPeer();
         var port = FindAvailableServerPort(peer);
-        if (port == -1)
-        {
+        if (port == -1) {
             LastConnectionError = $"Could not find an available server port between {DefaultServerPort} and {MaxServerPort}.";
             ConnectionStatusText = "Status: Failed to start server.";
             EmitConnectionStateChanged();
@@ -458,12 +398,9 @@ public partial class Networking : Node
         return true;
     }
 
-    public bool BeginClientConnection(ServerListing listing, JoinType joinType)
-    {
+    public bool BeginClientConnection(ServerListing listing, JoinType joinType) {
         if (listing == null)
-        {
             return false;
-        }
 
         CloseNetworkPeer();
         StopDiscoveryServer();
@@ -487,8 +424,7 @@ public partial class Networking : Node
 
         var peer = new ENetMultiplayerPeer();
         var error = peer.CreateClient(listing.Address, listing.Port);
-        if (error != Error.Ok)
-        {
+        if (error != Error.Ok) {
             LastConnectionError = $"Could not connect to {listing.Address}:{listing.Port}: {error}.";
             ConnectionStatusText = "Status: Failed to create client connection.";
             HasLostConnection = true;
@@ -505,17 +441,14 @@ public partial class Networking : Node
         return true;
     }
 
-    public bool BeginDirectClientConnection(string address, int port)
-    {
-        if (string.IsNullOrWhiteSpace(address) || port <= 0 || port > 65535)
-        {
+    public bool BeginDirectClientConnection(string address, int port) {
+        if (string.IsNullOrWhiteSpace(address) || port <= 0 || port > 65535) {
             PrintMultiplayerLog($"Direct client connection rejected. Address='{address}', Port={port}.");
             return false;
         }
 
         return BeginClientConnection(
-            new ServerListing
-            {
+            new ServerListing {
                 ListingId = $"direct-{address}:{port}",
                 DisplayName = $"Direct Join ({address}:{port})",
                 Address = address,
@@ -524,8 +457,7 @@ public partial class Networking : Node
             JoinType.DirectAddress);
     }
 
-    public void ResetSessionState()
-    {
+    public void ResetSessionState() {
         CloseNetworkPeer();
         StopDiscoveryServer();
         _localServerListings.Clear();
@@ -542,22 +474,17 @@ public partial class Networking : Node
         EmitConfigApplyStateChanged();
     }
 
-    public bool ApplyCachedSetupConfigChanges()
-    {
+    public bool ApplyCachedSetupConfigChanges() {
         if (!HasSelectedMode)
-        {
             return false;
-        }
 
-        if (!HasPendingSetupConfigChanges)
-        {
+        if (!HasPendingSetupConfigChanges) {
             LastConfigApplyMessage = "No config changes to apply.";
             EmitConfigApplyStateChanged();
             return false;
         }
 
-        if (!IsClient)
-        {
+        if (!IsClient) {
             SyncAuthoritativeSetupConfig(CachedSetupConfig);
             LastConfigApplyMessage = "Config settings changed by host.";
             EmitConfigApplyStateChanged();
@@ -565,9 +492,7 @@ public partial class Networking : Node
         }
 
         if (!HasNetworkPeer())
-        {
             return false;
-        }
 
         LastConfigApplyMessage = string.Empty;
         RpcId(ServerPeerId, nameof(RpcRequestApplyCachedSetupConfig), SerializeSetupConfig(CachedSetupConfig));
@@ -575,12 +500,9 @@ public partial class Networking : Node
         return true;
     }
 
-    public bool RevertCachedSetupConfigChanges()
-    {
+    public bool RevertCachedSetupConfigChanges() {
         if (!HasSelectedMode)
-        {
             return false;
-        }
 
         SyncCachedSetupConfig();
         LastConfigApplyMessage = "Config changes reverted.";
@@ -589,11 +511,9 @@ public partial class Networking : Node
         return true;
     }
 
-    public void RegisterLocalLobbyPlayers()
-    {
+    public void RegisterLocalLobbyPlayers() {
         var peerId = GetLocalPeerId();
-        if (peerId == -1)
-        {
+        if (peerId == -1) {
             EmitLobbyStateChanged();
             return;
         }
@@ -605,12 +525,9 @@ public partial class Networking : Node
         MultiplayerData.SetupConfig.OnlineEnabled = CurrentMode == NetworkMode.Online;
 
         var globalId = 0;
-        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
-        {
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers) {
             if (!localPlayerData.IsActive)
-            {
                 continue;
-            }
 
             UpdatePlayer(
                 globalId,
@@ -624,16 +541,12 @@ public partial class Networking : Node
         SetPeerTeam(peerId, GetDefaultPeerTeamId(peerId));
     }
 
-    public void SetLocalPeerTeam(int teamId)
-    {
+    public void SetLocalPeerTeam(int teamId) {
         var peerId = GetRegisteredLocalPeerId();
         if (peerId == -1)
-        {
             return;
-        }
 
-        if (IsClient && HasNetworkPeer())
-        {
+        if (IsClient && HasNetworkPeer()) {
             RpcId(ServerPeerId, nameof(RpcRequestSetLocalPeerTeam), teamId);
             return;
         }
@@ -641,13 +554,10 @@ public partial class Networking : Node
         SetPeerTeam(peerId, teamId);
     }
 
-    public void SetPeerTeam(int peerId, int teamId)
-    {
+    public void SetPeerTeam(int peerId, int teamId) {
         var normalizedTeamId = global::MultiplayerData.NormalizeTeamId(teamId);
         if (normalizedTeamId == global::MultiplayerData.DefaultTeamId)
-        {
             normalizedTeamId = GetLeastPopulatedTeamId(peerId);
-        }
 
         var peerData = GetOrCreatePeerData(peerId);
         UpdatePeer(
@@ -664,10 +574,8 @@ public partial class Networking : Node
         bool onlineEnabled,
         string serverAddress,
         int serverPort,
-        string gameModeId)
-    {
-        if (HasNetworkPeer())
-        {
+        string gameModeId) {
+        if (HasNetworkPeer()) {
             Rpc(
                 nameof(RpcUpdateSetupConfig),
                 maxPlayers,
@@ -682,12 +590,9 @@ public partial class Networking : Node
         RpcUpdateSetupConfig(maxPlayers, localPlayerCount, onlineEnabled, serverAddress, serverPort, gameModeId);
     }
 
-    public void SyncAuthoritativeSetupConfig(SetupConfig setupConfig)
-    {
+    public void SyncAuthoritativeSetupConfig(SetupConfig setupConfig) {
         if (setupConfig == null)
-        {
             return;
-        }
 
         MultiplayerData.SetupConfig.CopyFrom(setupConfig);
         SyncCachedSetupConfig();
@@ -702,11 +607,8 @@ public partial class Networking : Node
 
         var serializedSetupConfig = SerializeSetupConfig(setupConfig);
         if (HasNetworkPeer())
-        {
             Rpc(nameof(RpcReplaceFullSetupConfig), serializedSetupConfig);
-        }
-        else
-        {
+        else {
             RpcReplaceFullSetupConfig(serializedSetupConfig);
         }
 
@@ -718,10 +620,8 @@ public partial class Networking : Node
         int peerId,
         int localId,
         string displayName,
-        bool isLocalPlayer)
-    {
-        if (HasNetworkPeer())
-        {
+        bool isLocalPlayer) {
+        if (HasNetworkPeer()) {
             Rpc(
                 nameof(RpcUpdatePlayer),
                 globalId,
@@ -735,10 +635,8 @@ public partial class Networking : Node
         RpcUpdatePlayer(globalId, peerId, localId, displayName, isLocalPlayer);
     }
 
-    public void UpdatePeer(int peerId, bool isHost, int teamId, int requestedLocalPlayerCount, int maxLocalPlayers)
-    {
-        if (HasNetworkPeer())
-        {
+    public void UpdatePeer(int peerId, bool isHost, int teamId, int requestedLocalPlayerCount, int maxLocalPlayers) {
+        if (HasNetworkPeer()) {
             Rpc(nameof(RpcUpdatePeer), peerId, isHost, teamId, requestedLocalPlayerCount, maxLocalPlayers);
             return;
         }
@@ -746,10 +644,8 @@ public partial class Networking : Node
         RpcUpdatePeer(peerId, isHost, teamId, requestedLocalPlayerCount, maxLocalPlayers);
     }
 
-    public void RemovePeer(int peerId)
-    {
-        if (HasNetworkPeer())
-        {
+    public void RemovePeer(int peerId) {
+        if (HasNetworkPeer()) {
             Rpc(nameof(RpcRemovePeer), peerId);
             return;
         }
@@ -757,10 +653,8 @@ public partial class Networking : Node
         RpcRemovePeer(peerId);
     }
 
-    public void RemovePlayer(int peerId, int localId)
-    {
-        if (HasNetworkPeer())
-        {
+    public void RemovePlayer(int peerId, int localId) {
+        if (HasNetworkPeer()) {
             Rpc(nameof(RpcRemovePlayer), peerId, localId);
             return;
         }
@@ -768,10 +662,8 @@ public partial class Networking : Node
         RpcRemovePlayer(peerId, localId);
     }
 
-    public void ClearPlayers()
-    {
-        if (HasNetworkPeer())
-        {
+    public void ClearPlayers() {
+        if (HasNetworkPeer()) {
             Rpc(nameof(RpcClearPlayers));
             return;
         }
@@ -779,20 +671,14 @@ public partial class Networking : Node
         RpcClearPlayers();
     }
 
-    public bool DamageAuthoritativeWallTile(Vector2I position, int damageAmount = 1)
-    {
+    public bool DamageAuthoritativeWallTile(Vector2I position, int damageAmount = 1) {
         if (!CanApplyAuthoritativeArenaMapChange())
-        {
             return false;
-        }
 
         if (!ArenaMapData.IsWallTile(position) || damageAmount <= 0)
-        {
             return false;
-        }
 
-        if (HasNetworkPeer())
-        {
+        if (HasNetworkPeer()) {
             Rpc(nameof(RpcDamageArenaWallTile), position.X, position.Y, damageAmount);
             return true;
         }
@@ -801,25 +687,18 @@ public partial class Networking : Node
         return true;
     }
 
-    public bool DamageAuthoritativeWallFromWorldPosition(Vector2 worldPosition, Vector2I tileSize, int damageAmount = 1)
-    {
+    public bool DamageAuthoritativeWallFromWorldPosition(Vector2 worldPosition, Vector2I tileSize, int damageAmount = 1) {
         return DamageAuthoritativeWallTile(ArenaMapData.WorldToTile(worldPosition, tileSize), damageAmount);
     }
 
-    public bool DamageAuthoritativeWallsInRadius(Vector2I centerTile, int radius, int damageAmount = 1)
-    {
+    public bool DamageAuthoritativeWallsInRadius(Vector2I centerTile, int radius, int damageAmount = 1) {
         if (!CanApplyAuthoritativeArenaMapChange())
-        {
             return false;
-        }
 
         if (damageAmount <= 0 || radius < 0)
-        {
             return false;
-        }
 
-        if (HasNetworkPeer())
-        {
+        if (HasNetworkPeer()) {
             Rpc(nameof(RpcDamageArenaWallsInRadius), centerTile.X, centerTile.Y, radius, damageAmount);
             return true;
         }
@@ -828,17 +707,14 @@ public partial class Networking : Node
         return true;
     }
 
-    public bool DamageAuthoritativeWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, int damageAmount = 1)
-    {
+    public bool DamageAuthoritativeWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, int damageAmount = 1) {
         var centerTile = ArenaMapData.WorldToTile(worldCenter, tileSize);
         var tileRadius = Mathf.CeilToInt(worldRadius / Mathf.Max(1, tileSize.X));
         return DamageAuthoritativeWallsInRadius(centerTile, tileRadius, damageAmount);
     }
 
-    public void ClearPeers()
-    {
-        if (HasNetworkPeer())
-        {
+    public void ClearPeers() {
+        if (HasNetworkPeer()) {
             Rpc(nameof(RpcClearPeers));
             return;
         }
@@ -847,12 +723,9 @@ public partial class Networking : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRequestJoinServer(Godot.Collections.Array<int> localIds, Godot.Collections.Array<string> displayNames)
-    {
+    public void RpcRequestJoinServer(Godot.Collections.Array<int> localIds, Godot.Collections.Array<string> displayNames) {
         if (!IsAuthoritativeServer())
-        {
             return;
-        }
 
         var remotePeerId = Multiplayer.GetRemoteSenderId();
         RegisterRemotePeerPlayers(remotePeerId, localIds, displayNames);
@@ -862,31 +735,23 @@ public partial class Networking : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRequestSetLocalPeerTeam(int teamId)
-    {
+    public void RpcRequestSetLocalPeerTeam(int teamId) {
         if (!IsAuthoritativeServer())
-        {
             return;
-        }
 
         var remotePeerId = Multiplayer.GetRemoteSenderId();
         SetPeerTeam(remotePeerId, teamId);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRequestApplyCachedSetupConfig(string serializedSetupConfig)
-    {
+    public void RpcRequestApplyCachedSetupConfig(string serializedSetupConfig) {
         if (!IsAuthoritativeServer())
-        {
             return;
-        }
 
         var remotePeerId = Multiplayer.GetRemoteSenderId();
         var requestedSetupConfig = DeserializeSetupConfig(serializedSetupConfig);
         if (requestedSetupConfig == null)
-        {
             return;
-        }
 
         requestedSetupConfig.ServerAddress = MultiplayerData.SetupConfig.ServerAddress;
         requestedSetupConfig.ServerPort = MultiplayerData.SetupConfig.ServerPort;
@@ -907,8 +772,7 @@ public partial class Networking : Node
         bool onlineEnabled,
         string serverAddress,
         int serverPort,
-        string gameModeId)
-    {
+        string gameModeId) {
         MultiplayerData.SetupConfig.MaxPlayers = maxPlayers;
         MultiplayerData.SetupConfig.LocalPlayerCount = localPlayerCount;
         MultiplayerData.SetupConfig.OnlineEnabled = onlineEnabled;
@@ -921,13 +785,10 @@ public partial class Networking : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcReplaceFullSetupConfig(string serializedSetupConfig)
-    {
+    public void RpcReplaceFullSetupConfig(string serializedSetupConfig) {
         var deserializedSetupConfig = DeserializeSetupConfig(serializedSetupConfig);
         if (deserializedSetupConfig == null)
-        {
             return;
-        }
 
         MultiplayerData.SetupConfig.CopyFrom(deserializedSetupConfig);
         SyncCachedSetupConfig();
@@ -936,8 +797,7 @@ public partial class Networking : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcNotifyConfigApplied(string message)
-    {
+    public void RpcNotifyConfigApplied(string message) {
         LastConfigApplyMessage = message;
         SyncCachedSetupConfig();
         EmitConfigApplyStateChanged();
@@ -949,8 +809,7 @@ public partial class Networking : Node
         int peerId,
         int localId,
         string displayName,
-        bool isLocalPlayer)
-    {
+        bool isLocalPlayer) {
         GetOrCreatePeerData(peerId);
 
         var playerData = GetOrCreatePlayerData(peerId, localId);
@@ -961,8 +820,7 @@ public partial class Networking : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcUpdatePeer(int peerId, bool isHost, int teamId, int requestedLocalPlayerCount, int maxLocalPlayers)
-    {
+    public void RpcUpdatePeer(int peerId, bool isHost, int teamId, int requestedLocalPlayerCount, int maxLocalPlayers) {
         var peerData = GetOrCreatePeerData(peerId);
         peerData.IsHost = isHost;
         peerData.TeamId = global::MultiplayerData.NormalizeTeamId(teamId);
@@ -972,12 +830,9 @@ public partial class Networking : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRemovePeer(int peerId)
-    {
-        for (var i = MultiplayerData.Peers.Count - 1; i >= 0; i--)
-        {
-            if (MultiplayerData.Peers[i].PeerId == peerId)
-            {
+    public void RpcRemovePeer(int peerId) {
+        for (var i = MultiplayerData.Peers.Count - 1; i >= 0; i--) {
+            if (MultiplayerData.Peers[i].PeerId == peerId) {
                 MultiplayerData.Peers.RemoveAt(i);
                 RemovePlayersOwnedByPeer(peerId);
                 EmitLobbyStateChanged();
@@ -989,12 +844,9 @@ public partial class Networking : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRemovePlayer(int peerId, int localId)
-    {
-        for (var i = MultiplayerData.Players.Count - 1; i >= 0; i--)
-        {
-            if (MultiplayerData.Players[i].PeerId == peerId && MultiplayerData.Players[i].LocalId == localId)
-            {
+    public void RpcRemovePlayer(int peerId, int localId) {
+        for (var i = MultiplayerData.Players.Count - 1; i >= 0; i--) {
+            if (MultiplayerData.Players[i].PeerId == peerId && MultiplayerData.Players[i].LocalId == localId) {
                 MultiplayerData.Players.RemoveAt(i);
                 EmitLobbyStateChanged();
                 return;
@@ -1005,63 +857,52 @@ public partial class Networking : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcClearPlayers()
-    {
+    public void RpcClearPlayers() {
         MultiplayerData.Players.Clear();
         EmitLobbyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcClearPeers()
-    {
+    public void RpcClearPeers() {
         MultiplayerData.Peers.Clear();
         MultiplayerData.Players.Clear();
         EmitLobbyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageArenaWallTile(int x, int y, int damageAmount)
-    {
+    public void RpcDamageArenaWallTile(int x, int y, int damageAmount) {
         ArenaMapData.DamageWallTile(new Vector2I(x, y), damageAmount);
         EmitArenaMapChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageArenaWallsInRadius(int centerX, int centerY, int radius, int damageAmount)
-    {
+    public void RpcDamageArenaWallsInRadius(int centerX, int centerY, int radius, int damageAmount) {
         ArenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, damageAmount);
         EmitArenaMapChanged();
     }
 
-    private void OnPeerConnected(long peerId)
-    {
+    private void OnPeerConnected(long peerId) {
         PrintMultiplayerLog($"Peer connected: {peerId}. Connected peers: {Multiplayer.GetPeers().Length}.");
 
         if (!IsAuthoritativeServer())
-        {
             return;
-        }
 
         ConnectionStatusText = $"Status: Peer {peerId} connected. Waiting for lobby data.";
         EmitConnectionStateChanged();
     }
 
-    private void OnPeerDisconnected(long peerId)
-    {
+    private void OnPeerDisconnected(long peerId) {
         PrintMultiplayerLog($"Peer disconnected: {peerId}. Connected peers: {Multiplayer.GetPeers().Length}.");
 
         if (!IsAuthoritativeServer())
-        {
             return;
-        }
 
         RemovePeer((int)peerId);
         ConnectionStatusText = $"Status: Peer {peerId} disconnected.";
         EmitConnectionStateChanged();
     }
 
-    private void OnConnectedToServer()
-    {
+    private void OnConnectedToServer() {
         ConnectionStatusText = "Status: Connected. Syncing lobby data from server.";
         HasLostConnection = false;
         UpdateNetworkModeDebugIcon();
@@ -1070,8 +911,7 @@ public partial class Networking : Node
         RpcId(ServerPeerId, nameof(RpcRequestJoinServer), BuildActiveLocalIdArray(), BuildActiveLocalNameArray());
     }
 
-    private void OnConnectionFailed()
-    {
+    private void OnConnectionFailed() {
         LastConnectionError = "Connection failed.";
         ConnectionStatusText = "Status: Connection failed.";
         HasLostConnection = true;
@@ -1081,8 +921,7 @@ public partial class Networking : Node
         EmitConnectionStateChanged();
     }
 
-    private void OnServerDisconnected()
-    {
+    private void OnServerDisconnected() {
         LastConnectionError = "Server disconnected.";
         ConnectionStatusText = "Status: Disconnected from server.";
         HasLostConnection = true;
@@ -1093,15 +932,13 @@ public partial class Networking : Node
         EmitConnectionStateChanged();
     }
 
-    private void RegisterRemotePeerPlayers(int peerId, Godot.Collections.Array<int> localIds, Godot.Collections.Array<string> displayNames)
-    {
+    private void RegisterRemotePeerPlayers(int peerId, Godot.Collections.Array<int> localIds, Godot.Collections.Array<string> displayNames) {
         RemovePeer(peerId);
 
         var requestedLocalPlayerCount = Math.Min(localIds.Count, displayNames.Count);
 
         var globalId = MultiplayerData.Players.Count;
-        for (var i = 0; i < requestedLocalPlayerCount; i++)
-        {
+        for (var i = 0; i < requestedLocalPlayerCount; i++) {
             UpdatePlayer(
                 globalId,
                 peerId,
@@ -1115,8 +952,7 @@ public partial class Networking : Node
         SetPeerTeam(peerId, GetDefaultPeerTeamId(peerId));
     }
 
-    private void SendFullLobbyStateToPeer(int targetPeerId)
-    {
+    private void SendFullLobbyStateToPeer(int targetPeerId) {
         RpcId(targetPeerId, nameof(RpcClearPeers));
 
         var setupConfig = MultiplayerData.SetupConfig;
@@ -1131,8 +967,7 @@ public partial class Networking : Node
             setupConfig.GameModeId);
         RpcId(targetPeerId, nameof(RpcReplaceFullSetupConfig), SerializeSetupConfig(setupConfig));
 
-        foreach (var peerData in MultiplayerData.Peers)
-        {
+        foreach (var peerData in MultiplayerData.Peers) {
             RpcId(
                 targetPeerId,
                 nameof(RpcUpdatePeer),
@@ -1143,8 +978,7 @@ public partial class Networking : Node
                 peerData.MaxLocalPlayers);
         }
 
-        foreach (var playerData in MultiplayerData.Players)
-        {
+        foreach (var playerData in MultiplayerData.Players) {
             RpcId(
                 targetPeerId,
                 nameof(RpcUpdatePlayer),
@@ -1157,80 +991,60 @@ public partial class Networking : Node
 
     }
 
-    private void StartDiscoveryServer()
-    {
+    private void StartDiscoveryServer() {
         StopDiscoveryServer();
 
         _discoveryServer = new PacketPeerUdp();
         var bindError = _discoveryServer.Bind(DiscoveryPort, "*");
-        if (bindError != Error.Ok)
-        {
+        if (bindError != Error.Ok) {
             _discoveryServer.Dispose();
             _discoveryServer = null;
         }
     }
 
-    private void StopDiscoveryServer()
-    {
+    private void StopDiscoveryServer() {
         if (_discoveryServer == null)
-        {
             return;
-        }
 
         _discoveryServer.Close();
         _discoveryServer.Dispose();
         _discoveryServer = null;
     }
 
-    private void PollDiscoveryRequests()
-    {
+    private void PollDiscoveryRequests() {
         if (_discoveryServer == null || !IsServer || !HasNetworkPeer())
-        {
             return;
-        }
 
-        while (_discoveryServer.GetAvailablePacketCount() > 0)
-        {
+        while (_discoveryServer.GetAvailablePacketCount() > 0) {
             var packet = _discoveryServer.GetPacket();
             var message = Encoding.UTF8.GetString(packet);
             if (message != DiscoveryRequestMessage)
-            {
                 continue;
-            }
 
             var senderAddress = _discoveryServer.GetPacketIP();
             var senderPort = _discoveryServer.GetPacketPort();
             if (string.IsNullOrWhiteSpace(senderAddress) || senderPort <= 0)
-            {
                 continue;
-            }
 
             _discoveryServer.SetDestAddress(senderAddress, senderPort);
             _discoveryServer.PutPacket(Encoding.UTF8.GetBytes(BuildDiscoveryResponse()));
         }
     }
 
-    private void PollDiscoveryResponses(PacketPeerUdp discoveryClient)
-    {
-        while (discoveryClient.GetAvailablePacketCount() > 0)
-        {
+    private void PollDiscoveryResponses(PacketPeerUdp discoveryClient) {
+        while (discoveryClient.GetAvailablePacketCount() > 0) {
             var packet = discoveryClient.GetPacket();
             var message = Encoding.UTF8.GetString(packet);
             if (!TryParseDiscoveryResponse(message, out var listing))
-            {
                 continue;
-            }
 
             AddOrReplaceLocalListing(listing);
         }
     }
 
-    private void AddOrReplaceLocalListing(ServerListing listing)
-    {
-        for (var i = 0; i < _localServerListings.Count; i++)
-        {
-            if (_localServerListings[i].ListingId == listing.ListingId)
-            {
+    private void AddOrReplaceLocalListing(ServerListing listing) {
+        for (var i = 0; i < _localServerListings.Count; i++) {
+            if (_localServerListings[i].ListingId == listing.ListingId) {
                 _localServerListings[i] = listing;
                 EmitLobbyStateChanged();
                 return;
@@ -1241,8 +1055,7 @@ public partial class Networking : Node
         EmitLobbyStateChanged();
     }
 
-    private string BuildDiscoveryResponse()
-    {
+    private string BuildDiscoveryResponse() {
         return string.Join(
             "\t",
             DiscoveryResponsePrefix,
@@ -1255,24 +1068,19 @@ public partial class Networking : Node
             MultiplayerData.SetupConfig.GameModeId);
     }
 
-    private static bool TryParseDiscoveryResponse(string message, out ServerListing listing)
-    {
+    private static bool TryParseDiscoveryResponse(string message, out ServerListing listing) {
         listing = null;
         var parts = message.Split('\t');
         if (parts.Length < 8 || parts[0] != DiscoveryResponsePrefix)
-        {
             return false;
-        }
 
         if (!int.TryParse(parts[3], out var port)
             || !int.TryParse(parts[4], out var playerCount)
-            || !int.TryParse(parts[5], out var maxPlayers))
-        {
+            || !int.TryParse(parts[5], out var maxPlayers)) {
             return false;
         }
 
-        listing = new ServerListing
-        {
+        listing = new ServerListing {
             ListingId = $"{parts[2]}:{port}",
             DisplayName = parts[1],
             Address = parts[2],
@@ -1285,10 +1093,8 @@ public partial class Networking : Node
         return true;
     }
 
-    private static ServerListing CloneServerListing(ServerListing listing)
-    {
-        return new ServerListing
-        {
+    private static ServerListing CloneServerListing(ServerListing listing) {
+        return new ServerListing {
             ListingId = listing.ListingId,
             DisplayName = listing.DisplayName,
             Address = listing.Address,
@@ -1300,36 +1106,27 @@ public partial class Networking : Node
         };
     }
 
-    private Godot.Collections.Array<int> BuildActiveLocalIdArray()
-    {
+    private Godot.Collections.Array<int> BuildActiveLocalIdArray() {
         var localIds = new Godot.Collections.Array<int>();
-        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
-        {
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers) {
             if (localPlayerData.IsActive)
-            {
                 localIds.Add(localPlayerData.LocalId);
-            }
         }
 
         return localIds;
     }
 
-    private Godot.Collections.Array<string> BuildActiveLocalNameArray()
-    {
+    private Godot.Collections.Array<string> BuildActiveLocalNameArray() {
         var displayNames = new Godot.Collections.Array<string>();
-        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
-        {
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers) {
             if (localPlayerData.IsActive)
-            {
                 displayNames.Add(localPlayerData.DisplayName);
-            }
         }
 
         return displayNames;
     }
 
-    private void ClearMultiplayerDataLocal()
-    {
+    private void ClearMultiplayerDataLocal() {
         MultiplayerData.SetupConfig = new SetupConfig();
         MultiplayerData.Peers.Clear();
         MultiplayerData.Players.Clear();
@@ -1339,30 +1136,22 @@ public partial class Networking : Node
         EmitArenaMapChanged();
     }
 
-    private void SyncCachedSetupConfig()
-    {
+    private void SyncCachedSetupConfig() {
         CachedSetupConfig = MultiplayerData.SetupConfig?.Clone() ?? new SetupConfig();
     }
 
-    private static void EnsureDefaultSetupSelections(SetupConfig setupConfig)
-    {
+    private static void EnsureDefaultSetupSelections(SetupConfig setupConfig) {
         if (setupConfig == null)
-        {
             return;
-        }
 
-        if (setupConfig.GameModes.Count == 0)
-        {
-            var defaultGameModes = new[]
-            {
+        if (setupConfig.GameModes.Count == 0) {
+            var defaultGameModes = new[] {
                 GameModeConfig.GameModeType.Deathmatch,
                 GameModeConfig.GameModeType.CaptureTheFlag,
             };
 
-            foreach (var modeType in defaultGameModes)
-            {
-                setupConfig.AddGameMode(new GameModeConfig
-                {
+            foreach (var modeType in defaultGameModes) {
+                setupConfig.AddGameMode(new GameModeConfig {
                     ModeType = modeType,
                     DisplayName = GetGameModeDisplayName(modeType),
                     IsEnabled = true,
@@ -1370,59 +1159,40 @@ public partial class Networking : Node
             }
         }
 
-        if (setupConfig.MapConfig.EnabledStructureTypes.Count == 0)
-        {
+        if (setupConfig.MapConfig.EnabledStructureTypes.Count == 0) {
             foreach (MapGenerationConfig.StructureType structureType in System.Enum.GetValues(typeof(MapGenerationConfig.StructureType)))
-            {
                 setupConfig.MapConfig.EnabledStructureTypes.Add(structureType);
-            }
         }
 
-        if (setupConfig.BiomeConfig.EnabledBiomes.Count == 0)
-        {
+        if (setupConfig.BiomeConfig.EnabledBiomes.Count == 0) {
             foreach (BiomeConfig.BiomeType biomeType in System.Enum.GetValues(typeof(BiomeConfig.BiomeType)))
-            {
                 setupConfig.BiomeConfig.EnabledBiomes.Add(biomeType);
-            }
         }
     }
 
-    private static bool AreSetupConfigsEquivalent(SetupConfig left, SetupConfig right)
-    {
+    private static bool AreSetupConfigsEquivalent(SetupConfig left, SetupConfig right) {
         if (left == null || right == null)
-        {
             return left == right;
-        }
 
         return SerializeSetupConfig(left) == SerializeSetupConfig(right);
     }
 
-    private static string SerializeSetupConfig(SetupConfig setupConfig)
-    {
+    private static string SerializeSetupConfig(SetupConfig setupConfig) {
         if (setupConfig == null)
-        {
             return string.Empty;
-        }
 
         var mapTypes = new List<string>();
         foreach (var structureType in setupConfig.MapConfig.EnabledStructureTypes)
-        {
             mapTypes.Add(((int)structureType).ToString());
-        }
 
         var biomes = new List<string>();
         foreach (var biome in setupConfig.BiomeConfig.EnabledBiomes)
-        {
             biomes.Add(((int)biome).ToString());
-        }
 
         var gameModes = new List<string>();
-        foreach (var gameMode in setupConfig.GameModes)
-        {
+        foreach (var gameMode in setupConfig.GameModes) {
             if (gameMode == null)
-            {
                 continue;
-            }
 
             gameModes.Add($"{(int)gameMode.ModeType},{EscapeConfigValue(gameMode.DisplayName)},{(gameMode.IsEnabled ? 1 : 0)}");
         }
@@ -1445,94 +1215,72 @@ public partial class Networking : Node
             string.Join(";", gameModes));
     }
 
-    private static SetupConfig DeserializeSetupConfig(string serializedSetupConfig)
-    {
+    private static SetupConfig DeserializeSetupConfig(string serializedSetupConfig) {
         if (string.IsNullOrWhiteSpace(serializedSetupConfig))
-        {
             return null;
-        }
 
         var parts = serializedSetupConfig.Split('|');
         if (parts.Length < 14)
-        {
             return null;
-        }
 
         if (!int.TryParse(parts[0], out var maxPlayers)
             || !int.TryParse(parts[1], out var localPlayerCount)
             || !int.TryParse(parts[2], out var onlineEnabled)
             || !int.TryParse(parts[4], out var serverPort)
             || !int.TryParse(parts[6], out var seedMode)
-            || !int.TryParse(parts[7], out var fixedSeed))
-        {
+            || !int.TryParse(parts[7], out var fixedSeed)) {
             return null;
         }
 
         if (!int.TryParse(parts[8], out var bestOfRoundsPerGameMode)
             || !int.TryParse(parts[9], out var bestOfGameModes)
-            || !int.TryParse(parts[10], out var randomizeGameModeOrder))
-        {
+            || !int.TryParse(parts[10], out var randomizeGameModeOrder)) {
             return null;
         }
 
-        var setupConfig = new SetupConfig
-        {
+        var setupConfig = new SetupConfig {
             MaxPlayers = maxPlayers,
             LocalPlayerCount = localPlayerCount,
             OnlineEnabled = onlineEnabled == 1,
             ServerAddress = UnescapeConfigValue(parts[3]),
             ServerPort = serverPort,
             GameModeId = UnescapeConfigValue(parts[5]),
-            MapConfig = new MapGenerationConfig
-            {
+            MapConfig = new MapGenerationConfig {
                 SelectedSeedMode = (MapGenerationConfig.SeedMode)seedMode,
                 FixedSeed = fixedSeed,
             },
             BiomeConfig = new BiomeConfig(),
-            GameplayScoring = new GameplayScoring
-            {
+            GameplayScoring = new GameplayScoring {
                 BestOfRoundsPerGameMode = bestOfRoundsPerGameMode,
                 BestOfGameModes = bestOfGameModes,
                 RandomizeGameModeOrder = randomizeGameModeOrder == 1,
             },
         };
 
-        if (!string.IsNullOrWhiteSpace(parts[11]))
-        {
-            foreach (var mapType in parts[11].Split(',', StringSplitOptions.RemoveEmptyEntries))
-            {
+        if (!string.IsNullOrWhiteSpace(parts[11])) {
+            foreach (var mapType in parts[11].Split(',', StringSplitOptions.RemoveEmptyEntries)) {
                 if (int.TryParse(mapType, out var mapTypeValue))
-                {
                     setupConfig.MapConfig.EnabledStructureTypes.Add((MapGenerationConfig.StructureType)mapTypeValue);
-                }
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(parts[12]))
-        {
-            foreach (var biome in parts[12].Split(',', StringSplitOptions.RemoveEmptyEntries))
-            {
+        if (!string.IsNullOrWhiteSpace(parts[12])) {
+            foreach (var biome in parts[12].Split(',', StringSplitOptions.RemoveEmptyEntries)) {
                 if (int.TryParse(biome, out var biomeValue))
-                {
                     setupConfig.BiomeConfig.EnabledBiomes.Add((BiomeConfig.BiomeType)biomeValue);
-                }
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(parts[13]))
-        {
-            foreach (var gameModeEntry in parts[13].Split(';', StringSplitOptions.RemoveEmptyEntries))
-            {
+        if (!string.IsNullOrWhiteSpace(parts[13])) {
+            foreach (var gameModeEntry in parts[13].Split(';', StringSplitOptions.RemoveEmptyEntries)) {
                 var gameModeParts = gameModeEntry.Split(',');
                 if (gameModeParts.Length != 3
                     || !int.TryParse(gameModeParts[0], out var modeType)
-                    || !int.TryParse(gameModeParts[2], out var isEnabled))
-                {
+                    || !int.TryParse(gameModeParts[2], out var isEnabled)) {
                     continue;
                 }
 
-                setupConfig.GameModes.Add(new GameModeConfig
-                {
+                setupConfig.GameModes.Add(new GameModeConfig {
                     ModeType = (GameModeConfig.GameModeType)modeType,
                     DisplayName = UnescapeConfigValue(gameModeParts[1]),
                     IsEnabled = isEnabled == 1,
@@ -1545,67 +1293,50 @@ public partial class Networking : Node
         return setupConfig;
     }
 
-    private static string GetGameModeDisplayName(GameModeConfig.GameModeType modeType)
-    {
-        return modeType switch
-        {
+    private static string GetGameModeDisplayName(GameModeConfig.GameModeType modeType) {
+        return modeType switch {
             GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
             GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
             _ => modeType.ToString(),
         };
     }
 
-    private static int GetDefaultPeerTeamId(int peerId)
-    {
+    private static int GetDefaultPeerTeamId(int peerId) {
         return global::MultiplayerData.DefaultTeamId;
     }
 
-    private void ApplyLocalTeams()
-    {
+    private void ApplyLocalTeams() {
         var assignedPeerIds = new HashSet<int>();
-        foreach (var playerData in MultiplayerData.Players)
-        {
+        foreach (var playerData in MultiplayerData.Players) {
             if (!assignedPeerIds.Add(playerData.PeerId))
-            {
                 continue;
-            }
 
             var peerData = GetOrCreatePeerData(playerData.PeerId);
             peerData.TeamId = GetLeastPopulatedTeamId(playerData.PeerId);
         }
     }
 
-    private int GetLeastPopulatedTeamId(int excludedPeerId = -1)
-    {
+    private int GetLeastPopulatedTeamId(int excludedPeerId = -1) {
         var teamCounts = new Dictionary<int, int>();
         for (var teamId = 1; teamId <= 4; teamId++)
-        {
             teamCounts[teamId] = 0;
-        }
 
-        foreach (var playerData in MultiplayerData.Players)
-        {
+        foreach (var playerData in MultiplayerData.Players) {
             if (playerData.PeerId == excludedPeerId)
-            {
                 continue;
-            }
 
             var playerTeamId = MultiplayerData.GetTeam(playerData);
             if (!teamCounts.ContainsKey(playerTeamId))
-            {
                 continue;
-            }
 
             teamCounts[playerTeamId]++;
         }
 
         var bestTeamId = 1;
         var bestCount = int.MaxValue;
-        for (var teamId = 1; teamId <= 4; teamId++)
-        {
+        for (var teamId = 1; teamId <= 4; teamId++) {
             var count = teamCounts[teamId];
-            if (count < bestCount)
-            {
+            if (count < bestCount) {
                 bestTeamId = teamId;
                 bestCount = count;
             }
@@ -1614,25 +1345,19 @@ public partial class Networking : Node
         return bestTeamId;
     }
 
-    private static string EscapeConfigValue(string value)
-    {
+    private static string EscapeConfigValue(string value) {
         return string.IsNullOrEmpty(value) ? string.Empty : value.Replace("%", "%25").Replace("|", "%7C").Replace(",", "%2C").Replace(";", "%3B");
     }
 
-    private static string UnescapeConfigValue(string value)
-    {
+    private static string UnescapeConfigValue(string value) {
         return string.IsNullOrEmpty(value) ? string.Empty : value.Replace("%3B", ";").Replace("%2C", ",").Replace("%7C", "|").Replace("%25", "%");
     }
 
-    private void CloseNetworkPeer()
-    {
+    private void CloseNetworkPeer() {
         if (!HasNetworkPeer())
-        {
             return;
-        }
 
-        switch (Multiplayer.MultiplayerPeer)
-        {
+        switch (Multiplayer.MultiplayerPeer) {
             case ENetMultiplayerPeer enetPeer:
                 enetPeer.Close();
                 break;
@@ -1644,114 +1369,82 @@ public partial class Networking : Node
         Multiplayer.MultiplayerPeer = null;
     }
 
-    private bool IsAuthoritativeServer()
-    {
+    private bool IsAuthoritativeServer() {
         return IsServer && HasNetworkPeer() && Multiplayer.GetUniqueId() == ServerPeerId;
     }
 
-    private bool CanApplyAuthoritativeArenaMapChange()
-    {
+    private bool CanApplyAuthoritativeArenaMapChange() {
         return !HasNetworkPeer() || IsAuthoritativeServer();
     }
 
-    private int GetRegisteredLocalPeerId()
-    {
-        foreach (var playerData in MultiplayerData.Players)
-        {
+    private int GetRegisteredLocalPeerId() {
+        foreach (var playerData in MultiplayerData.Players) {
             if (playerData.IsLocalPlayer)
-            {
                 return playerData.PeerId;
-            }
         }
 
         return GetLocalPeerId();
     }
 
-    private int GetLocalPeerId()
-    {
+    private int GetLocalPeerId() {
         if (CurrentMode is NetworkMode.Local or NetworkMode.Lan or NetworkMode.Online)
-        {
             return ServerPeerId;
-        }
 
         if (HasNetworkPeer())
-        {
             return Multiplayer.GetUniqueId();
-        }
 
         return -1;
     }
 
-    private int GetActiveLocalPlayerCount()
-    {
+    private int GetActiveLocalPlayerCount() {
         var count = 0;
-        foreach (var localPlayerData in LocalLobbyData.LocalPlayers)
-        {
+        foreach (var localPlayerData in LocalLobbyData.LocalPlayers) {
             if (localPlayerData.IsActive)
-            {
                 count++;
-            }
         }
 
         return count;
     }
 
-    private int GetConfiguredServerPort()
-    {
+    private int GetConfiguredServerPort() {
         return MultiplayerData.SetupConfig.ServerPort <= 0 ? DefaultServerPort : MultiplayerData.SetupConfig.ServerPort;
     }
 
-    private static int FindAvailableServerPort(ENetMultiplayerPeer peer)
-    {
-        for (var port = DefaultServerPort; port <= MaxServerPort; port++)
-        {
+    private static int FindAvailableServerPort(ENetMultiplayerPeer peer) {
+        for (var port = DefaultServerPort; port <= MaxServerPort; port++) {
             var error = peer.CreateServer(port, MaxClients);
             if (error == Error.Ok)
-            {
                 return port;
-            }
         }
 
         return -1;
     }
 
-    private string GetAdvertisedServerAddress()
-    {
+    private string GetAdvertisedServerAddress() {
         return string.IsNullOrWhiteSpace(MultiplayerData.SetupConfig.ServerAddress)
             ? "127.0.0.1"
             : MultiplayerData.SetupConfig.ServerAddress;
     }
 
-    private static bool IsHeadlessRun()
-    {
+    private static bool IsHeadlessRun() {
         if (DisplayServer.GetName() == "headless")
-        {
             return true;
-        }
 
-        foreach (var argument in OS.GetCmdlineArgs())
-        {
+        foreach (var argument in OS.GetCmdlineArgs()) {
             if (argument == "--headless")
-            {
                 return true;
-            }
         }
 
         return false;
     }
 
-    private PeerData GetOrCreatePeerData(int peerId)
-    {
-        foreach (var peerData in MultiplayerData.Peers)
-        {
+    private PeerData GetOrCreatePeerData(int peerId) {
+        foreach (var peerData in MultiplayerData.Peers) {
             if (peerData.PeerId == peerId)
-            {
                 return peerData;
-            }
         }
 
-        var newPeerData = new PeerData
-        {
+        var newPeerData = new PeerData {
             PeerId = peerId,
         };
 
@@ -1759,18 +1452,13 @@ public partial class Networking : Node
         return newPeerData;
     }
 
-    private PlayerData GetOrCreatePlayerData(int peerId, int localId)
-    {
-        foreach (var playerData in MultiplayerData.Players)
-        {
+    private PlayerData GetOrCreatePlayerData(int peerId, int localId) {
+        foreach (var playerData in MultiplayerData.Players) {
             if (playerData.PeerId == peerId && playerData.LocalId == localId)
-            {
                 return playerData;
-            }
         }
 
-        var newPlayerData = new PlayerData
-        {
+        var newPlayerData = new PlayerData {
             PeerId = peerId,
             LocalId = localId,
         };
@@ -1779,51 +1467,40 @@ public partial class Networking : Node
         return newPlayerData;
     }
 
-    private void RemovePlayersOwnedByPeer(int peerId)
-    {
-        for (var i = MultiplayerData.Players.Count - 1; i >= 0; i--)
-        {
+    private void RemovePlayersOwnedByPeer(int peerId) {
+        for (var i = MultiplayerData.Players.Count - 1; i >= 0; i--) {
             if (MultiplayerData.Players[i].PeerId == peerId)
-            {
                 MultiplayerData.Players.RemoveAt(i);
-            }
         }
     }
 
-    private bool HasNetworkPeer()
-    {
+    private bool HasNetworkPeer() {
         return Multiplayer.MultiplayerPeer != null
             && Multiplayer.MultiplayerPeer is not OfflineMultiplayerPeer;
     }
 
-    private int GetConnectedPeerCount()
-    {
+    private int GetConnectedPeerCount() {
         return HasNetworkPeer() ? Multiplayer.GetPeers().Length : 0;
     }
 
-    private void PrintMultiplayerLog(string message)
-    {
+    private void PrintMultiplayerLog(string message) {
         GD.Print($"[Multiplayer][Mode={CurrentMode}] {message}");
     }
 
-    private void EmitLobbyStateChanged()
-    {
+    private void EmitLobbyStateChanged() {
         EmitSignal(SignalName.LobbyStateChanged);
     }
 
-    private void EmitConnectionStateChanged()
-    {
+    private void EmitConnectionStateChanged() {
         UpdateNetworkModeDebugIcon();
         EmitSignal(SignalName.ConnectionStateChanged);
     }
 
-    private void EmitConfigApplyStateChanged()
-    {
+    private void EmitConfigApplyStateChanged() {
         EmitSignal(SignalName.ConfigApplyStateChanged);
     }
 
-    private void EmitArenaMapChanged()
-    {
+    private void EmitArenaMapChanged() {
         EmitSignal(SignalName.ArenaMapChanged);
     }
 

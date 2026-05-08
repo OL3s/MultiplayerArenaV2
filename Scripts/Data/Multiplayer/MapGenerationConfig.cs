@@ -1,10 +1,8 @@
 using Godot;
 
 [GlobalClass]
-public partial class MapGenerationConfig : Resource
-{
-    public enum StructureType
-    {
+public partial class MapGenerationConfig : Resource {
+    public enum StructureType {
         Arena,
         Rooms,
         Narrow,
@@ -12,8 +10,7 @@ public partial class MapGenerationConfig : Resource
         Plain,
     }
 
-    public enum SeedMode
-    {
+    public enum SeedMode {
         AlwaysRandom,
         FixedSeed,
         SeedPool,
@@ -31,57 +28,40 @@ public partial class MapGenerationConfig : Resource
     [Export]
     public Godot.Collections.Array<StructureType> EnabledStructureTypes { get; set; } = new();
 
-    public void AddStructureType(StructureType structureType)
-    {
+    public void AddStructureType(StructureType structureType) {
         if (HasStructureType(structureType))
-        {
             return;
-        }
 
         EnabledStructureTypes.Add(structureType);
     }
 
-    public void RemoveStructureType(StructureType structureType)
-    {
-        for (var i = EnabledStructureTypes.Count - 1; i >= 0; i--)
-        {
+    public void RemoveStructureType(StructureType structureType) {
+        for (var i = EnabledStructureTypes.Count - 1; i >= 0; i--) {
             if (EnabledStructureTypes[i] == structureType)
-            {
                 EnabledStructureTypes.RemoveAt(i);
-            }
         }
     }
 
-    public bool HasStructureType(StructureType structureType)
-    {
-        foreach (var enabledStructureType in EnabledStructureTypes)
-        {
+    public bool HasStructureType(StructureType structureType) {
+        foreach (var enabledStructureType in EnabledStructureTypes) {
             if (enabledStructureType == structureType)
-            {
                 return true;
-            }
         }
 
         return false;
     }
 
-    public MapGenerationConfig Clone()
-    {
-        var clone = new MapGenerationConfig
-        {
+    public MapGenerationConfig Clone() {
+        var clone = new MapGenerationConfig {
             SelectedSeedMode = SelectedSeedMode,
             FixedSeed = FixedSeed,
         };
 
         foreach (var seed in SeedPool)
-        {
             clone.SeedPool.Add(seed);
-        }
 
         foreach (var structureType in EnabledStructureTypes)
-        {
             clone.EnabledStructureTypes.Add(structureType);
-        }
 
         return clone;
     }
