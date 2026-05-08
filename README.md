@@ -47,6 +47,7 @@ if (a == b)
 
 - `docs/player-items-inventory-plan.md` tracks the planned player item, inventory, weight, backstrap, magazine reserve, and purchase-mode model.
 - `docs/focuspoints.md` tracks the next-session implementation focus. Current focus is turning the player item/inventory resource model into a working Godot test scene.
+- `docs/svg-input-icon-generation.md` documents the SVG input-icon generation approach, including why button labels are generated as vector geometry instead of SVG `<text>`.
 
 ## Game Concept
 
