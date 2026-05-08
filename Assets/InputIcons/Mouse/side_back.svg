@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>Mouse side back button icon</title>
+  <path d="M64 12 C92 12 108 32 108 62 V84 C108 106 90 120 64 120 C38 120 20 106 20 84 V62 C20 32 36 12 64 12 Z" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <path d="M64 16 V65" stroke="#9CA3AF" stroke-width="5"/>
+  <path d="M24 65 H104" stroke="#9CA3AF" stroke-width="5"/>
+  <path d="M25 78 L44 66 V74 H72 V82 H44 V90 Z" fill="#E8EDF2"/>
+</svg>

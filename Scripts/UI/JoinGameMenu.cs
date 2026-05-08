@@ -7,6 +7,10 @@ public partial class JoinGameMenu : Control {
     private const string MatchLobbyScenePath = "res://Scenes/UI/MatchLobby.tscn";
     private const string MainMenuScenePath = "res://Scenes/UI/MainMenu.tscn";
     private const string ServerBrowserOverlayScenePath = "res://Scenes/UI/ServerBrowserOverlay.tscn";
+    private const string NetworkIconLocalPath = "res://Assets/Network/NetworkModes/network_lan.svg";
+    private const string NetworkIconOnlinePath = "res://Assets/Network/NetworkModes/network_online.svg";
+    private const string NetworkIconClientPath = "res://Assets/Network/NetworkModes/network_client.svg";
+    private const string NetworkIconAnyPath = "res://Assets/Network/NetworkModes/network_not_selected.svg";
 
     private PackedScene _serverBrowserOverlayScene;
 
@@ -18,6 +22,7 @@ public partial class JoinGameMenu : Control {
         GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").Pressed += OnQuickmatchPressed;
         GetNode<Button>("MainLayout/JoinByAddress/JoinAddressButton").Pressed += OnJoinAddressPressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
+        ApplyButtonIcons();
         CallDeferred(MethodName.FocusDefaultButton);
     }
 
@@ -156,5 +161,12 @@ public partial class JoinGameMenu : Control {
 
     private void FocusDefaultButton() {
         GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").GrabFocus();
+    }
+
+    private void ApplyButtonIcons() {
+        GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").Icon = GD.Load<Texture2D>(NetworkIconAnyPath);
+        GetNode<Button>("MainLayout/SecondaryActions/BrowseLocalButton").Icon = GD.Load<Texture2D>(NetworkIconLocalPath);
+        GetNode<Button>("MainLayout/SecondaryActions/BrowseServersButton").Icon = GD.Load<Texture2D>(NetworkIconOnlinePath);
+        GetNode<Button>("MainLayout/JoinByAddress/JoinAddressButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
     }
 }

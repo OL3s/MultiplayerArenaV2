@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>LS button icon</title>
+  <circle cx="64" cy="64" r="50" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <rect x="34.14" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="34.14" y="50.43" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="34.14" y="55.86" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="34.14" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="34.14" y="66.71" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="34.14" y="72.14" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="34.14" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="39.57" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="45.00" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="50.43" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="55.86" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="72.14" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="77.57" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="83.00" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="88.43" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="66.71" y="50.43" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="66.71" y="55.86" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="72.14" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="77.57" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="83.00" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="88.43" y="66.71" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="88.43" y="72.14" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="66.71" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="72.14" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="77.57" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <rect x="83.00" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+</svg>

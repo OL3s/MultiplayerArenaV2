@@ -1,9 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://Scripts/UI/HostServerMenu.cs" id="1_hostserver"]
-
-[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_button_icon"]
-size = Vector2(32, 32)
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_local.svg" id="2_network_local"]
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_lan.svg" id="3_network_lan"]
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_online.svg" id="4_network_online"]
 
 [node name="HostServerMenu" type="Control"]
 layout_mode = 3
@@ -45,7 +45,7 @@ alignment = 1
 layout_mode = 2
 custom_minimum_size = Vector2(520, 96)
 theme_override_font_sizes/font_size = 24
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("3_network_lan")
 icon_max_width = 36
 text = "Host LAN"
 
@@ -57,14 +57,14 @@ alignment = 1
 [node name="LocalButton" type="Button" parent="MainLayout/SecondaryActions"]
 layout_mode = 2
 custom_minimum_size = Vector2(240, 58)
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("2_network_local")
 icon_max_width = 24
 text = "Local"
 
 [node name="OnlineButton" type="Button" parent="MainLayout/SecondaryActions"]
 layout_mode = 2
 custom_minimum_size = Vector2(240, 58)
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("4_network_online")
 icon_max_width = 24
 text = "Online"
 

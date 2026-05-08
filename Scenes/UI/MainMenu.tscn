@@ -1,9 +1,8 @@
-[gd_scene format=3 uid="uid://cqb3ugv7ettpp"]
+[gd_scene load_steps=4 format=3 uid="uid://cqb3ugv7ettpp"]
 
 [ext_resource type="Script" uid="uid://btib1l2dguqjn" path="res://Scripts/UI/MainMenu.cs" id="1_mainmenu"]
-
-[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_button_icon"]
-size = Vector2(32, 32)
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_lan.svg" id="4_network_lan"]
+[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_client.svg" id="5_network_client"]
 
 [node name="MainMenu" type="Control" unique_id=585385200]
 layout_mode = 3
@@ -56,7 +55,7 @@ alignment = 1
 [node name="LobbyHelpLabel" type="Label" parent="MainLayout/LobbyPanel" unique_id=351143914]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
-text = "Press X or Enter to join. Use stick or d-pad, A to select, B to cancel, and Y or Esc to leave"
+text = "Use stick or d-pad to navigate. Select and cancel with the shown controller buttons."
 horizontal_alignment = 1
 
 [node name="LobbySlots" type="HBoxContainer" parent="MainLayout/LobbyPanel" unique_id=1885976016]
@@ -71,7 +70,7 @@ layout_mode = 2
 [node name="SlotLabel" type="Label" parent="MainLayout/LobbyPanel/LobbySlots/Slot1" unique_id=927303613]
 layout_mode = 2
 text = "Player 1
-Press X or Enter
+Waiting
 Empty"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -83,7 +82,7 @@ layout_mode = 2
 [node name="SlotLabel" type="Label" parent="MainLayout/LobbyPanel/LobbySlots/Slot2" unique_id=152699815]
 layout_mode = 2
 text = "Player 2
-Press X or Enter
+Waiting
 Empty"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -95,7 +94,7 @@ layout_mode = 2
 [node name="SlotLabel" type="Label" parent="MainLayout/LobbyPanel/LobbySlots/Slot3" unique_id=594697321]
 layout_mode = 2
 text = "Player 3
-Press X or Enter
+Waiting
 Empty"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -107,7 +106,7 @@ layout_mode = 2
 [node name="SlotLabel" type="Label" parent="MainLayout/LobbyPanel/LobbySlots/Slot4" unique_id=1925248993]
 layout_mode = 2
 text = "Player 4
-Press X or Enter
+Waiting
 Empty"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -124,7 +123,7 @@ focus_neighbor_left = NodePath("../JoinGameButton")
 focus_neighbor_top = NodePath("../../../TopRightButtons/ExitGameButton")
 focus_neighbor_right = NodePath("../JoinGameButton")
 text = "Host Game"
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("4_network_lan")
 
 [node name="JoinGameButton" type="Button" parent="MainLayout/ActionButtons" unique_id=709071615]
 custom_minimum_size = Vector2(240, 72)
@@ -133,7 +132,7 @@ focus_neighbor_left = NodePath("../HostGameButton")
 focus_neighbor_top = NodePath("../../../TopRightButtons/ExitGameButton")
 focus_neighbor_right = NodePath("../HostGameButton")
 text = "Join Game"
-icon = SubResource("PlaceholderTexture2D_button_icon")
+icon = ExtResource("5_network_client")
 
 [node name="TopRightButtons" type="HBoxContainer" parent="." unique_id=1018414908]
 layout_mode = 1
@@ -153,7 +152,6 @@ custom_minimum_size = Vector2(82, 30)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Settings"
-icon = SubResource("PlaceholderTexture2D_button_icon")
 
 [node name="ExitGameButton" type="Button" parent="TopRightButtons" unique_id=288126945]
 custom_minimum_size = Vector2(68, 30)
@@ -162,4 +160,3 @@ focus_neighbor_left = NodePath("../SettingsButton")
 focus_neighbor_bottom = NodePath("../../MainLayout/ActionButtons/HostGameButton")
 theme_override_font_sizes/font_size = 12
 text = "Exit"
-icon = SubResource("PlaceholderTexture2D_button_icon")
