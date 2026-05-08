@@ -24,6 +24,25 @@ Validate that Godot can start the project without opening the editor window:
 godot --headless --path . --quit
 ```
 
+## C# Code Style
+
+Do not follow the standard C# brace style in this project. Follow these rules instead:
+
+- Put the opening brace on the same line as the function, class, control statement, or other block declaration.
+- Do not put a newline between the declaration and `{`.
+- If a conditional or loop has only one statement in its body, do not use `{}`.
+
+Examples:
+
+```csharp
+private void DoThing() {
+    RunThing();
+}
+
+if (a == b)
+    c++;
+```
+
 ## Planning Docs
 
 - `docs/player-items-inventory-plan.md` tracks the planned player item, inventory, weight, backstrap, magazine reserve, and purchase-mode model.

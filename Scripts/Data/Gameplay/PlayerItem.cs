@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public abstract partial class PlayerItem : Resource
-{
+public abstract partial class PlayerItem : Resource {
     [Export]
     public string ItemId { get; set; } = string.Empty;
 
@@ -21,8 +20,7 @@ public abstract partial class PlayerItem : Resource
     [Export]
     public Godot.Collections.Array<PlayerItemSlotType> ContainerTypes { get; set; } = new();
 
-    public bool FitsContainerType(PlayerItemSlotType slotType)
-    {
+    public bool FitsContainerType(PlayerItemSlotType slotType) {
         return slotType == PlayerItemSlotType.Generic || ContainerTypes.Contains(slotType);
     }
 }

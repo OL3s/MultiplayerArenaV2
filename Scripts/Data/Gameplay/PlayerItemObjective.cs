@@ -1,10 +1,8 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerItemObjective : Resource
-{
-    public enum ObjectiveType
-    {
+public partial class PlayerItemObjective : Resource {
+    public enum ObjectiveType {
         None,
         Damage,
         Heal,

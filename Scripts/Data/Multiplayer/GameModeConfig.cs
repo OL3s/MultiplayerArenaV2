@@ -1,10 +1,8 @@
 using Godot;
 
 [GlobalClass]
-public partial class GameModeConfig : Resource
-{
-    public enum GameModeType
-    {
+public partial class GameModeConfig : Resource {
+    public enum GameModeType {
         Deathmatch,
         CaptureTheFlag,
     }
@@ -18,10 +16,8 @@ public partial class GameModeConfig : Resource
     [Export]
     public bool IsEnabled { get; set; } = true;
 
-    public GameModeConfig Clone()
-    {
-        return new GameModeConfig
-        {
+    public GameModeConfig Clone() {
+        return new GameModeConfig {
             ModeType = ModeType,
             DisplayName = DisplayName,
             IsEnabled = IsEnabled,

@@ -1,17 +1,14 @@
 using Godot;
 
 [GlobalClass]
-public partial class MapTileData : Resource
-{
-    public enum MapLayerType
-    {
+public partial class MapTileData : Resource {
+    public enum MapLayerType {
         Floor,
         Wall,
         WallDamage,
     }
 
-    public enum MapTileType
-    {
+    public enum MapTileType {
         Floor,
         Wall,
         WallDamageOverlay,

@@ -1,5 +1,4 @@
-public enum PlayerItemTheme
-{
+public enum PlayerItemTheme {
     Any,
     Modern,
     Medieval,

@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class InGamePlayerData : Resource
-{
+public partial class InGamePlayerData : Resource {
     [Export]
     public PlayerArmor Armor { get; set; }
 

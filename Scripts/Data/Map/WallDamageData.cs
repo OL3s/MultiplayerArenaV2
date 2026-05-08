@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class WallDamageData : Resource
-{
+public partial class WallDamageData : Resource {
     [Export]
     public int Damage { get; set; }
 

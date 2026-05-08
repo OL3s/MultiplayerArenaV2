@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public abstract partial class PlayerEquipable : PlayerItem
-{
+public abstract partial class PlayerEquipable : PlayerItem {
     [Export]
     public PlayerItemObjective UseObjective { get; set; }
 

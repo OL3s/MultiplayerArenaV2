@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerProjectileData : Resource
-{
+public partial class PlayerProjectileData : Resource {
     [Export]
     public PackedScene ProjectileScene { get; set; }
 

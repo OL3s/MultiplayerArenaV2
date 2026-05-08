@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerItemSlot : Resource
-{
+public partial class PlayerItemSlot : Resource {
     [Export]
     public string SlotId { get; set; } = string.Empty;
 
@@ -15,29 +14,19 @@ public partial class PlayerItemSlot : Resource
     [Export]
     public PlayerItem StoredItem { get; set; }
 
-    public bool Accepts(PlayerItem item)
-    {
+    public bool Accepts(PlayerItem item) {
         if (item == null)
-        {
             return false;
-        }
 
         if (MaxItemWeight > 0.0f && item.Weight > MaxItemWeight)
-        {
             return false;
-        }
 
         if (AcceptedContainerTypes.Count == 0 || AcceptedContainerTypes.Contains(PlayerItemSlotType.Generic))
-        {
             return true;
-        }
 
-        foreach (var containerType in AcceptedContainerTypes)
-        {
+        foreach (var containerType in AcceptedContainerTypes) {
             if (item.FitsContainerType(containerType))
-            {
                 return true;
-            }
         }
 
         return false;

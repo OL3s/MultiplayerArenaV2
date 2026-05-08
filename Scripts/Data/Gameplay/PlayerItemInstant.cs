@@ -1,10 +1,8 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerItemInstant : PlayerEquipable
-{
-    public PlayerItemInstant()
-    {
+public partial class PlayerItemInstant : PlayerEquipable {
+    public PlayerItemInstant() {
         ContainerTypes.Add(PlayerItemSlotType.SmallGadget);
     }
 

@@ -1,5 +1,4 @@
-public enum PlayerItemSlotType
-{
+public enum PlayerItemSlotType {
     Generic,
     SmallItem,
     LargeItem,

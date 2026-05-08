@@ -1,10 +1,8 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerItemMelee : PlayerEquipable
-{
-    public PlayerItemMelee()
-    {
+public partial class PlayerItemMelee : PlayerEquipable {
+    public PlayerItemMelee() {
         ContainerTypes.Add(PlayerItemSlotType.SmallItem);
     }
 

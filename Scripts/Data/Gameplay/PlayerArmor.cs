@@ -1,8 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerArmor : PlayerItem
-{
+public partial class PlayerArmor : PlayerItem {
     [Export]
     public float ArmorValue { get; set; }
 
