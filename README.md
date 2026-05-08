@@ -235,6 +235,8 @@ Runtime network mode debug UI:
 - Non-client modes also show a small peer-count label beside the icon so host/server peer state is readable while developing.
 - `SettingsConfig.ShowNetworkDebugOverlay` controls whether the network debug overlay is visible.
 - The setting is exposed in the main menu Settings screen under the `Online` tab.
+- A separate connection-lost icon is shown when a client connection fails or an already-connected client loses the server. This is a debug/display state exposed through `Networking.HasLostConnection`, not a separate `NetworkMode`.
+- `ConnectionFailed` and `ServerDisconnected` from Godot multiplayer are the current signals used to detect failed or lost client connections.
 - The overlay is skipped in headless runs.
 
 Settings menu structure:

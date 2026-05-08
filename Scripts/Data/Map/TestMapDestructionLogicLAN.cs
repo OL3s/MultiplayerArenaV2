@@ -355,15 +355,9 @@ public partial class TestMapDestructionLogicLAN : Node2D
             return;
         }
 
-        var connectedPeerCount = GetConnectedPeerCount();
-        var controlsText = CanApplyHostInput()
-            ? "LMB: Bullet  Shift+LMB: Explosive  RMB: Reset"
-            : "Waiting for host wall updates.";
-
-        _statusLabel.Text = $"Network: {_networking.CurrentMode}\n"
-            + $"Client: {GetClientConnectionText()}\n"
-            + $"Peers connected: {connectedPeerCount}\n"
-            + controlsText;
+        _statusLabel.Text = CanApplyHostInput()
+            ? $"Peers connected: {GetConnectedPeerCount()}"
+            : string.Empty;
     }
 
     private string GetNetworkDebugText()
