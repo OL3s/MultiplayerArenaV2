@@ -232,6 +232,8 @@ Runtime network mode debug UI:
 
 - The `Networking` autoload creates a small always-on-top network mode icon in the top-left corner for debug builds/runs.
 - The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `Assets/Debug/NetworkModes/`.
+- A separate connection-lost icon is shown when a client connection fails or an already-connected client loses the server. This is a debug/display state exposed through `Networking.HasLostConnection`, not a separate `NetworkMode`.
+- `ConnectionFailed` and `ServerDisconnected` from Godot multiplayer are the current signals used to detect failed or lost client connections.
 - The overlay is skipped in headless runs.
 
 Current mode distinction:

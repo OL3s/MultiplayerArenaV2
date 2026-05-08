@@ -18,6 +18,7 @@ public partial class Networking : Node
     private const string NetworkDebugIconLanPath = "res://Assets/Debug/NetworkModes/network_lan.svg";
     private const string NetworkDebugIconOnlinePath = "res://Assets/Debug/NetworkModes/network_online.svg";
     private const string NetworkDebugIconClientPath = "res://Assets/Debug/NetworkModes/network_client.svg";
+    private const string NetworkDebugIconConnectionLostPath = "res://Assets/Debug/NetworkModes/network_connection_lost.svg";
 
     public enum NetworkMode
     {
@@ -79,6 +80,8 @@ public partial class Networking : Node
     public string CurrentServerName { get; private set; } = string.Empty;
 
     public string LastConfigApplyMessage { get; private set; } = string.Empty;
+
+    public bool HasLostConnection { get; private set; }
 
     [Export]
     public MultiplayerData MultiplayerData { get; private set; } = new();
@@ -214,10 +217,18 @@ public partial class Networking : Node
     {
         if (CurrentMode == networkMode)
         {
+            if (HasLostConnection)
+            {
+                HasLostConnection = false;
+                UpdateNetworkModeDebugIcon();
+                EmitConnectionStateChanged();
+            }
+
             return;
         }
 
         CurrentMode = networkMode;
+        HasLostConnection = false;
         UpdateNetworkModeDebugIcon();
         EmitConnectionStateChanged();
     }
@@ -243,6 +254,7 @@ public partial class Networking : Node
             Size = new Vector2(42.0f, 42.0f),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
+            Modulate = new Color(1.0f, 1.0f, 1.0f, 0.55f),
         };
 
         canvasLayer.AddChild(_networkModeDebugIcon);
@@ -257,13 +269,20 @@ public partial class Networking : Node
             return;
         }
 
-        _networkModeDebugIcon.Texture = GD.Load<Texture2D>(GetNetworkModeDebugIconPath(CurrentMode));
-        _networkModeDebugIcon.TooltipText = $"Network mode: {CurrentMode}";
+        _networkModeDebugIcon.Texture = GD.Load<Texture2D>(GetNetworkModeDebugIconPath());
+        _networkModeDebugIcon.TooltipText = HasLostConnection
+            ? $"Network mode: {CurrentMode} - connection lost"
+            : $"Network mode: {CurrentMode}";
     }
 
-    private static string GetNetworkModeDebugIconPath(NetworkMode networkMode)
+    private string GetNetworkModeDebugIconPath()
     {
-        return networkMode switch
+        if (HasLostConnection)
+        {
+            return NetworkDebugIconConnectionLostPath;
+        }
+
+        return CurrentMode switch
         {
             NetworkMode.Local => NetworkDebugIconLocalPath,
             NetworkMode.Lan => NetworkDebugIconLanPath,
@@ -345,6 +364,7 @@ public partial class Networking : Node
     {
         PrintMultiplayerLog("Begin host session requested.");
         LastConnectionError = string.Empty;
+        HasLostConnection = false;
         LastConfigApplyMessage = string.Empty;
         CurrentJoinType = JoinType.None;
         CurrentServerName = string.Empty;
@@ -397,6 +417,7 @@ public partial class Networking : Node
         ClearMultiplayerDataLocal();
         SyncCachedSetupConfig();
         LastConnectionError = string.Empty;
+        HasLostConnection = false;
         LastConfigApplyMessage = string.Empty;
         CurrentServerName = listing.DisplayName;
         CurrentJoinType = joinType;
@@ -417,6 +438,8 @@ public partial class Networking : Node
         {
             LastConnectionError = $"Could not connect to {listing.Address}:{listing.Port}: {error}.";
             ConnectionStatusText = "Status: Failed to create client connection.";
+            HasLostConnection = true;
+            UpdateNetworkModeDebugIcon();
             PrintMultiplayerLog(LastConnectionError);
             EmitConnectionStateChanged();
             return false;
@@ -454,9 +477,10 @@ public partial class Networking : Node
         StopDiscoveryServer();
         _localServerListings.Clear();
         LastConnectionError = string.Empty;
+        HasLostConnection = false;
         CurrentServerName = string.Empty;
         CurrentJoinType = JoinType.None;
-        CurrentMode = NetworkMode.NotSelected;
+        SetNetworkMode(NetworkMode.NotSelected);
         ConnectionStatusText = "Status: No mode selected.";
         ClearMultiplayerDataLocal();
         SyncCachedSetupConfig();
@@ -986,6 +1010,8 @@ public partial class Networking : Node
     private void OnConnectedToServer()
     {
         ConnectionStatusText = "Status: Connected. Syncing lobby data from server.";
+        HasLostConnection = false;
+        UpdateNetworkModeDebugIcon();
         PrintMultiplayerLog($"Connected to server. Local peer id: {Multiplayer.GetUniqueId()}.");
         EmitConnectionStateChanged();
         RpcId(ServerPeerId, nameof(RpcRequestJoinServer), BuildActiveLocalIdArray(), BuildActiveLocalNameArray());
@@ -995,6 +1021,8 @@ public partial class Networking : Node
     {
         LastConnectionError = "Connection failed.";
         ConnectionStatusText = "Status: Connection failed.";
+        HasLostConnection = true;
+        UpdateNetworkModeDebugIcon();
         PrintMultiplayerLog("Connection failed.");
         CloseNetworkPeer();
         EmitConnectionStateChanged();
@@ -1004,6 +1032,8 @@ public partial class Networking : Node
     {
         LastConnectionError = "Server disconnected.";
         ConnectionStatusText = "Status: Disconnected from server.";
+        HasLostConnection = true;
+        UpdateNetworkModeDebugIcon();
         PrintMultiplayerLog("Server disconnected.");
         CloseNetworkPeer();
         ClearMultiplayerDataLocal();
