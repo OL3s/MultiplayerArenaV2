@@ -5,6 +5,7 @@ public partial class MainMenu : Control
     private const int LocalLobbySlotCount = 4;
     private const string HostServerMenuScenePath = "res://Scenes/UI/HostServerMenu.tscn";
     private const string JoinGameMenuScenePath = "res://Scenes/UI/JoinGameMenu.tscn";
+    private const string SettingsMenuScenePath = "res://Scenes/UI/SettingsMenu.tscn";
     private const string ConfirmationOverlayScenePath = "res://Scenes/UI/ConfirmationOverlay.tscn";
 
     private PackedScene _confirmationOverlayScene;
@@ -15,9 +16,7 @@ public partial class MainMenu : Control
     {
         UiInputActions.EnsureConfigured();
         _confirmationOverlayScene = GD.Load<PackedScene>(ConfirmationOverlayScenePath);
-        var settingsButton = GetNode<Button>("TopRightButtons/SettingsButton");
-        settingsButton.Disabled = true;
-        settingsButton.FocusMode = FocusModeEnum.None;
+        GetNode<Button>("TopRightButtons/SettingsButton").Pressed += OnSettingsPressed;
         GetNode<Button>("TopRightButtons/ExitGameButton").Pressed += OnExitGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Pressed += OnHostGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Pressed += OnJoinGamePressed;
@@ -306,6 +305,11 @@ public partial class MainMenu : Control
             "Exit",
             "Stay",
             () => GetTree().Quit());
+    }
+
+    private void OnSettingsPressed()
+    {
+        GetTree().ChangeSceneToFile(SettingsMenuScenePath);
     }
 
     private void OnHostGamePressed()

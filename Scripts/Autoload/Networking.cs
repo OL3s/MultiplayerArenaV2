@@ -84,6 +84,9 @@ public partial class Networking : Node
     public bool HasLostConnection { get; private set; }
 
     [Export]
+    public SettingsConfig SettingsConfig { get; private set; } = new();
+
+    [Export]
     public MultiplayerData MultiplayerData { get; private set; } = new();
 
     [Export]
@@ -96,7 +99,9 @@ public partial class Networking : Node
 
     private readonly List<ServerListing> _localServerListings = new();
     private PacketPeerUdp _discoveryServer;
+    private CanvasLayer _networkModeDebugLayer;
     private TextureRect _networkModeDebugIcon;
+    private Label _networkModeDebugPeerLabel;
 
     public override void _Ready()
     {
@@ -105,6 +110,7 @@ public partial class Networking : Node
         Multiplayer.ConnectedToServer += OnConnectedToServer;
         Multiplayer.ConnectionFailed += OnConnectionFailed;
         Multiplayer.ServerDisconnected += OnServerDisconnected;
+        SettingsConfig = SettingsConfig.LoadOrCreate();
         SyncCachedSetupConfig();
         CreateNetworkModeDebugController();
 
@@ -213,6 +219,17 @@ public partial class Networking : Node
         SetNetworkMode(NetworkMode.NotSelected);
     }
 
+    public void SetShowNetworkDebugOverlay(bool showNetworkDebugOverlay)
+    {
+        SettingsConfig.ShowNetworkDebugOverlay = showNetworkDebugOverlay;
+        UpdateNetworkModeDebugIcon();
+    }
+
+    public void SaveSettingsConfig()
+    {
+        SettingsConfig.Save();
+    }
+
     public void SetNetworkMode(NetworkMode networkMode)
     {
         if (CurrentMode == networkMode)
@@ -240,39 +257,75 @@ public partial class Networking : Node
             return;
         }
 
-        var canvasLayer = new CanvasLayer
+        _networkModeDebugLayer = new CanvasLayer
         {
             Name = "NetworkModeDebugLayer",
             Layer = 128,
+            Visible = SettingsConfig.ShowNetworkDebugOverlay,
         };
+
+        var debugLayout = new HBoxContainer
+        {
+            Name = "NetworkModeDebugLayout",
+            Position = new Vector2(12.0f, 12.0f),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        debugLayout.AddThemeConstantOverride("separation", 8);
 
         _networkModeDebugIcon = new TextureRect
         {
             Name = "NetworkModeDebugIcon",
-            Position = new Vector2(12.0f, 12.0f),
             CustomMinimumSize = new Vector2(42.0f, 42.0f),
             Size = new Vector2(42.0f, 42.0f),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
-            Modulate = new Color(1.0f, 1.0f, 1.0f, 0.55f),
+            Modulate = new Color(1.0f, 1.0f, 1.0f, 0.75f),
         };
 
-        canvasLayer.AddChild(_networkModeDebugIcon);
-        AddChild(canvasLayer);
+        _networkModeDebugPeerLabel = new Label
+        {
+            Name = "NetworkModeDebugPeerLabel",
+            VerticalAlignment = VerticalAlignment.Top,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
+        };
+        _networkModeDebugPeerLabel.AddThemeFontSizeOverride("font_size", 14);
+
+        debugLayout.AddChild(_networkModeDebugIcon);
+        debugLayout.AddChild(_networkModeDebugPeerLabel);
+        _networkModeDebugLayer.AddChild(debugLayout);
+        GetTree().Root.CallDeferred(Node.MethodName.AddChild, _networkModeDebugLayer);
         UpdateNetworkModeDebugIcon();
     }
 
     private void UpdateNetworkModeDebugIcon()
     {
+        if (_networkModeDebugLayer != null)
+        {
+            _networkModeDebugLayer.Visible = SettingsConfig.ShowNetworkDebugOverlay;
+        }
+
         if (_networkModeDebugIcon == null)
         {
             return;
         }
 
-        _networkModeDebugIcon.Texture = GD.Load<Texture2D>(GetNetworkModeDebugIconPath());
+        var iconPath = GetNetworkModeDebugIconPath();
+        _networkModeDebugIcon.Texture = GD.Load<Texture2D>(iconPath);
+        if (_networkModeDebugIcon.Texture == null)
+        {
+            GD.PushWarning($"Failed to load network debug icon at '{iconPath}'.");
+        }
+
         _networkModeDebugIcon.TooltipText = HasLostConnection
             ? $"Network mode: {CurrentMode} - connection lost"
             : $"Network mode: {CurrentMode}";
+
+        if (_networkModeDebugPeerLabel != null)
+        {
+            _networkModeDebugPeerLabel.Visible = CurrentMode is NetworkMode.Lan or NetworkMode.Online;
+            _networkModeDebugPeerLabel.Text = $"Peers: {GetConnectedPeerCount()}";
+        }
     }
 
     private string GetNetworkModeDebugIconPath()
@@ -1743,6 +1796,11 @@ public partial class Networking : Node
             && Multiplayer.MultiplayerPeer is not OfflineMultiplayerPeer;
     }
 
+    private int GetConnectedPeerCount()
+    {
+        return HasNetworkPeer() ? Multiplayer.GetPeers().Length : 0;
+    }
+
     private void PrintMultiplayerLog(string message)
     {
         GD.Print($"[Multiplayer][Mode={CurrentMode}] {message}");
@@ -1755,6 +1813,7 @@ public partial class Networking : Node
 
     private void EmitConnectionStateChanged()
     {
+        UpdateNetworkModeDebugIcon();
         EmitSignal(SignalName.ConnectionStateChanged);
     }
 
