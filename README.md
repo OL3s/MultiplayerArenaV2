@@ -24,6 +24,11 @@ Validate that Godot can start the project without opening the editor window:
 godot --headless --path . --quit
 ```
 
+## Planning Docs
+
+- `docs/player-items-inventory-plan.md` tracks the planned player item, inventory, weight, backstrap, magazine reserve, and purchase-mode model.
+- `docs/focuspoints.md` tracks the next-session implementation focus. Current focus is turning the player item/inventory resource model into a working Godot test scene.
+
 ## Game Concept
 
 - Top-down 2D arena shooter
