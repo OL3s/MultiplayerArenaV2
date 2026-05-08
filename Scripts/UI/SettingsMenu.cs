@@ -5,6 +5,7 @@ public partial class SettingsMenu : Control
     private const string MainMenuScenePath = "res://Scenes/UI/MainMenu.tscn";
 
     private CheckBox _networkDebugOverlayCheckBox;
+    private Button _applyButton;
 
     public override void _Ready()
     {
@@ -64,6 +65,24 @@ public partial class SettingsMenu : Control
         tabContainer.AddChild(CreatePlaceholderTab("Controls", "Controls settings will include keyboard, mouse, and gamepad bindings."));
         tabContainer.AddChild(CreatePlaceholderTab("Gameplay", "Gameplay settings will include accessibility and match preference options."));
 
+        var actionsLayout = new HBoxContainer
+        {
+            Name = "ActionsLayout",
+            Alignment = BoxContainer.AlignmentMode.Center,
+        };
+        actionsLayout.AddThemeConstantOverride("separation", 12);
+        mainLayout.AddChild(actionsLayout);
+
+        _applyButton = new Button
+        {
+            Name = "ApplyButton",
+            Text = "Apply",
+            CustomMinimumSize = new Vector2(180.0f, 42.0f),
+            Disabled = true,
+        };
+        _applyButton.Pressed += OnApplyPressed;
+        actionsLayout.AddChild(_applyButton);
+
         var backButton = new Button
         {
             Name = "BackButton",
@@ -71,7 +90,7 @@ public partial class SettingsMenu : Control
             CustomMinimumSize = new Vector2(180.0f, 42.0f),
         };
         backButton.Pressed += OnBackPressed;
-        mainLayout.AddChild(backButton);
+        actionsLayout.AddChild(backButton);
     }
 
     private Control CreatePlaceholderTab(string tabName, string description)
@@ -126,11 +145,30 @@ public partial class SettingsMenu : Control
     private void LoadSettingsValues()
     {
         _networkDebugOverlayCheckBox.ButtonPressed = GetNetworking().SettingsConfig.ShowNetworkDebugOverlay;
+        UpdateApplyButtonState();
     }
 
     private void OnNetworkDebugOverlayToggled(bool enabled)
     {
-        GetNetworking().SetShowNetworkDebugOverlay(enabled);
+        UpdateApplyButtonState();
+    }
+
+    private void OnApplyPressed()
+    {
+        var networking = GetNetworking();
+        networking.SetShowNetworkDebugOverlay(_networkDebugOverlayCheckBox.ButtonPressed);
+        networking.SaveSettingsConfig();
+        UpdateApplyButtonState();
+    }
+
+    private void UpdateApplyButtonState()
+    {
+        if (_applyButton == null || _networkDebugOverlayCheckBox == null)
+        {
+            return;
+        }
+
+        _applyButton.Disabled = _networkDebugOverlayCheckBox.ButtonPressed == GetNetworking().SettingsConfig.ShowNetworkDebugOverlay;
     }
 
     private void FocusDefaultButton()

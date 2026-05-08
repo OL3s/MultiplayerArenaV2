@@ -4,6 +4,26 @@ MultiplayerArenaV2 is an early-stage Godot project for a simple top-down 2D aren
 
 The goal is to build a fast, easy-to-pick-up arena game with multiple game modes and support for several platforms over time.
 
+## CLI Build
+
+Build the C# project without opening the Godot editor:
+
+```bash
+dotnet build MultiplayerArenaV2.csproj
+```
+
+Import assets from the CLI when new Godot assets were added:
+
+```bash
+godot --headless --path . --import
+```
+
+Validate that Godot can start the project without opening the editor window:
+
+```bash
+godot --headless --path . --quit
+```
+
 ## Game Concept
 
 - Top-down 2D arena shooter
@@ -243,7 +263,8 @@ Settings menu structure:
 
 - `Scenes/UI/SettingsMenu.tscn` is the current settings entry point from the main menu.
 - `SettingsConfig` is the shared settings resource owned by the `Networking` autoload for now.
-- The settings menu currently has placeholder tabs for `Video`, `Sound`, `Controls`, and `Gameplay`, plus an `Online` tab with the network debug overlay toggle.
+- `SettingsConfig.LoadOrCreate()` loads `user://settings_config.tres` or returns defaults, and `SettingsConfig.Save()` persists the current resource to the same path.
+- The settings menu currently has placeholder tabs for `Video`, `Sound`, `Controls`, and `Gameplay`, plus an `Online` tab with the network debug overlay toggle and Apply button.
 
 Current mode distinction:
 

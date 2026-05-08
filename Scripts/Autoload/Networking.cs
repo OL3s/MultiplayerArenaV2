@@ -110,6 +110,7 @@ public partial class Networking : Node
         Multiplayer.ConnectedToServer += OnConnectedToServer;
         Multiplayer.ConnectionFailed += OnConnectionFailed;
         Multiplayer.ServerDisconnected += OnServerDisconnected;
+        SettingsConfig = SettingsConfig.LoadOrCreate();
         SyncCachedSetupConfig();
         CreateNetworkModeDebugController();
 
@@ -224,6 +225,11 @@ public partial class Networking : Node
         UpdateNetworkModeDebugIcon();
     }
 
+    public void SaveSettingsConfig()
+    {
+        SettingsConfig.Save();
+    }
+
     public void SetNetworkMode(NetworkMode networkMode)
     {
         if (CurrentMode == networkMode)
@@ -273,7 +279,7 @@ public partial class Networking : Node
             Size = new Vector2(42.0f, 42.0f),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
-            Modulate = new Color(1.0f, 1.0f, 1.0f, 0.55f),
+            Modulate = new Color(1.0f, 1.0f, 1.0f, 0.75f),
         };
 
         _networkModeDebugPeerLabel = new Label
