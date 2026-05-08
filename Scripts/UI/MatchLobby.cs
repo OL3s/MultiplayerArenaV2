@@ -75,7 +75,7 @@ public partial class MatchLobby : Control
         RefreshPlayerSections(networking.MultiplayerData);
 
         var startButton = GetNode<Button>("MainLayout/Actions/StartButton");
-        startButton.Visible = networking.IsServer || networking.IsLocalOnly;
+        startButton.Visible = networking.IsServer || networking.IsLocal;
         startButton.Disabled = !startButton.Visible
             || networking.HasPendingSetupConfigChanges
             || networking.CurrentMode == Networking.NetworkMode.NotSelected
@@ -97,10 +97,9 @@ public partial class MatchLobby : Control
     {
         return networkMode switch
         {
-            Networking.NetworkMode.LocalOnly => "Local Lobby",
-            Networking.NetworkMode.ServerLocal => "LAN Host Lobby",
-            Networking.NetworkMode.ServerOnline => "Online Host Lobby",
-            Networking.NetworkMode.DedicatedServer => "Dedicated Server Lobby",
+            Networking.NetworkMode.Local => "Local Lobby",
+            Networking.NetworkMode.Lan => "LAN Lobby",
+            Networking.NetworkMode.Online => "Online Lobby",
             Networking.NetworkMode.Client => "Client Lobby",
             _ => "Match Lobby",
         };
@@ -118,7 +117,7 @@ public partial class MatchLobby : Control
             return networking.ConnectionStatusText;
         }
 
-        if (networking.IsLocalOnly)
+        if (networking.IsLocal)
         {
             return "Status: Local game. Ready when local players are configured.";
         }
@@ -194,10 +193,9 @@ public partial class MatchLobby : Control
     {
         return networkMode switch
         {
-            Networking.NetworkMode.LocalOnly => "Local only",
-            Networking.NetworkMode.ServerLocal => "LAN host",
-            Networking.NetworkMode.ServerOnline => "Online host",
-            Networking.NetworkMode.DedicatedServer => "Dedicated server",
+            Networking.NetworkMode.Local => "Local",
+            Networking.NetworkMode.Lan => "LAN",
+            Networking.NetworkMode.Online => "Online",
             Networking.NetworkMode.Client => "Client",
             _ => "Not selected",
         };
@@ -213,7 +211,7 @@ public partial class MatchLobby : Control
         {
             Text = $"[{FormatTeamName(teamId)}]",
             CustomMinimumSize = new Vector2(0, 34),
-            Disabled = GetNetworking().IsLocalOnly,
+            Disabled = GetNetworking().IsLocal,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         teamButton.AddThemeFontSizeOverride("font_size", 18);

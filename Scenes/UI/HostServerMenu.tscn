@@ -41,7 +41,7 @@ layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="ServerLocalButton" type="Button" parent="MainLayout/PrimaryAction"]
+[node name="LanButton" type="Button" parent="MainLayout/PrimaryAction"]
 layout_mode = 2
 custom_minimum_size = Vector2(520, 96)
 theme_override_font_sizes/font_size = 24
@@ -54,19 +54,19 @@ layout_mode = 2
 theme_override_constants/separation = 14
 alignment = 1
 
-[node name="LocalOnlyButton" type="Button" parent="MainLayout/SecondaryActions"]
+[node name="LocalButton" type="Button" parent="MainLayout/SecondaryActions"]
 layout_mode = 2
 custom_minimum_size = Vector2(240, 58)
 icon = SubResource("PlaceholderTexture2D_button_icon")
 icon_max_width = 24
-text = "Local Only"
+text = "Local"
 
-[node name="ServerOnlineButton" type="Button" parent="MainLayout/SecondaryActions"]
+[node name="OnlineButton" type="Button" parent="MainLayout/SecondaryActions"]
 layout_mode = 2
 custom_minimum_size = Vector2(240, 58)
 icon = SubResource("PlaceholderTexture2D_button_icon")
 icon_max_width = 24
-text = "Host Online"
+text = "Online"
 
 [node name="BackButton" type="Button" parent="MainLayout"]
 layout_mode = 2

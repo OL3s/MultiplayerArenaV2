@@ -8,9 +8,9 @@ public partial class HostServerMenu : Control
     public override void _Ready()
     {
         UiInputActions.EnsureConfigured();
-        GetNode<Button>("MainLayout/SecondaryActions/LocalOnlyButton").Pressed += OnLocalOnlyPressed;
-        GetNode<Button>("MainLayout/PrimaryAction/ServerLocalButton").Pressed += OnServerLocalPressed;
-        GetNode<Button>("MainLayout/SecondaryActions/ServerOnlineButton").Pressed += OnServerOnlinePressed;
+        GetNode<Button>("MainLayout/SecondaryActions/LocalButton").Pressed += OnLocalPressed;
+        GetNode<Button>("MainLayout/PrimaryAction/LanButton").Pressed += OnLanPressed;
+        GetNode<Button>("MainLayout/SecondaryActions/OnlineButton").Pressed += OnOnlinePressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
         CallDeferred(MethodName.FocusDefaultButton);
     }
@@ -26,21 +26,21 @@ public partial class HostServerMenu : Control
         OnBackPressed();
     }
 
-    private void OnLocalOnlyPressed()
+    private void OnLocalPressed()
     {
-        GetNetworking().SetLocalOnly();
+        GetNetworking().SetLocal();
         OpenMatchLobby();
     }
 
-    private void OnServerLocalPressed()
+    private void OnLanPressed()
     {
-        GetNetworking().SetServerLocal();
+        GetNetworking().SetLan();
         OpenMatchLobby();
     }
 
-    private void OnServerOnlinePressed()
+    private void OnOnlinePressed()
     {
-        GetNetworking().SetServerOnline();
+        GetNetworking().SetOnline();
         OpenMatchLobby();
     }
 
@@ -62,7 +62,7 @@ public partial class HostServerMenu : Control
 
     private void FocusDefaultButton()
     {
-        GetNode<Button>("MainLayout/PrimaryAction/ServerLocalButton").GrabFocus();
+        GetNode<Button>("MainLayout/PrimaryAction/LanButton").GrabFocus();
     }
 
     private Networking GetNetworking()

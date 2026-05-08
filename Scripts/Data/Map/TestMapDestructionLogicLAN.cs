@@ -2,12 +2,6 @@ using Godot;
 
 public partial class TestMapDestructionLogicLAN : Node2D
 {
-    public enum TestLanRole
-    {
-        Host,
-        Client,
-    }
-
     private static readonly Vector2I TestTileSize = new(16, 16);
     private const float TestExplosiveRadius = 56.0f;
     private const int TestExplosiveDamage = 2;
@@ -21,13 +15,12 @@ public partial class TestMapDestructionLogicLAN : Node2D
         (new Vector2I(9, 17), 1),
     };
 
+    private ArenaMapData _arenaMapData;
     private ArenaTileLayerRenderer _tileLayerRenderer;
+    private DebugExplosionRadiusDrawer _debugRadiusDrawer;
     private Camera2D _camera;
     private Label _statusLabel;
     private Networking _networking;
-
-    [Export]
-    public TestLanRole Role { get; set; } = TestLanRole.Host;
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -41,32 +34,25 @@ public partial class TestMapDestructionLogicLAN : Node2D
         _camera = GetNode<Camera2D>("Camera2D");
         _statusLabel = GetNode<Label>("CanvasLayer/StatusLabel");
         _networking = GetNode<Networking>("/root/Networking");
+        _debugRadiusDrawer = CreateDebugRadiusDrawer();
 
         ApplyCommandLineOverrides();
+        EnsureDefaultNetworkMode();
 
         _networking.ConnectionStateChanged += OnConnectionStateChanged;
-        _networking.ArenaMapChanged += OnArenaMapChanged;
-
         UpdateStatusLabel();
+        PrintTestNetworkLog("Scene ready.");
 
-        if (Role == TestLanRole.Host && !_networking.HasActiveNetworkPeer)
+        if (_networking.IsServer && !_networking.HasActiveNetworkPeer)
         {
             TryStartHost();
         }
-        else if (Role == TestLanRole.Client && !_networking.HasActiveNetworkPeer)
+        else if (_networking.IsClient && !_networking.HasActiveNetworkPeer)
         {
             TryStartClient();
         }
 
-        if (Role == TestLanRole.Host && _networking.IsServer && _networking.HasActiveNetworkPeer)
-        {
-            EnsureMockArenaBuilt();
-        }
-        else
-        {
-            _tileLayerRenderer.Render(_networking.ArenaMapData);
-        }
-
+        BuildMockArena();
         CenterCamera();
     }
 
@@ -78,42 +64,25 @@ public partial class TestMapDestructionLogicLAN : Node2D
         }
 
         _networking.ConnectionStateChanged -= OnConnectionStateChanged;
-        _networking.ArenaMapChanged -= OnArenaMapChanged;
     }
 
     public override void _Process(double delta)
     {
-        QueueRedraw();
+        _debugRadiusDrawer.QueueRedraw();
         UpdateStatusLabel();
-    }
-
-    public override void _Draw()
-    {
-        if (!CanApplyDamageInput())
-        {
-            return;
-        }
-
-        var localMousePosition = GetLocalMousePosition();
-        DrawArc(localMousePosition, TestExplosiveRadius, 0.0f, Mathf.Tau, 48, DebugExplosiveRadiusColor, 2.0f);
-        DrawCircle(localMousePosition, 3.0f, DebugExplosiveRadiusColor);
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event is not InputEventMouseButton mouseButtonEvent || !mouseButtonEvent.Pressed)
-        {
-            return;
-        }
-
-        if (!CanApplyDamageInput())
+        if (!CanApplyHostInput() || @event is not InputEventMouseButton mouseButtonEvent || !mouseButtonEvent.Pressed)
         {
             return;
         }
 
         if (mouseButtonEvent.ButtonIndex == MouseButton.Right)
         {
-            EnsureMockArenaBuilt();
+            BuildMockArena();
+            ReplicateMockArenaReset();
             return;
         }
 
@@ -127,18 +96,21 @@ public partial class TestMapDestructionLogicLAN : Node2D
             {
                 DamageWallUnderCursor();
             }
+
+            return;
         }
     }
 
     private void TryStartHost()
     {
-        _networking.SetServerLocal();
-        _networking.BeginHostingSession();
+        var started = _networking.BeginHostingSession();
+        PrintTestNetworkLog($"Host start result: {started}. Port: {_networking.CurrentServerPort}.");
     }
 
     private void TryStartClient()
     {
-        _networking.BeginDirectClientConnection(ClientAddress, ClientPort);
+        var started = _networking.BeginDirectClientConnection(ClientAddress, ClientPort);
+        PrintTestNetworkLog($"Client connect start result: {started}. Target: {ClientAddress}:{ClientPort}.");
     }
 
     private void ApplyCommandLineOverrides()
@@ -147,18 +119,6 @@ public partial class TestMapDestructionLogicLAN : Node2D
         for (var i = 0; i < arguments.Length; i++)
         {
             var argument = arguments[i];
-            if (argument == "--role" && TryGetNextArgument(arguments, ref i, out var roleValue))
-            {
-                ApplyRoleOverride(roleValue);
-                continue;
-            }
-
-            if (argument.StartsWith("--role="))
-            {
-                ApplyRoleOverride(argument[7..]);
-                continue;
-            }
-
             if (argument == "--address" && TryGetNextArgument(arguments, ref i, out var addressValue))
             {
                 ClientAddress = addressValue;
@@ -184,17 +144,12 @@ public partial class TestMapDestructionLogicLAN : Node2D
         }
     }
 
-    private void ApplyRoleOverride(string roleValue)
+    private void EnsureDefaultNetworkMode()
     {
-        if (string.Equals(roleValue, "host", System.StringComparison.OrdinalIgnoreCase))
+        if (!_networking.HasSelectedMode)
         {
-            Role = TestLanRole.Host;
-            return;
-        }
-
-        if (string.Equals(roleValue, "client", System.StringComparison.OrdinalIgnoreCase))
-        {
-            Role = TestLanRole.Client;
+            _networking.SetLan();
+            PrintTestNetworkLog("No network role selected. Defaulting test scene to Lan.");
         }
     }
 
@@ -219,24 +174,21 @@ public partial class TestMapDestructionLogicLAN : Node2D
         return true;
     }
 
-    private void EnsureMockArenaBuilt()
+    private void BuildMockArena()
     {
-        if (!_networking.IsServer)
+        _arenaMapData = new ArenaMapData
         {
-            return;
-        }
-
-        _networking.ArenaMapData.Clear();
-        _networking.ArenaMapData.SourceId = 0;
-        _networking.ArenaMapData.WallDamageSourceId = 1;
-        _networking.ArenaMapData.DefaultWallMaxDamage = 3;
+            SourceId = 0,
+            WallDamageSourceId = 1,
+            DefaultWallMaxDamage = 3,
+        };
 
         AddFloorRectangle(new Rect2I(4, 4, 10, 8));
         AddFloorRectangle(new Rect2I(14, 7, 8, 3));
         AddFloorRectangle(new Rect2I(10, 12, 6, 5));
-        _networking.ArenaMapData.ResetWallTiles();
+        _arenaMapData.ResetWallTiles();
         ApplyInitialWallDamage();
-        _tileLayerRenderer.Render(_networking.ArenaMapData);
+        _tileLayerRenderer.Render(_arenaMapData);
     }
 
     private void AddFloorRectangle(Rect2I rect)
@@ -245,59 +197,155 @@ public partial class TestMapDestructionLogicLAN : Node2D
         {
             for (var y = rect.Position.Y; y < rect.End.Y; y++)
             {
-                _networking.ArenaMapData.AddFloorTile(new Vector2I(x, y));
+                _arenaMapData.AddFloorTile(new Vector2I(x, y));
             }
         }
     }
 
     private void DamageWallUnderCursor()
     {
-        if (!_networking.DamageAuthoritativeWallFromWorldPosition(GetGlobalMousePosition(), TestTileSize))
+        var tilePosition = _arenaMapData.WorldToTile(GetGlobalMousePosition(), TestTileSize);
+        if (!_arenaMapData.DamageWallTile(tilePosition))
         {
             return;
         }
 
-        _tileLayerRenderer.Render(_networking.ArenaMapData);
+        _tileLayerRenderer.Render(_arenaMapData);
+        ReplicateWallDamage(tilePosition, 1);
     }
 
     private void DamageWallsInExplosiveRadius()
     {
-        if (!_networking.DamageAuthoritativeWallsInWorldRadius(
-                GetGlobalMousePosition(),
-                TestTileSize,
-                TestExplosiveRadius,
-                TestExplosiveDamage))
+        var centerTile = _arenaMapData.WorldToTile(GetGlobalMousePosition(), TestTileSize);
+        var tileRadius = Mathf.CeilToInt(TestExplosiveRadius / Mathf.Max(1, TestTileSize.X));
+        var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, tileRadius, TestExplosiveDamage);
+
+        if (changedTiles.Count == 0)
         {
             return;
         }
 
-        _tileLayerRenderer.Render(_networking.ArenaMapData);
+        _tileLayerRenderer.Render(_arenaMapData);
+        ReplicateRadiusDamage(centerTile, tileRadius, TestExplosiveDamage);
     }
 
     private void ApplyInitialWallDamage()
     {
         foreach (var (position, damageAmount) in InitialWallDamageSamples)
         {
-            _networking.ArenaMapData.DamageWallTile(position, damageAmount);
+            _arenaMapData.DamageWallTile(position, damageAmount);
         }
     }
 
-    private bool CanApplyDamageInput()
+    private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer()
     {
-        return _networking != null
-            && Role == TestLanRole.Host
-            && _networking.IsServer
-            && _networking.HasActiveNetworkPeer;
+        var debugRadiusDrawer = new DebugExplosionRadiusDrawer
+        {
+            Name = "DebugExplosionRadiusDrawer",
+            Radius = TestExplosiveRadius,
+            DrawColor = DebugExplosiveRadiusColor,
+            CanDraw = CanApplyHostInput,
+            ZIndex = 10,
+        };
+
+        AddChild(debugRadiusDrawer);
+        return debugRadiusDrawer;
+    }
+
+    private void ReplicateMockArenaReset()
+    {
+        if (!CanSendHostRpc())
+        {
+            return;
+        }
+
+        PrintTestNetworkLog("RPC send: reset mock arena.");
+        Rpc(nameof(RpcResetMockArena));
+    }
+
+    private void ReplicateWallDamage(Vector2I tilePosition, int damageAmount)
+    {
+        if (!CanSendHostRpc())
+        {
+            return;
+        }
+
+        PrintTestNetworkLog($"RPC send: wall damage at {tilePosition} amount {damageAmount}.");
+        Rpc(nameof(RpcDamageWallTile), tilePosition.X, tilePosition.Y, damageAmount);
+    }
+
+    private void ReplicateRadiusDamage(Vector2I centerTile, int radius, int damageAmount)
+    {
+        if (!CanSendHostRpc())
+        {
+            return;
+        }
+
+        PrintTestNetworkLog($"RPC send: radius damage at {centerTile} radius {radius} amount {damageAmount}.");
+        Rpc(nameof(RpcDamageWallsInRadius), centerTile.X, centerTile.Y, radius, damageAmount);
+    }
+
+    private bool CanSendHostRpc()
+    {
+        return _networking.HasActiveNetworkPeer && _networking.IsServer;
+    }
+
+    private bool CanApplyHostInput()
+    {
+        return _networking.IsServer || _networking.IsLocal;
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcResetMockArena()
+    {
+        PrintTestNetworkLog("RPC apply: reset mock arena.");
+        BuildMockArena();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcDamageWallTile(int x, int y, int damageAmount)
+    {
+        if (_arenaMapData == null || !_arenaMapData.DamageWallTile(new Vector2I(x, y), damageAmount))
+        {
+            return;
+        }
+
+        PrintTestNetworkLog($"RPC apply: wall damage at ({x}, {y}) amount {damageAmount}.");
+        _tileLayerRenderer.Render(_arenaMapData);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcDamageWallsInRadius(int centerX, int centerY, int radius, int damageAmount)
+    {
+        if (_arenaMapData == null)
+        {
+            return;
+        }
+
+        var changedTiles = _arenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, damageAmount);
+        if (changedTiles.Count == 0)
+        {
+            return;
+        }
+
+        PrintTestNetworkLog($"RPC apply: radius damage at ({centerX}, {centerY}) radius {radius} amount {damageAmount}.");
+        _tileLayerRenderer.Render(_arenaMapData);
     }
 
     private void OnConnectionStateChanged()
     {
+        PrintTestNetworkLog($"Connection state changed. {GetNetworkDebugText()}");
         UpdateStatusLabel();
     }
 
-    private void OnArenaMapChanged()
+    private int GetConnectedPeerCount()
     {
-        _tileLayerRenderer.Render(_networking.ArenaMapData);
+        return _networking.HasActiveNetworkPeer ? Multiplayer.GetPeers().Length : 0;
+    }
+
+    private void PrintTestNetworkLog(string message)
+    {
+        GD.Print($"[LANDestructionTest][Mode={_networking.CurrentMode}] {message}");
     }
 
     private void UpdateStatusLabel()
@@ -307,16 +355,38 @@ public partial class TestMapDestructionLogicLAN : Node2D
             return;
         }
 
-        if (!_networking.HasActiveNetworkPeer)
+        var connectedPeerCount = GetConnectedPeerCount();
+        var controlsText = CanApplyHostInput()
+            ? "LMB: Bullet  Shift+LMB: Explosive  RMB: Reset"
+            : "Waiting for host wall updates.";
+
+        _statusLabel.Text = $"Network: {_networking.CurrentMode}\n"
+            + $"Client: {GetClientConnectionText()}\n"
+            + $"Peers connected: {connectedPeerCount}\n"
+            + controlsText;
+    }
+
+    private string GetNetworkDebugText()
+    {
+        return $"Network: {_networking.CurrentMode}. Client: {GetClientConnectionText()}. Peers connected: {GetConnectedPeerCount()}.";
+    }
+
+    private string GetClientConnectionText()
+    {
+        if (!_networking.IsClient)
         {
-            _statusLabel.Text = $"Waiting for connection... {_networking.ConnectionStatusText}";
-            return;
+            return "Not client";
         }
 
-        var roleText = Role == TestLanRole.Host ? "Host" : "Client";
-        _statusLabel.Text = Role == TestLanRole.Host
-            ? $"{roleText} connected. LMB: Bullet  Shift+LMB: Explosive  RMB: Reset"
-            : $"{roleText} connected. Waiting for server-driven wall updates. Start both peers before host damage tests.";
+        return IsClientConnected()
+            ? $"Connected to {ClientAddress}:{ClientPort}"
+            : $"Not connected to {ClientAddress}:{ClientPort}";
+    }
+
+    private bool IsClientConnected()
+    {
+        return _networking.HasActiveNetworkPeer
+            && Multiplayer.MultiplayerPeer.GetConnectionStatus() == MultiplayerPeer.ConnectionStatus.Connected;
     }
 
     private void CenterCamera()

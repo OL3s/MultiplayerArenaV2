@@ -91,7 +91,7 @@ Projectile and explosion damage handling rules:
 
 Current destruction test scene:
 
-- `Scenes/TestMapDestructionLogic.tscn` is a temporary root scene for destructible map backend testing.
+- `Scenes/Tests/TestMapDestructionLogic.tscn` is a temporary root scene for destructible map backend testing.
 - `TestMapDestructionLogic` creates mock floor hashset data, calls `ResetWallTiles()`, then applies a few sample wall-damage values after normal wall generation.
 - Left-clicking a wall applies bullet-style single-tile damage from the current mouse world position.
 - `Shift + Left Click` applies explosive area damage using the current mouse world position and a larger test radius.
@@ -100,20 +100,39 @@ Current destruction test scene:
 
 Current LAN destruction test scene:
 
-- `Scenes/TestMapDestructionLogicLAN.tscn` is a temporary LAN/RTC-focused test scene for server-authoritative wall destruction sync.
-- `TestMapDestructionLogicLAN` uses `Networking.ArenaMapData` as the shared authoritative map resource instead of a private scene-local map instance.
+- `Scenes/Tests/TestMapDestructionLogicLAN.tscn` is a temporary LAN/RTC-focused test scene for server-authoritative wall destruction sync.
+- `TestMapDestructionLogicLAN` uses the same scene-local mock map flow as `TestMapDestructionLogic`, then forwards host damage/reset RPCs to connected clients.
 - The scene includes a status label that shows waiting/connection state while testing host/client behavior.
-- `TestMapDestructionLogicLAN` supports CLI overrides through Godot user args: `--role`, `--address`, and `--port`.
+- `Networking` owns the shared `--role` CLI override and maps it to `NetworkMode`; this scene reads `Networking.CurrentMode` instead of keeping a separate role enum.
+- `TestMapDestructionLogicLAN` still supports scene-local CLI overrides through Godot user args: `--address` and `--port` for the direct client target.
 - The host instance is the only peer allowed to apply wall damage input.
-- The client instance is a read-only viewer that re-renders when `Networking` emits `ArenaMapChanged` after authoritative map RPC updates are applied.
+- The client instance is a read-only viewer that applies and re-renders scene-local RPC updates sent by the host.
 - Current controls on the host are the same as the local test scene: `Left Click` for bullet-style damage, `Shift + Left Click` for explosive radius damage, and `Right Click` to rebuild/reset the mock arena.
 - The LAN test scene currently focuses on live sync for already-connected peers. Start both peers first, then perform destruction tests from the host side.
 - Initial map construction and late-join catch-up are still not fully synchronized yet. Those are deferred follow-up tasks, not part of the current networking slice.
 
 Example CLI usage:
 
-- Host: `godot --path . res://Scenes/TestMapDestructionLogicLAN.tscn -- --role host`
-- Client: `godot --path . res://Scenes/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700`
+- Host: `godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host`
+- Client: `godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700`
+- Launch one host and one client from the same terminal:
+
+```bash
+godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host & \
+godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700 & \
+disown
+```
+
+- If the host log says it picked a port other than `7700`, use that port for the client. This can happen if another old test instance is still holding `7700`.
+- Supported shared role values are `local`, `lan`, `host`, `server`, `server-local`, `client`, `online`, `online-host`, and `server-online`.
+
+Runtime print/logging standards:
+
+- Multiplayer runtime prints should use a clear bracket prefix so multi-instance terminal output stays searchable.
+- General networking logs use `[Multiplayer][Mode=<NetworkMode>] ...` and should include the current `NetworkMode` enum value.
+- Scene-specific LAN destruction logs use `[LANDestructionTest][Mode=<NetworkMode>] ...`.
+- Keep live gameplay prints short and event-based: host/client start, connect/fail/disconnect, peer count changes, and RPC send/apply events.
+- Do not print every frame or every `_Process()` tick.
 
 ## Planned Game Modes
 
@@ -185,10 +204,9 @@ For destructible map state, `Networking` should also act as the authoritative br
 Planned network mode state:
 
 - Not selected: no network mode has been chosen yet
-- Local only: no network peer, no ports opened, same-machine players only
-- Server local: host/LAN server, listens locally but does not attempt public exposure
-- Server online: online host mode, intended for future public exposure, UPnP, relay, or matchmaking
-- Dedicated server: server-only/dev mode without local player ownership, selected automatically for headless runs instead of through the host menu
+- Local: no network peer, no ports opened, current running instance only
+- LAN: network host/client mode for direct local-network or direct address connections
+- Online: network host/client mode intended for internet discovery/listing, UPnP, relay, or matchmaking
 - Client: this instance is connected to a host
 
 Possible structure:
@@ -197,19 +215,32 @@ Possible structure:
 public enum NetworkMode
 {
     NotSelected,
-    LocalOnly,
-    ServerLocal,
-    ServerOnline,
-    DedicatedServer,
+    Local,
+    Lan,
+    Online,
     Client,
 }
 
 public NetworkMode CurrentMode { get; private set; } = NetworkMode.NotSelected;
 ```
 
-The host menu should expose `LocalOnly`, `ServerLocal`, and `ServerOnline`. `DedicatedServer` should not be a normal menu option; it is selected at startup when running Godot with `--headless`.
+The host menu should expose `Local`, `Lan`, and `Online`. A separate dedicated-server mode is not needed yet; running headless without local players is treated as a normal host/server process.
 
-The rest of the game should check this shared state instead of guessing whether it is running as local-only, LAN host, online host, dedicated server, or client.
+The rest of the game should check this shared state instead of guessing whether it is running as local, LAN, online, or client.
+
+Runtime network mode debug UI:
+
+- The `Networking` autoload creates a small always-on-top network mode icon in the top-left corner for debug builds/runs.
+- The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `Assets/Debug/NetworkModes/`.
+- The overlay is skipped in headless runs.
+
+Current mode distinction:
+
+- `Local` means the match is contained inside this one running process. It is not LAN and should not create a network peer or open a port.
+- `Lan` and `Online` are both real network modes. For now they use the same direct host/client transport behavior.
+- `Lan` is the default private/direct mode. A LAN server can still be reached from outside the local network if the user manually port-forwards and another player connects with a direct address and port.
+- `Online` is reserved for public/internet-facing host flow. The main future difference is that online hosts should broadcast/register with an online service so they appear in an online search list. LAN hosts should not register with that online service.
+- Direct address joins should stay transport-agnostic: if the target address and port are reachable, they can connect to either a LAN or manually port-forwarded host.
 
 ## Networking Transport
 
