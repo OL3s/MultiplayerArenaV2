@@ -81,6 +81,9 @@ public partial class Networking : Node
     public string LastConfigApplyMessage { get; private set; } = string.Empty;
 
     [Export]
+    public SettingsConfig SettingsConfig { get; private set; } = new();
+
+    [Export]
     public MultiplayerData MultiplayerData { get; private set; } = new();
 
     [Export]
@@ -93,7 +96,9 @@ public partial class Networking : Node
 
     private readonly List<ServerListing> _localServerListings = new();
     private PacketPeerUdp _discoveryServer;
+    private CanvasLayer _networkModeDebugLayer;
     private TextureRect _networkModeDebugIcon;
+    private Label _networkModeDebugPeerLabel;
 
     public override void _Ready()
     {
@@ -210,6 +215,12 @@ public partial class Networking : Node
         SetNetworkMode(NetworkMode.NotSelected);
     }
 
+    public void SetShowNetworkDebugOverlay(bool showNetworkDebugOverlay)
+    {
+        SettingsConfig.ShowNetworkDebugOverlay = showNetworkDebugOverlay;
+        UpdateNetworkModeDebugIcon();
+    }
+
     public void SetNetworkMode(NetworkMode networkMode)
     {
         if (CurrentMode == networkMode)
@@ -229,29 +240,51 @@ public partial class Networking : Node
             return;
         }
 
-        var canvasLayer = new CanvasLayer
+        _networkModeDebugLayer = new CanvasLayer
         {
             Name = "NetworkModeDebugLayer",
             Layer = 128,
         };
 
+        var debugLayout = new HBoxContainer
+        {
+            Name = "NetworkModeDebugLayout",
+            Position = new Vector2(12.0f, 12.0f),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        debugLayout.AddThemeConstantOverride("separation", 8);
+
         _networkModeDebugIcon = new TextureRect
         {
             Name = "NetworkModeDebugIcon",
-            Position = new Vector2(12.0f, 12.0f),
             CustomMinimumSize = new Vector2(42.0f, 42.0f),
             Size = new Vector2(42.0f, 42.0f),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
 
-        canvasLayer.AddChild(_networkModeDebugIcon);
-        AddChild(canvasLayer);
+        _networkModeDebugPeerLabel = new Label
+        {
+            Name = "NetworkModeDebugPeerLabel",
+            VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        _networkModeDebugPeerLabel.AddThemeFontSizeOverride("font_size", 14);
+
+        debugLayout.AddChild(_networkModeDebugIcon);
+        debugLayout.AddChild(_networkModeDebugPeerLabel);
+        _networkModeDebugLayer.AddChild(debugLayout);
+        AddChild(_networkModeDebugLayer);
         UpdateNetworkModeDebugIcon();
     }
 
     private void UpdateNetworkModeDebugIcon()
     {
+        if (_networkModeDebugLayer != null)
+        {
+            _networkModeDebugLayer.Visible = SettingsConfig.ShowNetworkDebugOverlay;
+        }
+
         if (_networkModeDebugIcon == null)
         {
             return;
@@ -259,6 +292,12 @@ public partial class Networking : Node
 
         _networkModeDebugIcon.Texture = GD.Load<Texture2D>(GetNetworkModeDebugIconPath(CurrentMode));
         _networkModeDebugIcon.TooltipText = $"Network mode: {CurrentMode}";
+
+        if (_networkModeDebugPeerLabel != null)
+        {
+            _networkModeDebugPeerLabel.Visible = !IsClient;
+            _networkModeDebugPeerLabel.Text = $"Peers: {GetConnectedPeerCount()}";
+        }
     }
 
     private static string GetNetworkModeDebugIconPath(NetworkMode networkMode)
@@ -1713,6 +1752,11 @@ public partial class Networking : Node
             && Multiplayer.MultiplayerPeer is not OfflineMultiplayerPeer;
     }
 
+    private int GetConnectedPeerCount()
+    {
+        return HasNetworkPeer() ? Multiplayer.GetPeers().Length : 0;
+    }
+
     private void PrintMultiplayerLog(string message)
     {
         GD.Print($"[Multiplayer][Mode={CurrentMode}] {message}");
@@ -1725,6 +1769,7 @@ public partial class Networking : Node
 
     private void EmitConnectionStateChanged()
     {
+        UpdateNetworkModeDebugIcon();
         EmitSignal(SignalName.ConnectionStateChanged);
     }
 

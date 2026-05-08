@@ -232,7 +232,16 @@ Runtime network mode debug UI:
 
 - The `Networking` autoload creates a small always-on-top network mode icon in the top-left corner for debug builds/runs.
 - The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `Assets/Debug/NetworkModes/`.
+- Non-client modes also show a small peer-count label beside the icon so host/server peer state is readable while developing.
+- `SettingsConfig.ShowNetworkDebugOverlay` controls whether the network debug overlay is visible.
+- The setting is exposed in the main menu Settings screen under the `Online` tab.
 - The overlay is skipped in headless runs.
+
+Settings menu structure:
+
+- `Scenes/UI/SettingsMenu.tscn` is the current settings entry point from the main menu.
+- `SettingsConfig` is the shared settings resource owned by the `Networking` autoload for now.
+- The settings menu currently has placeholder tabs for `Video`, `Sound`, `Controls`, and `Gameplay`, plus an `Online` tab with the network debug overlay toggle.
 
 Current mode distinction:
 
