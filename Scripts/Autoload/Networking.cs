@@ -135,7 +135,7 @@ public partial class Networking : Node {
 
     public int CurrentServerPort => MultiplayerData.SetupConfig.ServerPort;
 
-    public bool HasPendingSetupConfigChanges => HasSelectedMode && !AreSetupConfigsEquivalent(MultiplayerData.SetupConfig, CachedSetupConfig);
+    public bool HasPendingSetupConfigChanges => HasSelectedMode && !MultiplayerData.SetupConfig.IsEquivalentTo(CachedSetupConfig);
 
     public SetupConfig GetEditableSetupConfig() {
         return CachedSetupConfig;
@@ -365,7 +365,7 @@ public partial class Networking : Node {
         CurrentServerName = string.Empty;
         ClearMultiplayerDataLocal();
         SyncCachedSetupConfig();
-        EnsureDefaultSetupSelections(MultiplayerData.SetupConfig);
+        MultiplayerData.SetupConfig.EnsureDefaultSelections();
         SyncCachedSetupConfig();
 
         if (IsLocal) {
@@ -419,7 +419,7 @@ public partial class Networking : Node {
         MultiplayerData.SetupConfig.GameModeId = listing.GameModeId;
         MultiplayerData.SetupConfig.MaxPlayers = listing.MaxPlayers;
         MultiplayerData.SetupConfig.LocalPlayerCount = GetActiveLocalPlayerCount();
-        EnsureDefaultSetupSelections(MultiplayerData.SetupConfig);
+        MultiplayerData.SetupConfig.EnsureDefaultSelections();
         SyncCachedSetupConfig();
 
         var peer = new ENetMultiplayerPeer();
@@ -495,7 +495,7 @@ public partial class Networking : Node {
             return false;
 
         LastConfigApplyMessage = string.Empty;
-        RpcId(ServerPeerId, nameof(RpcRequestApplyCachedSetupConfig), SerializeSetupConfig(CachedSetupConfig));
+        RpcId(ServerPeerId, nameof(RpcRequestApplyCachedSetupConfig), CachedSetupConfig.SerializeForNetwork());
         EmitConfigApplyStateChanged();
         return true;
     }
@@ -605,7 +605,7 @@ public partial class Networking : Node {
             setupConfig.ServerPort,
             setupConfig.GameModeId);
 
-        var serializedSetupConfig = SerializeSetupConfig(setupConfig);
+        var serializedSetupConfig = setupConfig.SerializeForNetwork();
         if (HasNetworkPeer())
             Rpc(nameof(RpcReplaceFullSetupConfig), serializedSetupConfig);
         else {
@@ -749,8 +749,7 @@ public partial class Networking : Node {
             return;
 
         var remotePeerId = Multiplayer.GetRemoteSenderId();
-        var requestedSetupConfig = DeserializeSetupConfig(serializedSetupConfig);
-        if (requestedSetupConfig == null)
+        if (!SetupConfig.TryDeserializeForNetwork(serializedSetupConfig, out var requestedSetupConfig))
             return;
 
         requestedSetupConfig.ServerAddress = MultiplayerData.SetupConfig.ServerAddress;
@@ -786,8 +785,7 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcReplaceFullSetupConfig(string serializedSetupConfig) {
-        var deserializedSetupConfig = DeserializeSetupConfig(serializedSetupConfig);
-        if (deserializedSetupConfig == null)
+        if (!SetupConfig.TryDeserializeForNetwork(serializedSetupConfig, out var deserializedSetupConfig))
             return;
 
         MultiplayerData.SetupConfig.CopyFrom(deserializedSetupConfig);
@@ -965,7 +963,7 @@ public partial class Networking : Node {
             setupConfig.ServerAddress,
             setupConfig.ServerPort,
             setupConfig.GameModeId);
-        RpcId(targetPeerId, nameof(RpcReplaceFullSetupConfig), SerializeSetupConfig(setupConfig));
+        RpcId(targetPeerId, nameof(RpcReplaceFullSetupConfig), setupConfig.SerializeForNetwork());
 
         foreach (var peerData in MultiplayerData.Peers) {
             RpcId(
@@ -1140,167 +1138,6 @@ public partial class Networking : Node {
         CachedSetupConfig = MultiplayerData.SetupConfig?.Clone() ?? new SetupConfig();
     }
 
-    private static void EnsureDefaultSetupSelections(SetupConfig setupConfig) {
-        if (setupConfig == null)
-            return;
-
-        if (setupConfig.GameModes.Count == 0) {
-            var defaultGameModes = new[] {
-                GameModeConfig.GameModeType.Deathmatch,
-                GameModeConfig.GameModeType.CaptureTheFlag,
-            };
-
-            foreach (var modeType in defaultGameModes) {
-                setupConfig.AddGameMode(new GameModeConfig {
-                    ModeType = modeType,
-                    DisplayName = GetGameModeDisplayName(modeType),
-                    IsEnabled = true,
-                });
-            }
-        }
-
-        if (setupConfig.MapConfig.EnabledStructureTypes.Count == 0) {
-            foreach (MapGenerationConfig.StructureType structureType in System.Enum.GetValues(typeof(MapGenerationConfig.StructureType)))
-                setupConfig.MapConfig.EnabledStructureTypes.Add(structureType);
-        }
-
-        if (setupConfig.BiomeConfig.EnabledBiomes.Count == 0) {
-            foreach (BiomeConfig.BiomeType biomeType in System.Enum.GetValues(typeof(BiomeConfig.BiomeType)))
-                setupConfig.BiomeConfig.EnabledBiomes.Add(biomeType);
-        }
-    }
-
-    private static bool AreSetupConfigsEquivalent(SetupConfig left, SetupConfig right) {
-        if (left == null || right == null)
-            return left == right;
-
-        return SerializeSetupConfig(left) == SerializeSetupConfig(right);
-    }
-
-    private static string SerializeSetupConfig(SetupConfig setupConfig) {
-        if (setupConfig == null)
-            return string.Empty;
-
-        var mapTypes = new List<string>();
-        foreach (var structureType in setupConfig.MapConfig.EnabledStructureTypes)
-            mapTypes.Add(((int)structureType).ToString());
-
-        var biomes = new List<string>();
-        foreach (var biome in setupConfig.BiomeConfig.EnabledBiomes)
-            biomes.Add(((int)biome).ToString());
-
-        var gameModes = new List<string>();
-        foreach (var gameMode in setupConfig.GameModes) {
-            if (gameMode == null)
-                continue;
-
-            gameModes.Add($"{(int)gameMode.ModeType},{EscapeConfigValue(gameMode.DisplayName)},{(gameMode.IsEnabled ? 1 : 0)}");
-        }
-
-        return string.Join(
-            "|",
-            setupConfig.MaxPlayers,
-            setupConfig.LocalPlayerCount,
-            setupConfig.OnlineEnabled ? 1 : 0,
-            EscapeConfigValue(setupConfig.ServerAddress),
-            setupConfig.ServerPort,
-            EscapeConfigValue(setupConfig.GameModeId),
-            (int)setupConfig.MapConfig.SelectedSeedMode,
-            setupConfig.MapConfig.FixedSeed,
-            setupConfig.GameplayScoring.BestOfRoundsPerGameMode,
-            setupConfig.GameplayScoring.BestOfGameModes,
-            setupConfig.GameplayScoring.RandomizeGameModeOrder ? 1 : 0,
-            string.Join(",", mapTypes),
-            string.Join(",", biomes),
-            string.Join(";", gameModes));
-    }
-
-    private static SetupConfig DeserializeSetupConfig(string serializedSetupConfig) {
-        if (string.IsNullOrWhiteSpace(serializedSetupConfig))
-            return null;
-
-        var parts = serializedSetupConfig.Split('|');
-        if (parts.Length < 14)
-            return null;
-
-        if (!int.TryParse(parts[0], out var maxPlayers)
-            || !int.TryParse(parts[1], out var localPlayerCount)
-            || !int.TryParse(parts[2], out var onlineEnabled)
-            || !int.TryParse(parts[4], out var serverPort)
-            || !int.TryParse(parts[6], out var seedMode)
-            || !int.TryParse(parts[7], out var fixedSeed)) {
-            return null;
-        }
-
-        if (!int.TryParse(parts[8], out var bestOfRoundsPerGameMode)
-            || !int.TryParse(parts[9], out var bestOfGameModes)
-            || !int.TryParse(parts[10], out var randomizeGameModeOrder)) {
-            return null;
-        }
-
-        var setupConfig = new SetupConfig {
-            MaxPlayers = maxPlayers,
-            LocalPlayerCount = localPlayerCount,
-            OnlineEnabled = onlineEnabled == 1,
-            ServerAddress = UnescapeConfigValue(parts[3]),
-            ServerPort = serverPort,
-            GameModeId = UnescapeConfigValue(parts[5]),
-            MapConfig = new MapGenerationConfig {
-                SelectedSeedMode = (MapGenerationConfig.SeedMode)seedMode,
-                FixedSeed = fixedSeed,
-            },
-            BiomeConfig = new BiomeConfig(),
-            GameplayScoring = new GameplayScoring {
-                BestOfRoundsPerGameMode = bestOfRoundsPerGameMode,
-                BestOfGameModes = bestOfGameModes,
-                RandomizeGameModeOrder = randomizeGameModeOrder == 1,
-            },
-        };
-
-        if (!string.IsNullOrWhiteSpace(parts[11])) {
-            foreach (var mapType in parts[11].Split(',', StringSplitOptions.RemoveEmptyEntries)) {
-                if (int.TryParse(mapType, out var mapTypeValue))
-                    setupConfig.MapConfig.EnabledStructureTypes.Add((MapGenerationConfig.StructureType)mapTypeValue);
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(parts[12])) {
-            foreach (var biome in parts[12].Split(',', StringSplitOptions.RemoveEmptyEntries)) {
-                if (int.TryParse(biome, out var biomeValue))
-                    setupConfig.BiomeConfig.EnabledBiomes.Add((BiomeConfig.BiomeType)biomeValue);
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(parts[13])) {
-            foreach (var gameModeEntry in parts[13].Split(';', StringSplitOptions.RemoveEmptyEntries)) {
-                var gameModeParts = gameModeEntry.Split(',');
-                if (gameModeParts.Length != 3
-                    || !int.TryParse(gameModeParts[0], out var modeType)
-                    || !int.TryParse(gameModeParts[2], out var isEnabled)) {
-                    continue;
-                }
-
-                setupConfig.GameModes.Add(new GameModeConfig {
-                    ModeType = (GameModeConfig.GameModeType)modeType,
-                    DisplayName = UnescapeConfigValue(gameModeParts[1]),
-                    IsEnabled = isEnabled == 1,
-                });
-            }
-        }
-
-        EnsureDefaultSetupSelections(setupConfig);
-
-        return setupConfig;
-    }
-
-    private static string GetGameModeDisplayName(GameModeConfig.GameModeType modeType) {
-        return modeType switch {
-            GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
-            GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
-            _ => modeType.ToString(),
-        };
-    }
-
     private static int GetDefaultPeerTeamId(int peerId) {
         return global::MultiplayerData.DefaultTeamId;
     }
@@ -1343,14 +1180,6 @@ public partial class Networking : Node {
         }
 
         return bestTeamId;
-    }
-
-    private static string EscapeConfigValue(string value) {
-        return string.IsNullOrEmpty(value) ? string.Empty : value.Replace("%", "%25").Replace("|", "%7C").Replace(",", "%2C").Replace(";", "%3B");
-    }
-
-    private static string UnescapeConfigValue(string value) {
-        return string.IsNullOrEmpty(value) ? string.Empty : value.Replace("%3B", ";").Replace("%2C", ",").Replace("%7C", "|").Replace("%25", "%");
     }
 
     private void CloseNetworkPeer() {
