@@ -59,6 +59,8 @@ The LAN test currently covers:
 - Radius damage falloff, strongest at the explosion center.
 - Real `PlayerData` registration through the `Networking` autoload instead of hardcoded mock player ids.
 - Quantized player movement and aim tests through `GlobalId -> PlayerData -> LocalPlayerData` ownership/input resolution.
+- Godot physics movement collision for LAN test players, props, and wall TileMap collision.
+- Temporary SVG player front/back body sprites and pistol weapon sprite.
 
 Controls:
 
@@ -91,8 +93,9 @@ The status label shows player health and ownership mapping using `GlobalId -> Pl
 Current hitbox/collision/input test structure:
 
 - `DamageTestPlayer` is a `CharacterBody2D` with a direct circular `CollisionShape2D`. Click damage still uses its circular radius, and movement collision is resolved by Godot physics through `MoveAndSlide()`.
-- `DamageTestPlayer` creates a simple child `Line2D` named `Weapon`. The weapon is offset from the body and rotated toward the active aim display vector.
+- `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images and a pistol weapon `Sprite2D`. The weapon is offset from the body and rotated toward the active aim display vector.
 - `DamageTestPlayer` stores separate local and estimated aim vectors. Owned/local players display their locally calculated exact aim immediately. Remote/non-owned player display uses the replicated quantized estimated aim.
+- The player body sprite flips only by `BodySprite.Scale.X`; root scale, collision, label, and weapon positioning are not flipped through the root node. The body switches to the back SVG only when aim is sufficiently upward.
 - `LevelProp` is a `StaticBody2D` with a direct circular `CollisionShape2D` derived from `LevelPropData.Size`. Click damage still uses the same circular prop radius.
 - Wall damage is tile-data authoritative: world positions are converted to `Vector2I` tile coordinates and checked against `ArenaMapData` wall tiles. Wall tiles currently behave as full `16x16` damage cells.
 - LAN test movement uses Godot physics bodies: players are `CharacterBody2D`, props are `StaticBody2D`, and wall movement collision comes from the rendered `WallLayer` `TileMapLayer`. `ArenaTileLayerRenderer` adds a runtime physics layer/polygon to the loaded wall `TileSet`, while `ArenaMapData.WallTiles` remains the gameplay authority for wall damage/destruction checks.
@@ -102,6 +105,7 @@ Current hitbox/collision/input test structure:
 - Local aim display is allowed to be more exact than replicated aim state. Future shoot/throw actions should send their exact aim vector at action time and can use that exact vector to update the acting object's local aim display.
 - Client movement and aim input are sent to the host/server as state-change requests. The host validates ownership by comparing the requested player's `PeerId` with the RPC sender and then syncs the accepted state back to clients.
 - Position correction is not applied on every movement-state change. Client position is sent with movement changes as a drift hint, and the server only includes a correction when the difference is currently over `48px`. Future shot/throw actions should send their exact aim vector or coordinate at action time instead of relying only on the quantized display aim.
+- Spawn/respawn placement is not yet overlap-safe. `MoveAndSlide()` should not be relied on to push a player out of an initial overlap; add a circular physics-space spawn query and nearby free-floor fallback before relying on respawns in real gameplay.
 
 ## Damage Test Player Runtime
 
@@ -110,7 +114,7 @@ File: `Scripts/Data/Gameplay/DamageTestPlayer.cs`
 `DamageTestPlayer` is a temporary LAN-test runtime player body for combat and upcoming controls work.
 
 - It owns `GlobalId` and a `HealthContainer`.
-- It draws a simple body, health bar, and label.
+- It displays temporary SVG body/weapon sprites, draws a health bar, and owns a label.
 - It is a `CharacterBody2D` with a circular `CollisionShape2D`.
 - On death it disables hitbox monitoring, monitorable state, collision shape, processing, physics processing, and input processing.
 - Dead players ignore further damage.
