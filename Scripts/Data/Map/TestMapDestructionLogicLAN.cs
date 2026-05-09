@@ -23,6 +23,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     private Networking _networking;
     private DamageType _selectedDamageType = DamageType.Crush;
     private readonly List<LevelProp> _props = new();
+    private readonly Dictionary<int, DamageTestPlayer> _playersByGlobalId = new();
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -42,8 +43,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
         ApplyCommandLineOverrides();
         EnsureDefaultNetworkMode();
+        EnsureTestLocalLobbyPlayer();
 
         _networking.ConnectionStateChanged += OnConnectionStateChanged;
+        _networking.LobbyStateChanged += OnLobbyStateChanged;
         UpdateStatusLabel();
         PrintTestNetworkLog("Scene ready.");
 
@@ -62,6 +65,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return;
 
         _networking.ConnectionStateChanged -= OnConnectionStateChanged;
+        _networking.LobbyStateChanged -= OnLobbyStateChanged;
     }
 
     public override void _Process(double delta) {
@@ -137,6 +141,25 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         }
     }
 
+    private void EnsureTestLocalLobbyPlayer() {
+        var targetLocalPlayerCount = _networking.IsClient ? 2 : 1;
+        _networking.LocalLobbyData.LocalPlayers.Clear();
+
+        for (var localId = 0; localId < targetLocalPlayerCount; localId++) {
+            _networking.LocalLobbyData.LocalPlayers.Add(new LocalPlayerData {
+                LocalId = localId,
+                IsActive = true,
+                InputType = localId == 0 ? LocalPlayerData.LocalInputType.KeyboardMouse : LocalPlayerData.LocalInputType.Gamepad,
+                DeviceId = localId == 0 ? 0 : localId - 1,
+                DisplayName = GetDefaultTestPlayerName(localId),
+            });
+        }
+    }
+
+    private string GetDefaultTestPlayerName(int localId) {
+        return _networking.IsClient ? $"Client LocalId {localId}" : $"Host LocalId {localId}";
+    }
+
     private void ApplyPortOverride(string portValue) {
         if (int.TryParse(portValue, out var parsedPort) && parsedPort > 0 && parsedPort <= 65535)
             ClientPort = parsedPort;
@@ -164,6 +187,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         AddFloorRectangle(new Rect2I(14, 7, 8, 3));
         AddFloorRectangle(new Rect2I(10, 12, 6, 5));
         _arenaMapData.ResetWallTiles();
+        RebuildDamageTestPlayersFromNetworkData();
         BuildMockProps();
         ApplyInitialWallDamage();
         _tileLayerRenderer.Render(_arenaMapData);
@@ -178,6 +202,15 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private void DamageWallUnderCursor() {
         var mousePosition = GetGlobalMousePosition();
+        var playerGlobalId = GetPlayerGlobalIdAtWorldPosition(mousePosition);
+        if (playerGlobalId >= 0) {
+            if (!DamagePlayer(playerGlobalId, _selectedDamageType, TestBulletDamage))
+                return;
+
+            ReplicatePlayerDamage(playerGlobalId, _selectedDamageType, TestBulletDamage);
+            return;
+        }
+
         var propIndex = GetPropIndexAtWorldPosition(mousePosition);
         if (propIndex >= 0) {
             if (!DamageProp(propIndex, _selectedDamageType, TestBulletDamage))
@@ -197,12 +230,13 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private void DamageWallsInExplosiveRadius() {
         var worldCenter = GetGlobalMousePosition();
+        var changedPlayers = DamagePlayersInWorldRadius(worldCenter, TestExplosiveRadius, _selectedDamageType, TestExplosiveDamage);
         var changedProps = DamagePropsInWorldRadius(worldCenter, TestExplosiveRadius, _selectedDamageType, TestExplosiveDamage);
         var centerTile = _arenaMapData.WorldToTile(worldCenter, TestTileSize);
         var tileRadius = Mathf.CeilToInt(TestExplosiveRadius / Mathf.Max(1, TestTileSize.X));
         var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
 
-        if (changedTiles.Count == 0 && !changedProps)
+        if (changedTiles.Count == 0 && !changedProps && !changedPlayers)
             return;
 
         _tileLayerRenderer.Render(_arenaMapData);
@@ -240,6 +274,59 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         _props.Clear();
     }
 
+    private void SyncDamageTestPlayersWithNetworkData() {
+        var activeGlobalIds = new HashSet<int>();
+        foreach (var playerData in _networking.MultiplayerData.Players) {
+            if (playerData.GlobalId < 0)
+                continue;
+
+            activeGlobalIds.Add(playerData.GlobalId);
+            if (_playersByGlobalId.TryGetValue(playerData.GlobalId, out var existingPlayer) && IsInstanceValid(existingPlayer))
+                continue;
+
+            AddDamageTestPlayer(playerData.GlobalId, GetTestPlayerTilePosition(playerData.GlobalId));
+        }
+
+        var removedGlobalIds = new List<int>();
+        foreach (var playerEntry in _playersByGlobalId) {
+            if (!activeGlobalIds.Contains(playerEntry.Key))
+                removedGlobalIds.Add(playerEntry.Key);
+        }
+
+        foreach (var removedGlobalId in removedGlobalIds) {
+            if (_playersByGlobalId.TryGetValue(removedGlobalId, out var player) && IsInstanceValid(player))
+                player.QueueFree();
+
+            _playersByGlobalId.Remove(removedGlobalId);
+        }
+    }
+
+    private void RebuildDamageTestPlayersFromNetworkData() {
+        ClearDamageTestPlayers();
+        SyncDamageTestPlayersWithNetworkData();
+    }
+
+    private void ClearDamageTestPlayers() {
+        foreach (var player in _playersByGlobalId.Values) {
+            if (IsInstanceValid(player))
+                player.QueueFree();
+        }
+
+        _playersByGlobalId.Clear();
+    }
+
+    private void AddDamageTestPlayer(int globalId, Vector2I tilePosition) {
+        var player = new DamageTestPlayer { Name = $"DamageTestPlayer{globalId}" };
+        AddChild(player);
+        player.Initialize(globalId, TileToWorldCenter(tilePosition));
+        _playersByGlobalId[globalId] = player;
+    }
+
+    private void RespawnDamageTestPlayers() {
+        foreach (var playerEntry in _playersByGlobalId)
+            playerEntry.Value.Respawn(TileToWorldCenter(GetTestPlayerTilePosition(playerEntry.Key)));
+    }
+
     private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer() {
         var debugRadiusDrawer = new DebugExplosionRadiusDrawer {
             Name = "DebugExplosionRadiusDrawer",
@@ -275,6 +362,14 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
         PrintTestNetworkLog($"RPC send: {damageType} prop damage at index {propIndex} amount {damageAmount}.");
         Rpc(nameof(RpcDamageProp), propIndex, (int)damageType, damageAmount);
+    }
+
+    private void ReplicatePlayerDamage(int globalId, DamageType damageType, float damageAmount) {
+        if (!CanSendHostRpc())
+            return;
+
+        PrintTestNetworkLog($"RPC send: {damageType} player damage for global id {globalId} amount {damageAmount}.");
+        Rpc(nameof(RpcDamagePlayer), globalId, (int)damageType, damageAmount);
     }
 
     private void ReplicateRadiusDamage(Vector2 worldCenter, Vector2I centerTile, int radius, DamageType damageType, float damageAmount) {
@@ -322,6 +417,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     public void RpcResetMockArena() {
         PrintTestNetworkLog("RPC apply: reset mock arena.");
         BuildMockArena();
+        RespawnDamageTestPlayers();
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -344,6 +440,15 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcDamagePlayer(int globalId, int damageTypeValue, float damageAmount) {
+        var damageType = ToDamageType(damageTypeValue);
+        if (!DamagePlayer(globalId, damageType, damageAmount))
+            return;
+
+        PrintTestNetworkLog($"RPC apply: {damageType} player damage for global id {globalId} amount {damageAmount}.");
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcDamageWallsInRadius(int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
         ApplyRadiusDamage(Vector2.Zero, new Vector2I(centerX, centerY), radius, ToDamageType(damageTypeValue), damageAmount, false);
     }
@@ -357,9 +462,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (_arenaMapData == null)
             return;
 
+        var changedPlayers = damageProps && DamagePlayersInWorldRadius(worldCenter, TestExplosiveRadius, damageType, damageAmount);
         var changedProps = damageProps && DamagePropsInWorldRadius(worldCenter, TestExplosiveRadius, damageType, damageAmount);
         var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, radius, damageType, damageAmount);
-        if (changedTiles.Count == 0 && !changedProps)
+        if (changedTiles.Count == 0 && !changedProps && !changedPlayers)
             return;
 
         PrintTestNetworkLog($"RPC apply: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
@@ -374,6 +480,40 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         }
 
         return -1;
+    }
+
+    private int GetPlayerGlobalIdAtWorldPosition(Vector2 worldPosition) {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var player = playerEntry.Value;
+            if (IsInstanceValid(player) && player.ContainsWorldPosition(worldPosition))
+                return playerEntry.Key;
+        }
+
+        return -1;
+    }
+
+    private bool DamagePlayer(int globalId, DamageType damageType, float damageAmount) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
+            return false;
+
+        return player.ApplyDamage(DamageContainer.FromDamage(damageType, damageAmount));
+    }
+
+    private bool DamagePlayersInWorldRadius(Vector2 worldCenter, float radius, DamageType damageType, float damageAmount) {
+        var changed = false;
+        foreach (var player in _playersByGlobalId.Values) {
+            if (!IsInstanceValid(player) || !player.IsInsideWorldRadius(worldCenter, radius))
+                continue;
+
+            var multiplier = player.GetRadiusDamageMultiplier(worldCenter, radius);
+            if (multiplier <= 0.0f)
+                continue;
+
+            player.ApplyDamage(DamageContainer.FromDamage(damageType, damageAmount * multiplier));
+            changed = true;
+        }
+
+        return changed;
     }
 
     private bool DamageProp(int propIndex, DamageType damageType, float damageAmount) {
@@ -410,6 +550,16 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             (tilePosition.Y * TestTileSize.Y) + (TestTileSize.Y * 0.5f));
     }
 
+    private Vector2I GetTestPlayerTilePosition(int globalId) {
+        return globalId switch {
+            0 => new Vector2I(8, 8),
+            1 => new Vector2I(18, 9),
+            2 => new Vector2I(12, 15),
+            3 => new Vector2I(20, 8),
+            _ => new Vector2I(8 + (globalId % 10), 8 + (globalId / 10)),
+        };
+    }
+
     private static DamageType ToDamageType(int damageTypeValue) {
         return System.Enum.IsDefined(typeof(DamageType), damageTypeValue)
             ? (DamageType)damageTypeValue
@@ -418,6 +568,11 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private void OnConnectionStateChanged() {
         PrintTestNetworkLog($"Connection state changed. {GetNetworkDebugText()}");
+        UpdateStatusLabel();
+    }
+
+    private void OnLobbyStateChanged() {
+        SyncDamageTestPlayersWithNetworkData();
         UpdateStatusLabel();
     }
 
@@ -434,8 +589,23 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return;
 
         _statusLabel.Text = CanApplyHostInput()
-            ? $"Peers connected: {GetConnectedPeerCount()}\nBiome: {GetCurrentWallBiome()}\nDamage type: {GetDamageTypeSelectionText()}"
+            ? $"Peers connected: {GetConnectedPeerCount()}\nBiome: {GetCurrentWallBiome()}\nDamage type: {GetDamageTypeSelectionText()}\nPlayers: {GetPlayerHealthText()}"
             : string.Empty;
+    }
+
+    private string GetPlayerHealthText() {
+        var playerTexts = new List<string>();
+        foreach (var playerEntry in _playersByGlobalId) {
+            var player = playerEntry.Value;
+            if (!IsInstanceValid(player) || player.Health == null)
+                continue;
+
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            var ownerText = playerData == null ? "peer ?" : $"peer {playerData.PeerId}:local {playerData.LocalId}";
+            playerTexts.Add($"P{playerEntry.Key} {ownerText} {player.Health.CurrentHealth}/{player.Health.MaxHealth}");
+        }
+
+        return playerTexts.Count == 0 ? "none" : string.Join(", ", playerTexts);
     }
 
     private BiomeConfig.BiomeType GetCurrentWallBiome() {

@@ -31,6 +31,15 @@ public partial class MultiplayerData : Resource {
         return DefaultTeamId;
     }
 
+    public PlayerData GetPlayerByGlobalId(int globalId) {
+        foreach (var playerData in Players) {
+            if (playerData.GlobalId == globalId)
+                return playerData;
+        }
+
+        return null;
+    }
+
     public static int NormalizeTeamId(int teamId) {
         return Math.Clamp(teamId, DefaultTeamId, 4);
     }
