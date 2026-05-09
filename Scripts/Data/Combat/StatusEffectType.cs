@@ -1,0 +1,3 @@
+public enum StatusEffectType {
+    Fire,
+}

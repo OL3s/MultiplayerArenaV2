@@ -11,4 +11,7 @@ public partial class PlayerItemMelee : PlayerEquipable {
 
     [Export]
     public float ArcDegrees { get; set; } = 90.0f;
+
+    [Export]
+    public DamageResource Damage { get; set; } = new();
 }

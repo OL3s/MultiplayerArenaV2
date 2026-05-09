@@ -3,14 +3,15 @@ using Godot;
 public partial class TestMapDestructionLogicLAN : Node2D {
     private static readonly Vector2I TestTileSize = new(16, 16);
     private const float TestExplosiveRadius = 56.0f;
-    private const int TestExplosiveDamage = 2;
+    private const float TestBulletDamage = 125.0f;
+    private const float TestExplosiveDamage = 250.0f;
     private static readonly Color DebugExplosiveRadiusColor = new(1.0f, 0.55f, 0.2f, 0.9f);
 
-    private static readonly (Vector2I Position, int DamageAmount)[] InitialWallDamageSamples = {
-        (new Vector2I(3, 4), 1),
-        (new Vector2I(14, 4), 1),
-        (new Vector2I(22, 8), 3),
-        (new Vector2I(9, 17), 1),
+    private static readonly (Vector2I Position, float DamageAmount)[] InitialWallDamageSamples = {
+        (new Vector2I(3, 4), 125.0f),
+        (new Vector2I(14, 4), 250.0f),
+        (new Vector2I(22, 8), 375.0f),
+        (new Vector2I(9, 17), 125.0f),
     };
 
     private ArenaMapData _arenaMapData;
@@ -19,12 +20,16 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     private Camera2D _camera;
     private Label _statusLabel;
     private Networking _networking;
+    private DamageType _selectedDamageType = DamageType.Crush;
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
 
     [Export]
     public int ClientPort { get; set; } = 7700;
+
+    [Export]
+    public BiomeConfig.BiomeType TestWallBiome { get; set; } = BiomeConfig.BiomeType.Arena;
 
     public override void _Ready() {
         _tileLayerRenderer = GetNode<ArenaTileLayerRenderer>("ArenaTileLayerRenderer");
@@ -63,7 +68,13 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     public override void _UnhandledInput(InputEvent @event) {
-        if (!CanApplyHostInput() || @event is not InputEventMouseButton mouseButtonEvent || !mouseButtonEvent.Pressed)
+        if (!CanApplyHostInput())
+            return;
+
+        if (HandleDamageTypeInput(@event))
+            return;
+
+        if (@event is not InputEventMouseButton mouseButtonEvent || !mouseButtonEvent.Pressed)
             return;
 
         if (mouseButtonEvent.ButtonIndex == MouseButton.Right) {
@@ -143,7 +154,8 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         _arenaMapData = new ArenaMapData {
             SourceId = 0,
             WallDamageSourceId = 1,
-            DefaultWallMaxDamage = 3,
+            DefaultWallMaxDamage = WallDamageData.DefaultWallHealth,
+            DefaultWallBiome = TestWallBiome,
         };
 
         AddFloorRectangle(new Rect2I(4, 4, 10, 8));
@@ -163,28 +175,28 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private void DamageWallUnderCursor() {
         var tilePosition = _arenaMapData.WorldToTile(GetGlobalMousePosition(), TestTileSize);
-        if (!_arenaMapData.DamageWallTile(tilePosition))
+        if (!_arenaMapData.DamageWallTile(tilePosition, _selectedDamageType, TestBulletDamage))
             return;
 
         _tileLayerRenderer.Render(_arenaMapData);
-        ReplicateWallDamage(tilePosition, 1);
+        ReplicateWallDamage(tilePosition, _selectedDamageType, TestBulletDamage);
     }
 
     private void DamageWallsInExplosiveRadius() {
         var centerTile = _arenaMapData.WorldToTile(GetGlobalMousePosition(), TestTileSize);
         var tileRadius = Mathf.CeilToInt(TestExplosiveRadius / Mathf.Max(1, TestTileSize.X));
-        var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, tileRadius, TestExplosiveDamage);
+        var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
 
         if (changedTiles.Count == 0)
             return;
 
         _tileLayerRenderer.Render(_arenaMapData);
-        ReplicateRadiusDamage(centerTile, tileRadius, TestExplosiveDamage);
+        ReplicateRadiusDamage(centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
     }
 
     private void ApplyInitialWallDamage() {
         foreach (var (position, damageAmount) in InitialWallDamageSamples)
-            _arenaMapData.DamageWallTile(position, damageAmount);
+            _arenaMapData.DamageWallTile(position, DamageType.Crush, damageAmount);
     }
 
     private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer() {
@@ -208,20 +220,45 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         Rpc(nameof(RpcResetMockArena));
     }
 
-    private void ReplicateWallDamage(Vector2I tilePosition, int damageAmount) {
+    private void ReplicateWallDamage(Vector2I tilePosition, DamageType damageType, float damageAmount) {
         if (!CanSendHostRpc())
             return;
 
-        PrintTestNetworkLog($"RPC send: wall damage at {tilePosition} amount {damageAmount}.");
-        Rpc(nameof(RpcDamageWallTile), tilePosition.X, tilePosition.Y, damageAmount);
+        PrintTestNetworkLog($"RPC send: {damageType} wall damage at {tilePosition} amount {damageAmount}.");
+        Rpc(nameof(RpcDamageWallTile), tilePosition.X, tilePosition.Y, (int)damageType, damageAmount);
     }
 
-    private void ReplicateRadiusDamage(Vector2I centerTile, int radius, int damageAmount) {
+    private void ReplicateRadiusDamage(Vector2I centerTile, int radius, DamageType damageType, float damageAmount) {
         if (!CanSendHostRpc())
             return;
 
-        PrintTestNetworkLog($"RPC send: radius damage at {centerTile} radius {radius} amount {damageAmount}.");
-        Rpc(nameof(RpcDamageWallsInRadius), centerTile.X, centerTile.Y, radius, damageAmount);
+        PrintTestNetworkLog($"RPC send: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
+        Rpc(nameof(RpcDamageWallsInRadius), centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
+    }
+
+    private bool HandleDamageTypeInput(InputEvent @event) {
+        if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
+            return false;
+
+        var damageType = keyEvent.PhysicalKeycode switch {
+            Key.Key1 => DamageType.Crush,
+            Key.Key2 => DamageType.Slash,
+            Key.Key3 => DamageType.Heat,
+            Key.Key4 => DamageType.Explosive,
+            Key.Kp1 => DamageType.Crush,
+            Key.Kp2 => DamageType.Slash,
+            Key.Kp3 => DamageType.Heat,
+            Key.Kp4 => DamageType.Explosive,
+            _ => _selectedDamageType,
+        };
+
+        if (damageType == _selectedDamageType)
+            return false;
+
+        _selectedDamageType = damageType;
+        PrintTestNetworkLog($"Selected damage type: {_selectedDamageType}.");
+        UpdateStatusLabel();
+        return true;
     }
 
     private bool CanSendHostRpc() {
@@ -239,25 +276,33 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageWallTile(int x, int y, int damageAmount) {
-        if (_arenaMapData == null || !_arenaMapData.DamageWallTile(new Vector2I(x, y), damageAmount))
+    public void RpcDamageWallTile(int x, int y, int damageTypeValue, float damageAmount) {
+        var damageType = ToDamageType(damageTypeValue);
+        if (_arenaMapData == null || !_arenaMapData.DamageWallTile(new Vector2I(x, y), damageType, damageAmount))
             return;
 
-        PrintTestNetworkLog($"RPC apply: wall damage at ({x}, {y}) amount {damageAmount}.");
+        PrintTestNetworkLog($"RPC apply: {damageType} wall damage at ({x}, {y}) amount {damageAmount}.");
         _tileLayerRenderer.Render(_arenaMapData);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageWallsInRadius(int centerX, int centerY, int radius, int damageAmount) {
+    public void RpcDamageWallsInRadius(int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
         if (_arenaMapData == null)
             return;
 
-        var changedTiles = _arenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, damageAmount);
+        var damageType = ToDamageType(damageTypeValue);
+        var changedTiles = _arenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, damageType, damageAmount);
         if (changedTiles.Count == 0)
             return;
 
-        PrintTestNetworkLog($"RPC apply: radius damage at ({centerX}, {centerY}) radius {radius} amount {damageAmount}.");
+        PrintTestNetworkLog($"RPC apply: {damageType} radius damage at ({centerX}, {centerY}) radius {radius} amount {damageAmount}.");
         _tileLayerRenderer.Render(_arenaMapData);
+    }
+
+    private static DamageType ToDamageType(int damageTypeValue) {
+        return System.Enum.IsDefined(typeof(DamageType), damageTypeValue)
+            ? (DamageType)damageTypeValue
+            : DamageType.Crush;
     }
 
     private void OnConnectionStateChanged() {
@@ -278,8 +323,20 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return;
 
         _statusLabel.Text = CanApplyHostInput()
-            ? $"Peers connected: {GetConnectedPeerCount()}"
+            ? $"Peers connected: {GetConnectedPeerCount()}\nBiome: {GetCurrentWallBiome()}\nDamage type: {GetDamageTypeSelectionText()}"
             : string.Empty;
+    }
+
+    private BiomeConfig.BiomeType GetCurrentWallBiome() {
+        return _arenaMapData?.DefaultWallBiome ?? TestWallBiome;
+    }
+
+    private string GetDamageTypeSelectionText() {
+        return $"1 {FormatDamageTypeOption(DamageType.Crush)} | 2 {FormatDamageTypeOption(DamageType.Slash)} | 3 {FormatDamageTypeOption(DamageType.Heat)} | 4 {FormatDamageTypeOption(DamageType.Explosive)}";
+    }
+
+    private string FormatDamageTypeOption(DamageType damageType) {
+        return damageType == _selectedDamageType ? $"[{damageType}]" : damageType.ToString();
     }
 
     private string GetNetworkDebugText() {

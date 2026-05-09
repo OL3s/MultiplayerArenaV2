@@ -3,14 +3,15 @@ using Godot;
 public partial class TestMapDestructionLogic : Node2D {
     private static readonly Vector2I TestTileSize = new(16, 16);
     private const float TestExplosiveRadius = 56.0f;
-    private const int TestExplosiveDamage = 2;
+    private const float TestBulletDamage = 125.0f;
+    private const float TestExplosiveDamage = 250.0f;
     private static readonly Color DebugExplosiveRadiusColor = new(1.0f, 0.55f, 0.2f, 0.9f);
 
-    private static readonly (Vector2I Position, int DamageAmount)[] InitialWallDamageSamples = {
-        (new Vector2I(3, 4), 1),
-        (new Vector2I(14, 4), 1),
-        (new Vector2I(22, 8), 3),
-        (new Vector2I(9, 17), 1),
+    private static readonly (Vector2I Position, float DamageAmount)[] InitialWallDamageSamples = {
+        (new Vector2I(3, 4), 125.0f),
+        (new Vector2I(14, 4), 250.0f),
+        (new Vector2I(22, 8), 375.0f),
+        (new Vector2I(9, 17), 125.0f),
     };
 
     private ArenaMapData _arenaMapData;
@@ -55,7 +56,7 @@ public partial class TestMapDestructionLogic : Node2D {
         _arenaMapData = new ArenaMapData {
             SourceId = 0,
             WallDamageSourceId = 1,
-            DefaultWallMaxDamage = 3,
+            DefaultWallMaxDamage = WallDamageData.DefaultWallHealth,
         };
 
         AddFloorRectangle(new Rect2I(4, 4, 10, 8));
@@ -74,7 +75,7 @@ public partial class TestMapDestructionLogic : Node2D {
     }
 
     private void DamageWallUnderCursor() {
-        if (!_arenaMapData.DamageWallFromWorldPosition(GetGlobalMousePosition(), TestTileSize))
+        if (!_arenaMapData.DamageWallFromWorldPosition(GetGlobalMousePosition(), TestTileSize, DamageType.Crush, TestBulletDamage))
             return;
 
         _tileLayerRenderer.Render(_arenaMapData);
@@ -85,6 +86,7 @@ public partial class TestMapDestructionLogic : Node2D {
             GetGlobalMousePosition(),
             TestTileSize,
             TestExplosiveRadius,
+            DamageType.Explosive,
             TestExplosiveDamage);
 
         if (changedTiles.Count == 0)
@@ -95,7 +97,7 @@ public partial class TestMapDestructionLogic : Node2D {
 
     private void ApplyInitialWallDamage() {
         foreach (var (position, damageAmount) in InitialWallDamageSamples)
-            _arenaMapData.DamageWallTile(position, damageAmount);
+            _arenaMapData.DamageWallTile(position, DamageType.Crush, damageAmount);
     }
 
     private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer() {

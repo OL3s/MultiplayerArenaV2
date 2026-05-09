@@ -8,4 +8,7 @@ public partial class PlayerItemInstant : PlayerEquipable {
 
     [Export]
     public bool ConsumeOnUse { get; set; } = true;
+
+    [Export]
+    public DamageResource Damage { get; set; } = new();
 }

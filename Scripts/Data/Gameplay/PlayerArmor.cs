@@ -3,7 +3,7 @@ using Godot;
 [GlobalClass]
 public partial class PlayerArmor : PlayerItem {
     [Export]
-    public float ArmorValue { get; set; }
+    public ArmorResource Armor { get; set; } = new();
 
     [Export]
     public Godot.Collections.Array<PlayerItemSlot> ProvidedSlots { get; set; } = new();

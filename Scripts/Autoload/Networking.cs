@@ -671,46 +671,46 @@ public partial class Networking : Node {
         RpcClearPlayers();
     }
 
-    public bool DamageAuthoritativeWallTile(Vector2I position, int damageAmount = 1) {
+    public bool DamageAuthoritativeWallTile(Vector2I position, float damageAmount = 1.0f, DamageType damageType = DamageType.Crush) {
         if (!CanApplyAuthoritativeArenaMapChange())
             return false;
 
-        if (!ArenaMapData.IsWallTile(position) || damageAmount <= 0)
+        if (!ArenaMapData.IsWallTile(position) || damageAmount <= 0.0f)
             return false;
 
         if (HasNetworkPeer()) {
-            Rpc(nameof(RpcDamageArenaWallTile), position.X, position.Y, damageAmount);
+            Rpc(nameof(RpcDamageArenaWallTile), position.X, position.Y, (int)damageType, damageAmount);
             return true;
         }
 
-        RpcDamageArenaWallTile(position.X, position.Y, damageAmount);
+        RpcDamageArenaWallTile(position.X, position.Y, (int)damageType, damageAmount);
         return true;
     }
 
-    public bool DamageAuthoritativeWallFromWorldPosition(Vector2 worldPosition, Vector2I tileSize, int damageAmount = 1) {
-        return DamageAuthoritativeWallTile(ArenaMapData.WorldToTile(worldPosition, tileSize), damageAmount);
+    public bool DamageAuthoritativeWallFromWorldPosition(Vector2 worldPosition, Vector2I tileSize, float damageAmount = 1.0f, DamageType damageType = DamageType.Crush) {
+        return DamageAuthoritativeWallTile(ArenaMapData.WorldToTile(worldPosition, tileSize), damageAmount, damageType);
     }
 
-    public bool DamageAuthoritativeWallsInRadius(Vector2I centerTile, int radius, int damageAmount = 1) {
+    public bool DamageAuthoritativeWallsInRadius(Vector2I centerTile, int radius, float damageAmount = 1.0f, DamageType damageType = DamageType.Explosive) {
         if (!CanApplyAuthoritativeArenaMapChange())
             return false;
 
-        if (damageAmount <= 0 || radius < 0)
+        if (damageAmount <= 0.0f || radius < 0)
             return false;
 
         if (HasNetworkPeer()) {
-            Rpc(nameof(RpcDamageArenaWallsInRadius), centerTile.X, centerTile.Y, radius, damageAmount);
+            Rpc(nameof(RpcDamageArenaWallsInRadius), centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
             return true;
         }
 
-        RpcDamageArenaWallsInRadius(centerTile.X, centerTile.Y, radius, damageAmount);
+        RpcDamageArenaWallsInRadius(centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
         return true;
     }
 
-    public bool DamageAuthoritativeWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, int damageAmount = 1) {
+    public bool DamageAuthoritativeWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, float damageAmount = 1.0f, DamageType damageType = DamageType.Explosive) {
         var centerTile = ArenaMapData.WorldToTile(worldCenter, tileSize);
         var tileRadius = Mathf.CeilToInt(worldRadius / Mathf.Max(1, tileSize.X));
-        return DamageAuthoritativeWallsInRadius(centerTile, tileRadius, damageAmount);
+        return DamageAuthoritativeWallsInRadius(centerTile, tileRadius, damageAmount, damageType);
     }
 
     public void ClearPeers() {
@@ -868,15 +868,21 @@ public partial class Networking : Node {
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageArenaWallTile(int x, int y, int damageAmount) {
-        ArenaMapData.DamageWallTile(new Vector2I(x, y), damageAmount);
+    public void RpcDamageArenaWallTile(int x, int y, int damageTypeValue, float damageAmount) {
+        ArenaMapData.DamageWallTile(new Vector2I(x, y), ToDamageType(damageTypeValue), damageAmount);
         EmitArenaMapChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageArenaWallsInRadius(int centerX, int centerY, int radius, int damageAmount) {
-        ArenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, damageAmount);
+    public void RpcDamageArenaWallsInRadius(int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
+        ArenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, ToDamageType(damageTypeValue), damageAmount);
         EmitArenaMapChanged();
+    }
+
+    private static DamageType ToDamageType(int damageTypeValue) {
+        return Enum.IsDefined(typeof(DamageType), damageTypeValue)
+            ? (DamageType)damageTypeValue
+            : DamageType.Crush;
     }
 
     private void OnPeerConnected(long peerId) {

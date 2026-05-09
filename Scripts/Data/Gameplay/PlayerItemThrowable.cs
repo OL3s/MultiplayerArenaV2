@@ -16,5 +16,8 @@ public partial class PlayerItemThrowable : PlayerEquipable {
     public float FuseSeconds { get; set; } = 2.0f;
 
     [Export]
+    public DamageResource Damage { get; set; } = new();
+
+    [Export]
     public bool ExecuteObjectiveOnRest { get; set; } = true;
 }

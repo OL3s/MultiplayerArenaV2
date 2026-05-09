@@ -30,7 +30,10 @@ public partial class ArenaMapData : Resource {
     public int WallDamageSourceId { get; set; }
 
     [Export]
-    public int DefaultWallMaxDamage { get; set; } = 3;
+    public int DefaultWallMaxDamage { get; set; } = WallDamageData.DefaultWallHealth;
+
+    [Export]
+    public BiomeConfig.BiomeType DefaultWallBiome { get; set; } = BiomeConfig.BiomeType.Arena;
 
     public IReadOnlySet<Vector2I> FloorTiles => _floorTiles;
 
@@ -146,18 +149,33 @@ public partial class ArenaMapData : Resource {
     }
 
     public bool DamageWallTile(Vector2I position, int damageAmount = 1) {
-        if (!_wallTiles.Contains(position) || damageAmount <= 0)
+        if (damageAmount <= 0)
+            return false;
+
+        return DamageWallTile(position, DamageType.Crush, damageAmount);
+    }
+
+    public bool DamageWallTile(Vector2I position, DamageType damageType, float damageAmount) {
+        if (damageAmount <= 0.0f)
+            return false;
+
+        return DamageWallTile(position, DamageContainer.FromDamage(damageType, damageAmount));
+    }
+
+    public bool DamageWallTile(Vector2I position, DamageContainer damageContainer) {
+        if (!_wallTiles.Contains(position) || damageContainer?.Damage == null)
             return false;
 
         if (!_hitWallTiles.TryGetValue(position, out var wallDamageData)) {
-            wallDamageData = new WallDamageData { MaxDamage = DefaultWallMaxDamage };
+            wallDamageData = new WallDamageData();
+            wallDamageData.ConfigureForBiome(DefaultWallBiome, DefaultWallMaxDamage);
             _hitWallTiles[position] = wallDamageData;
         }
 
-        wallDamageData.Damage += damageAmount;
+        wallDamageData.ApplyDamage(damageContainer);
         wallDamageData.DamageStage = CalculateWallDamageStage(wallDamageData.Damage, wallDamageData.MaxDamage);
 
-        if (wallDamageData.Damage >= wallDamageData.MaxDamage)
+        if (wallDamageData.IsDestroyed())
             DestroyWallTile(position);
 
         return true;
@@ -167,14 +185,32 @@ public partial class ArenaMapData : Resource {
         return DamageWallTile(WorldToTile(worldPosition, tileSize), damageAmount);
     }
 
+    public bool DamageWallFromWorldPosition(Vector2 worldPosition, Vector2I tileSize, DamageType damageType, float damageAmount) {
+        return DamageWallTile(WorldToTile(worldPosition, tileSize), damageType, damageAmount);
+    }
+
     public Godot.Collections.Array<Vector2I> DamageWallsInRadius(Vector2I centerTile, int radius, int damageAmount = 1) {
+        if (damageAmount <= 0)
+            return new Godot.Collections.Array<Vector2I>();
+
+        return DamageWallsInRadius(centerTile, radius, DamageType.Explosive, damageAmount);
+    }
+
+    public Godot.Collections.Array<Vector2I> DamageWallsInRadius(Vector2I centerTile, int radius, DamageType damageType, float damageAmount) {
+        if (damageAmount <= 0.0f)
+            return new Godot.Collections.Array<Vector2I>();
+
+        return DamageWallsInRadius(centerTile, radius, DamageContainer.FromDamage(damageType, damageAmount));
+    }
+
+    public Godot.Collections.Array<Vector2I> DamageWallsInRadius(Vector2I centerTile, int radius, DamageContainer damageContainer) {
         var changedTiles = new Godot.Collections.Array<Vector2I>();
-        if (radius < 0 || damageAmount <= 0)
+        if (radius < 0 || damageContainer?.Damage == null)
             return changedTiles;
 
         var affectedTiles = GetTilesInRadius(centerTile, radius);
         foreach (var tilePosition in affectedTiles) {
-            if (!DamageWallTile(tilePosition, damageAmount))
+            if (!DamageWallTile(tilePosition, damageContainer))
                 continue;
 
             changedTiles.Add(tilePosition);
@@ -184,9 +220,23 @@ public partial class ArenaMapData : Resource {
     }
 
     public Godot.Collections.Array<Vector2I> DamageWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, int damageAmount = 1) {
+        if (damageAmount <= 0)
+            return new Godot.Collections.Array<Vector2I>();
+
+        return DamageWallsInWorldRadius(worldCenter, tileSize, worldRadius, DamageType.Explosive, damageAmount);
+    }
+
+    public Godot.Collections.Array<Vector2I> DamageWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, DamageType damageType, float damageAmount) {
+        if (damageAmount <= 0.0f)
+            return new Godot.Collections.Array<Vector2I>();
+
+        return DamageWallsInWorldRadius(worldCenter, tileSize, worldRadius, DamageContainer.FromDamage(damageType, damageAmount));
+    }
+
+    public Godot.Collections.Array<Vector2I> DamageWallsInWorldRadius(Vector2 worldCenter, Vector2I tileSize, float worldRadius, DamageContainer damageContainer) {
         var centerTile = WorldToTile(worldCenter, tileSize);
         var tileRadius = Mathf.CeilToInt(worldRadius / Mathf.Max(1, tileSize.X));
-        return DamageWallsInRadius(centerTile, tileRadius, damageAmount);
+        return DamageWallsInRadius(centerTile, tileRadius, damageContainer);
     }
 
     public bool DestroyWallTile(Vector2I position) {
@@ -229,10 +279,10 @@ public partial class ArenaMapData : Resource {
     }
 
     private int CalculateWallDamageStage(int damage, int maxDamage) {
-        if (damage <= 0 || maxDamage <= 1)
+        if (damage <= 1 || maxDamage <= 1)
             return 0;
 
-        return Mathf.Clamp(damage, 0, maxDamage - 1);
+        return damage >= Mathf.CeilToInt(maxDamage * 0.5f) ? 2 : 1;
     }
 
     private Vector2I GetWallDamageAtlasCoords(int damageStage) {

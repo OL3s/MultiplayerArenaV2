@@ -15,5 +15,8 @@ public partial class PlayerProjectileData : Resource {
     public int Penetration { get; set; }
 
     [Export]
+    public DamageResource Damage { get; set; } = new();
+
+    [Export]
     public PlayerItemObjective CollisionObjective { get; set; }
 }
