@@ -1,17 +1,24 @@
 using Godot;
 
 public partial class DamageTestPlayer : CharacterBody2D {
-    private static readonly Vector2 DefaultSize = new(16.0f, 16.0f);
+    private static readonly Vector2 DefaultSize = new(12.0f, 12.0f);
+    private const string FrontTexturePath = "res://Assets/Players/damage_test_player_front.svg";
+    private const string BackTexturePath = "res://Assets/Players/damage_test_player_back.svg";
+    private const string WeaponTexturePath = "res://Assets/Players/damage_test_pistol.svg";
+    private const float BackFacingYThreshold = -0.5f;
 
     private Area2D _hitbox;
     private CollisionShape2D _collisionShape;
+    private Sprite2D _bodySprite;
     private Label _label;
-    private Line2D _weapon;
+    private Sprite2D _weapon;
     private bool _isAlive = true;
     private bool _hasLocalAimDirection;
     private bool _hasEstimatedAimDirection = true;
     private Vector2 _localAimDirection = Vector2.Right;
     private Vector2 _estimatedAimDirection = Vector2.Right;
+    private float _bodyFacingScaleX = 1.0f;
+    private bool _drawBackBody;
 
     public int GlobalId { get; private set; } = -1;
 
@@ -31,13 +38,9 @@ public partial class DamageTestPlayer : CharacterBody2D {
     }
 
     public override void _Draw() {
-        var rect = new Rect2(Size * -0.5f, Size);
-        DrawRect(rect, GetBodyColor(), true);
-        DrawRect(rect, Colors.Black, false, 1.0f);
-
         var healthRatio = Health.MaxHealth <= 0 ? 0.0f : Health.CurrentHealth / (float)Health.MaxHealth;
-        DrawRect(new Rect2(new Vector2(-8.0f, -13.0f), new Vector2(16.0f, 2.0f)), Colors.DarkRed, true);
-        DrawRect(new Rect2(new Vector2(-8.0f, -13.0f), new Vector2(16.0f * healthRatio, 2.0f)), Colors.LimeGreen, true);
+        DrawRect(new Rect2(new Vector2(-6.0f, -11.0f), new Vector2(12.0f, 2.0f)), Colors.DarkRed, true);
+        DrawRect(new Rect2(new Vector2(-6.0f, -11.0f), new Vector2(12.0f * healthRatio, 2.0f)), Colors.LimeGreen, true);
     }
 
     public void Initialize(int globalId, Vector2 worldPosition) {
@@ -160,6 +163,13 @@ public partial class DamageTestPlayer : CharacterBody2D {
         _collisionShape.Shape = new CircleShape2D { Radius = CollisionRadius };
         AddChild(_collisionShape);
 
+        _bodySprite = new Sprite2D {
+            Name = "BodySprite",
+            Texture = GD.Load<Texture2D>(FrontTexturePath),
+        };
+        AddChild(_bodySprite);
+        UpdateBodySprite();
+
         _label = new Label {
             Name = "Label",
             Position = new Vector2(-18.0f, -30.0f),
@@ -168,14 +178,11 @@ public partial class DamageTestPlayer : CharacterBody2D {
         _label.AddThemeFontSizeOverride("font_size", 8);
         AddChild(_label);
 
-        _weapon = new Line2D {
+        _weapon = new Sprite2D {
             Name = "Weapon",
-            Width = 3.0f,
-            DefaultColor = Colors.Yellow,
+            Texture = GD.Load<Texture2D>(WeaponTexturePath),
             ZIndex = 2,
         };
-        _weapon.AddPoint(Vector2.Zero);
-        _weapon.AddPoint(new Vector2(10.0f, 0.0f));
         AddChild(_weapon);
         UpdateWeapon();
     }
@@ -197,6 +204,11 @@ public partial class DamageTestPlayer : CharacterBody2D {
 
         if (_weapon != null)
             _weapon.Visible = alive;
+
+        if (_bodySprite != null) {
+            _bodySprite.Visible = true;
+            _bodySprite.Modulate = alive ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
+        }
     }
 
     private void UpdateWeapon() {
@@ -210,6 +222,32 @@ public partial class DamageTestPlayer : CharacterBody2D {
         _weapon.Visible = _isAlive;
         _weapon.Position = aimDirection * 9.0f;
         _weapon.Rotation = aimDirection.Angle();
+        _weapon.Scale = new Vector2(1.0f, _bodyFacingScaleX);
+        UpdateBodyFacing(aimDirection);
+    }
+
+    private void UpdateBodyFacing(Vector2 aimDirection) {
+        var oldFacingScaleX = _bodyFacingScaleX;
+        var oldDrawBackBody = _drawBackBody;
+
+        if (aimDirection.X > 0.01f)
+            _bodyFacingScaleX = 1.0f;
+        else if (aimDirection.X < -0.01f) {
+            _bodyFacingScaleX = -1.0f;
+        }
+
+        _drawBackBody = aimDirection.Y < BackFacingYThreshold;
+
+        if (oldFacingScaleX != _bodyFacingScaleX || oldDrawBackBody != _drawBackBody)
+            UpdateBodySprite();
+    }
+
+    private void UpdateBodySprite() {
+        if (_bodySprite == null)
+            return;
+
+        _bodySprite.Texture = GD.Load<Texture2D>(_drawBackBody ? BackTexturePath : FrontTexturePath);
+        _bodySprite.Scale = new Vector2(_bodyFacingScaleX, 1.0f);
     }
 
     private static bool TryNormalizeAimDirection(Vector2 aimDirection, out Vector2 normalizedAimDirection) {
@@ -230,10 +268,4 @@ public partial class DamageTestPlayer : CharacterBody2D {
         _label.Text = $"P{GlobalId} {Health.CurrentHealth}/{Health.MaxHealth}{stateText}";
     }
 
-    private Color GetBodyColor() {
-        if (IsDead())
-            return new Color(0.25f, 0.25f, 0.25f);
-
-        return new Color(0.2f, 0.45f, 1.0f);
-    }
 }
