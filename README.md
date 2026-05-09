@@ -61,3 +61,72 @@ disown
 ```
 
 Keep detailed test scene notes in `docs/test-scenes.md`.
+
+## Tech Stack
+
+| Area | Details |
+| --- | --- |
+| Engine | Godot 4.6 |
+| Language | C# |
+| Renderer | GL Compatibility |
+| Project Type | 2D game |
+| Primary Platform | PC |
+
+## Prerequisites
+
+- Godot 4.6 with C#/.NET support.
+- .NET SDK compatible with the Godot C# project.
+- Git for cloning and version control.
+
+## Setup
+
+Clone the repository:
+
+```bash
+git clone git@github.com:OL3s/MultiplayerArenaV2.git
+cd MultiplayerArenaV2
+```
+
+Restore/build the C# project:
+
+```bash
+dotnet build MultiplayerArenaV2.csproj
+```
+
+Import Godot assets after cloning or after asset changes:
+
+```bash
+godot --headless --path . --import
+```
+
+## Running
+
+Open the project in Godot:
+
+```bash
+godot --path .
+```
+
+Run the current LAN test scene directly:
+
+```bash
+godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host
+```
+
+Validate startup without opening the editor window:
+
+```bash
+godot --headless --path . --quit
+```
+
+## Dependencies
+
+- No external Godot addons are currently included in the repository.
+- The planned networking direction references Easy Networking and RTC, but those pieces are not yet present.
+- Current local multi-instance testing uses Godot's built-in multiplayer transport.
+
+## Development Notes
+
+- Keep README general and keep detailed implementation notes in `docs/`.
+- Update the relevant doc when changing test scenes, networking, destructible map logic, item plans, or current focus.
+- Follow the C# style rules in [Development Reference](docs/development-reference.md).
