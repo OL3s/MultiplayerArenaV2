@@ -26,4 +26,7 @@ public partial class PlayerItemThrowable : PlayerEquipable {
 
     [Export]
     public bool ExecuteObjectiveOnRest { get; set; } = true;
+
+    [Export]
+    public bool ActivateOnGroundImpact { get; set; }
 }

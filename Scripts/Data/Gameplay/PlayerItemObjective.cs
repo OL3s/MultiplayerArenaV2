@@ -27,4 +27,34 @@ public partial class PlayerItemObjective : Resource {
 
     [Export]
     public PackedScene EffectScene { get; set; }
+
+    [Export]
+    public DamageResource DamageResource { get; set; }
+
+    public void Execute(PlayerItemRuntimeContext context, Vector2 position, ProjectileSweepHit hit, DamageResource fallbackDamage) {
+        if (context == null)
+            return;
+
+        var damage = DamageResource ?? fallbackDamage ?? CreateDamageResourceFromValue();
+        switch (Type) {
+            case ObjectiveType.Damage:
+                if (hit != null && hit.HasHit)
+                    context.ApplyDamageToHit(hit, PlayerItemRuntimeContext.CreateDamageContainer(damage));
+                break;
+            case ObjectiveType.Explosion:
+                context.ApplyRadiusDamage(position, Radius, damage);
+                break;
+        }
+
+        context.SpawnEffect(EffectScene, position);
+    }
+
+    private DamageResource CreateDamageResourceFromValue() {
+        if (Damage <= 0.0f)
+            return null;
+
+        var damageResource = new DamageResource();
+        damageResource.AddDamageValue(Type == ObjectiveType.Explosion ? DamageType.Explosive : DamageType.Crush, Damage);
+        return damageResource;
+    }
 }

@@ -81,12 +81,14 @@ Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
 - `8`: set local player item override to `Grenadelauncher-T2`.
 - `,` / `.`: cycle backward/forward through all modern item resources.
 - `F`: cycle the selected item's available fire modes.
-- `Space`: test item use through the selected fire mode and `RecoverySeconds`, applying temporary accuracy pushback until real firing/throw actions exist.
+- `Space`: use the selected item through the selected fire mode and `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`.
+- Thrown grenades now travel toward their full throw-distance target and bounce from sampled wall/prop/player collision instead of shortening the throw range to the first obstruction. The thrown visual has a ground shadow under the arc.
+- Throwables can activate when they hit the ground through `ActivateOnGroundImpact`. The explosive grenade keeps fuse-timed behavior, while incendiary and smoke grenades currently activate on ground impact.
 
-Next player/item test-scene slice:
+Current player/item test-scene follow-up:
 
-- Replace temporary `Space` pushback-only behavior with real execution through generic bullet, thrown-item, and launched-projectile scenes.
-- Keep `F` fire-mode cycling and selected item recovery behavior active while wiring real item execution.
+- Tune and harden the generic bullet, thrown-item, and launched-projectile execution data.
+- Keep `F` fire-mode cycling and selected item recovery behavior active while expanding item execution.
 
 ## Example CLI Usage
 

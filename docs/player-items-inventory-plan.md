@@ -288,13 +288,21 @@ Projectile data distinction:
 
 ## Generic Runtime Item Scenes
 
-The next execution slice should create three reusable runtime scenes instead of one scene per item:
+The first execution slice creates three reusable runtime scenes instead of one scene per item:
 
 - Generic bullet scene: used by shootable weapons such as pistols, SMGs, ARs, and rifles.
 - Generic thrown-item scene: used by hand-thrown items such as explosive, incendiary, and smoke grenades.
 - Generic launched-projectile scene: used by launcher weapons such as rocket launchers and grenade launchers.
 
-These scenes should be data-driven from item/projectile resources. The carried item resource decides what scene/data to use; the runtime scene handles movement, collision, timing, and objective resolution.
+These scenes are data-driven from item/projectile resources. The carried item resource decides what scene/data to use; the runtime scene handles movement, collision, timing, and objective resolution.
+
+Current implementation notes:
+
+- `Scenes/Gameplay/Projectiles/GenericBullet.tscn` uses `GenericBullet.cs` for swept over-time bullet movement. It checks each physics segment from previous to next position, stores hit object ids and wall tile coordinates, and prevents duplicate damage when a target sits across multiple sweep segments.
+- `Scenes/Gameplay/Projectiles/GenericThrownItem.tscn` uses `GenericThrownItem.cs` for throw travel, visual up/down arc animation, a ground shadow, simple bounce handling against walls/props/players, fuse/rest execution, ground-impact activation through `PlayerItemThrowable.ActivateOnGroundImpact`, and objective resolution.
+- `Scenes/Gameplay/Projectiles/GenericLaunchedProjectile.tscn` uses `GenericLaunchedProjectile.cs` for launcher-style projectile movement and collision execution.
+- `PlayerProjectileData` now owns generic projectile profile fields such as runtime scene, texture, speed, range, width, color, lifetime, penetration, stop-on-hit behavior, damage, and collision objective.
+- Shared projectile profile resources live under `Assets/Projectiles/Data/` for the first modern bullet/projectile families.
 
 Execution rules:
 

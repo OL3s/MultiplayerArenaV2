@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="PlayerProjectileData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/Gameplay/PlayerProjectileData.cs" id="1_projectile"]
+[ext_resource type="PackedScene" path="res://Scenes/Gameplay/Projectiles/GenericBullet.tscn" id="2_scene"]
+[ext_resource type="Script" path="res://Scripts/Data/Combat/DamageResource.cs" id="3_damage_script"]
+
+[sub_resource type="Resource" id="DamageResource_1"]
+script = ExtResource("3_damage_script")
+DamageValues = { 0: 18.0 }
+
+[resource]
+script = ExtResource("1_projectile")
+ProjectileScene = ExtResource("2_scene")
+Speed = 980.0
+Width = 1.7
+Color = Color(1, 0.92, 0.55, 1)
+LifetimeSeconds = 0.9
+StopsOnFirstHit = true
+Damage = SubResource("DamageResource_1")

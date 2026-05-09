@@ -4,9 +4,9 @@ This file tracks what to focus on in the next working session.
 
 ## Next Session Goal
 
-Continue the player item/action slice inside the dedicated player item/action LAN test scene, with the next focus on real item execution scenes.
+Continue the player item/action slice inside the dedicated player item/action LAN test scene, with the next focus on expanding and hardening real item execution scenes.
 
-The next target is to create the actual runtime `.tscn` pieces used by usable items: one generic bullet scene, one generic thrown-item scene, and one generic launched-projectile scene. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Reuse LAN runtime patterns where useful, but keep item/action testing separate before building final UI or purchase flow.
+The first generic runtime `.tscn` pieces now exist: one generic bullet scene, one generic thrown-item scene, and one generic launched-projectile scene. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Reuse LAN runtime patterns where useful, but keep item/action testing separate before building final UI or purchase flow.
 
 ## Primary Focus
 
@@ -30,15 +30,12 @@ The next target is to create the actual runtime `.tscn` pieces used by usable it
 
 ## Next Implementation Order
 
-1. Create a generic bullet scene and script for shootable weapons. It should use exact aim plus `PlayerItemAccuracyState.CurrentAccuracy` spread, resolve collision against players, props, and destructible walls, and route damage through `DamageContainer -> HealthContainer`.
-2. Create a generic thrown-item scene and script for hand-thrown items. It should use throw strength/range projection, support simple travel/fuse/rest behavior, and execute throwable objectives such as explosive/incendiary/smoke resolution.
-3. Create a generic launched-projectile scene and script for launcher-style items. It should stay separate from carried launcher item resources and support rocket/grenade-launcher projectile behavior.
-4. Add `PackedScene` references or projectile data links from modern `.tres` item resources to the correct generic execution scene.
-5. Replace the temporary `Space` accuracy-pushback test in `TestPlayerItemRoomLAN` with real item action execution while preserving `RecoverySeconds`, selected fire mode, burst behavior, and server-authoritative request flow.
-6. Implement shootable weapon execution for pistols, SMGs, ARs, and rifles using the generic bullet scene first.
-7. Implement launcher execution for `Rocketlauncher`, `Grenadelauncher-T1`, and `Grenadelauncher-T2` using the generic launched-projectile scene.
-8. Implement throwable grenade execution for `NadeExplosive`, `NadeIncendiary`, and `NadeSmoke` using the generic thrown-item scene.
-9. Add temporary runtime item ownership on `DamageTestPlayer` or a small player runtime data object before building full inventory.
+1. Test and tune the generic bullet scene and script for shootable weapons. It uses exact aim plus `PlayerItemAccuracyState.CurrentAccuracy` spread, sweeps movement over physics ticks, tracks already-hit objects/wall tiles to prevent duplicate hits, resolves collision against players, props, and destructible walls, and routes damage through `DamageContainer -> HealthContainer`.
+2. Test and tune the generic thrown-item scene and script for hand-thrown items. It uses throw strength/range projection, a simple up/down arc animation, fuse/rest behavior, and fallback explosive/incendiary/smoke objectives.
+3. Test and tune the generic launched-projectile scene and script for launcher-style items. It stays separate from carried launcher item resources and supports rocket/grenade-launcher projectile behavior through `PlayerProjectileData`.
+4. Expand authored projectile/objective data resources beyond the first shared modern profiles if individual tiers need different bullet/projectile speed, width, color, damage, radius, or collision behavior.
+5. Add stronger runtime validation and replicated damage-state catch-up after the basic server-authoritative request/sync path is stable.
+6. Add temporary runtime item ownership on `DamageTestPlayer` or a small player runtime data object before building full inventory.
 10. After all currently imaged modern items execute, add the inventory/armor model: equipped armor, inventory providers, carried equipables, typed slots, and validation.
 11. Add magazine/ammo reserve dependencies after shootable weapons exist, so reload capacity is tested against real item use.
 12. Run `dotnet build MultiplayerArenaV2.csproj` and `godot --headless --path . --quit` after implementation. Run `godot --headless --path . --import` when adding or changing assets.

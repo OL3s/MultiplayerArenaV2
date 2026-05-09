@@ -10,6 +10,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private const float InputFullExitThreshold = 0.60f;
     private const int DirectionBucketCount = 16;
     private const string DefaultItemId = "pistol_t1";
+    private const string GenericBulletScenePath = "res://Scenes/Gameplay/Projectiles/GenericBullet.tscn";
+    private const string GenericThrownItemScenePath = "res://Scenes/Gameplay/Projectiles/GenericThrownItem.tscn";
+    private const string GenericLaunchedProjectileScenePath = "res://Scenes/Gameplay/Projectiles/GenericLaunchedProjectile.tscn";
 
     private static readonly string[] ModernItemIds = {
         "pistol_t1", "pistol_t2", "pistol_t3",
@@ -99,6 +102,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private readonly Dictionary<int, int> _burstUseCountsByGlobalId = new();
     private readonly Dictionary<string, PlayerEquipable> _loadedItemsById = new();
     private PlayerAimIndicator _aimIndicator;
+    private PackedScene _genericBulletScene;
+    private PackedScene _genericThrownItemScene;
+    private PackedScene _genericLaunchedProjectileScene;
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -113,6 +119,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _networking = GetNode<Networking>("/root/Networking");
         _aimIndicator = new PlayerAimIndicator { Name = "AimIndicator", ZIndex = 20 };
         AddChild(_aimIndicator);
+        _genericBulletScene = GD.Load<PackedScene>(GenericBulletScenePath);
+        _genericThrownItemScene = GD.Load<PackedScene>(GenericThrownItemScenePath);
+        _genericLaunchedProjectileScene = GD.Load<PackedScene>(GenericLaunchedProjectileScenePath);
 
         ApplyCommandLineOverrides();
         EnsureDefaultNetworkMode();
@@ -660,14 +669,226 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             _burstUseCountsByGlobalId[globalId] = burstUseCount + 1;
         }
 
-        ApplyLocalItemUsePushback(globalId, item);
+        RequestLocalItemUse(globalId, item);
     }
 
-    private void ApplyLocalItemUsePushback(int globalId, PlayerEquipable item) {
+    private void RequestLocalItemUse(int globalId, PlayerEquipable item) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || player.IsDead())
+            return;
+
+        var aimDirection = player.DisplayAimDirection;
+        if (aimDirection.LengthSquared() <= 0.0001f)
+            aimDirection = GetAimDirection(globalId);
+        if (aimDirection.LengthSquared() <= 0.0001f)
+            aimDirection = Vector2.Right;
+
+        var aimStrength = _aimStrengthByGlobalId.TryGetValue(globalId, out var strength) ? strength : 1.0f;
+        if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
+            ApplyItemUsePushbackAndRecovery(globalId, item);
+            RpcId(1, nameof(RpcRequestUsePlayerItem), globalId, aimDirection.X, aimDirection.Y, aimStrength);
+        }
+        else {
+            ExecuteValidatedItemUse(globalId, aimDirection, aimStrength, true);
+        }
+    }
+
+    private void ApplyItemUsePushbackAndRecovery(int globalId, PlayerEquipable item) {
         if (_accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState))
             accuracyState.ApplyUsePushback();
 
         _itemRecoverySecondsByGlobalId[globalId] = Mathf.Max(item.RecoverySeconds, 0.0f);
+    }
+
+    private void ExecuteValidatedItemUse(int globalId, Vector2 aimDirection, float aimStrength, bool syncToPeers) {
+        if (!_itemsByGlobalId.TryGetValue(globalId, out var item) || item == null)
+            return;
+
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || player.IsDead())
+            return;
+
+        if (aimDirection.LengthSquared() <= 0.0001f)
+            aimDirection = GetAimDirection(globalId);
+        if (aimDirection.LengthSquared() <= 0.0001f)
+            aimDirection = Vector2.Right;
+
+        var normalizedAim = aimDirection.Normalized();
+        var startPosition = player.GlobalPosition + (normalizedAim * 10.0f);
+        ApplyItemUsePushbackAndRecovery(globalId, item);
+
+        if (item is PlayerItemThrowable throwable)
+            SpawnThrownItem(globalId, throwable, startPosition, normalizedAim, aimStrength, syncToPeers);
+        else if (item is PlayerItemShootable shootable)
+            SpawnBullet(globalId, shootable, startPosition, ApplyAccuracySpread(globalId, normalizedAim), syncToPeers);
+        else if (item is PlayerItemProjectile projectile)
+            SpawnLaunchedProjectile(globalId, projectile, startPosition, ApplyAccuracySpread(globalId, normalizedAim), syncToPeers);
+    }
+
+    private Vector2 ApplyAccuracySpread(int globalId, Vector2 direction) {
+        var accuracy = _accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState)
+            ? accuracyState.CurrentAccuracy
+            : 0.0f;
+        if (accuracy <= 0.0f)
+            return direction;
+
+        var spreadAngle = (float)GD.RandRange(-accuracy, accuracy);
+        return direction.Rotated(spreadAngle).Normalized();
+    }
+
+    private void SpawnBullet(int globalId, PlayerItemShootable item, Vector2 startPosition, Vector2 direction, bool syncToPeers) {
+        var projectileData = EnsureProjectileData(item.Projectile, item, true);
+        var scene = projectileData.ProjectileScene ?? _genericBulletScene;
+        var bullet = GenericBullet.Create(
+            scene,
+            CreateRuntimeContext(globalId),
+            projectileData,
+            GetObjectiveForItem(item, projectileData.CollisionObjective),
+            startPosition,
+            direction,
+            item.Range);
+        if (bullet == null)
+            return;
+
+        AddChild(bullet);
+        if (syncToPeers)
+            SyncItemUse(globalId, item.ItemId, startPosition, direction, item.Range, GetThrowableTargetPosition(item, startPosition, direction, 1.0f));
+    }
+
+    private void SpawnLaunchedProjectile(int globalId, PlayerItemProjectile item, Vector2 startPosition, Vector2 direction, bool syncToPeers) {
+        var projectileData = EnsureProjectileData(item.Projectile, item, false);
+        var scene = projectileData.ProjectileScene ?? _genericLaunchedProjectileScene;
+        var projectile = GenericLaunchedProjectile.Create(
+            scene,
+            CreateRuntimeContext(globalId),
+            projectileData,
+            GetObjectiveForItem(item, projectileData.CollisionObjective),
+            startPosition,
+            direction,
+            item.Range);
+        if (projectile == null)
+            return;
+
+        AddChild(projectile);
+        if (syncToPeers)
+            SyncItemUse(globalId, item.ItemId, startPosition, direction, item.Range, GetThrowableTargetPosition(item, startPosition, direction, 1.0f));
+    }
+
+    private void SpawnThrownItem(int globalId, PlayerItemThrowable item, Vector2 startPosition, Vector2 direction, float aimStrength, bool syncToPeers) {
+        var scene = item.ThrowableScene ?? _genericThrownItemScene;
+        var targetPosition = GetThrowableTargetPosition(item, startPosition, direction, aimStrength);
+        var thrownItem = GenericThrownItem.Create(
+            scene,
+            CreateRuntimeContext(globalId),
+            item,
+            GetObjectiveForItem(item, null),
+            startPosition,
+            targetPosition);
+        if (thrownItem == null)
+            return;
+
+        AddChild(thrownItem);
+        if (syncToPeers)
+            SyncItemUse(globalId, item.ItemId, startPosition, direction, startPosition.DistanceTo(targetPosition), targetPosition);
+    }
+
+    private Vector2 GetThrowableTargetPosition(PlayerEquipable item, Vector2 startPosition, Vector2 direction, float aimStrength) {
+        var distance = item.Range;
+        if (item is PlayerItemThrowable throwable) {
+            var throwStrength = throwable.ThrowStrengthAffectsRange ? Mathf.Clamp(aimStrength, 0.0f, 1.0f) : 1.0f;
+            distance = Mathf.Lerp(throwable.MinThrowRange, throwable.Range, throwStrength);
+        }
+
+        return startPosition + (direction * distance);
+    }
+
+    private PlayerProjectileData EnsureProjectileData(PlayerProjectileData projectileData, PlayerEquipable item, bool bullet) {
+        projectileData ??= new PlayerProjectileData();
+        projectileData.ProjectileScene ??= bullet ? _genericBulletScene : _genericLaunchedProjectileScene;
+        if (projectileData.Range <= 0.0f)
+            projectileData.Range = item.Range;
+        if (projectileData.Damage == null || projectileData.Damage.DamageValues.Count == 0)
+            projectileData.Damage = CreateDefaultDamageResource(item, bullet);
+        return projectileData;
+    }
+
+    private DamageResource CreateDefaultDamageResource(PlayerEquipable item, bool bullet) {
+        var damage = new DamageResource();
+        var value = bullet ? GetDefaultBulletDamage(item) : 90.0f;
+        damage.AddDamageValue(bullet ? DamageType.Crush : DamageType.Explosive, value);
+        return damage;
+    }
+
+    private PlayerItemObjective GetObjectiveForItem(PlayerEquipable item, PlayerItemObjective fallbackObjective) {
+        if (item.UseObjective != null)
+            return item.UseObjective;
+
+        if (fallbackObjective != null)
+            return fallbackObjective;
+
+        if (item is PlayerItemProjectile)
+            return CreateExplosionObjective(70.0f, 46.0f);
+
+        if (item is PlayerItemThrowable throwable) {
+            if (throwable.ItemId.Contains("smoke"))
+                return new PlayerItemObjective { Type = PlayerItemObjective.ObjectiveType.None, DurationSeconds = 5.0f };
+            if (throwable.ItemId.Contains("incendiary"))
+                return CreateExplosionObjective(45.0f, 44.0f, DamageType.Heat);
+            return CreateExplosionObjective(80.0f, 48.0f);
+        }
+
+        return null;
+    }
+
+    private static PlayerItemObjective CreateExplosionObjective(float damageValue, float radius, DamageType damageType = DamageType.Explosive) {
+        var damage = new DamageResource();
+        damage.AddDamageValue(damageType, damageValue);
+        return new PlayerItemObjective {
+            Type = PlayerItemObjective.ObjectiveType.Explosion,
+            Radius = radius,
+            DamageResource = damage,
+        };
+    }
+
+    private static float GetDefaultBulletDamage(PlayerEquipable item) {
+        if (item.ItemId.StartsWith("rifle"))
+            return 42.0f;
+        if (item.ItemId.StartsWith("ar"))
+            return 28.0f;
+        if (item.ItemId.StartsWith("smg"))
+            return 18.0f;
+        return 24.0f;
+    }
+
+    private PlayerItemRuntimeContext CreateRuntimeContext(int ownerGlobalId) {
+        var props = new List<LevelProp>();
+        if (_centerProp != null && IsInstanceValid(_centerProp))
+            props.Add(_centerProp);
+
+        return new PlayerItemRuntimeContext {
+            OwnerGlobalId = ownerGlobalId,
+            World = this,
+            ArenaMapData = _arenaMapData,
+            TileSize = TestTileSize,
+            PlayersByGlobalId = _playersByGlobalId,
+            Props = props,
+            ArenaChanged = RenderArenaWithCollision,
+        };
+    }
+
+    private void SyncItemUse(int globalId, string itemId, Vector2 startPosition, Vector2 direction, float range, Vector2 targetPosition) {
+        if (!CanSendHostRpc())
+            return;
+
+        Rpc(
+            nameof(RpcSyncUsePlayerItem),
+            globalId,
+            itemId,
+            startPosition.X,
+            startPosition.Y,
+            direction.X,
+            direction.Y,
+            range,
+            targetPosition.X,
+            targetPosition.Y);
     }
 
     private void CycleLocalFireMode() {
@@ -996,6 +1217,17 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         SyncPlayerItem(globalId, itemId);
     }
 
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestUsePlayerItem(int globalId, float aimX, float aimY, float aimStrength) {
+        if (!IsPlayerStateRequestAllowed(globalId))
+            return;
+
+        if (_itemRecoverySecondsByGlobalId.TryGetValue(globalId, out var recoverySeconds) && recoverySeconds > 0.0)
+            return;
+
+        ExecuteValidatedItemUse(globalId, new Vector2(aimX, aimY), Mathf.Clamp(aimStrength, 0.0f, 1.0f), true);
+    }
+
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerMovementState(int globalId, int directionIndex, int strengthValue, float worldX, float worldY, bool includePosition) {
         SetPlayerMovementState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), includePosition, worldX, worldY);
@@ -1015,6 +1247,78 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerItem(int globalId, string itemId) {
         SetPlayerItem(globalId, itemId);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncUsePlayerItem(
+        int globalId,
+        string itemId,
+        float startX,
+        float startY,
+        float directionX,
+        float directionY,
+        float range,
+        float targetX,
+        float targetY) {
+        var item = LoadItem(itemId);
+        if (item == null)
+            return;
+
+        var startPosition = new Vector2(startX, startY);
+        var direction = new Vector2(directionX, directionY);
+        if (direction.LengthSquared() <= 0.0001f)
+            direction = Vector2.Right;
+
+        if (item is PlayerItemThrowable throwable) {
+            var scene = throwable.ThrowableScene ?? _genericThrownItemScene;
+            var thrownItem = GenericThrownItem.Create(
+                scene,
+                CreateRuntimeContext(globalId),
+                throwable,
+                GetObjectiveForItem(throwable, null),
+                startPosition,
+                new Vector2(targetX, targetY));
+            if (thrownItem == null)
+                return;
+
+            AddChild(thrownItem);
+            return;
+        }
+
+        if (item is PlayerItemShootable shootable) {
+            var projectileData = EnsureProjectileData(shootable.Projectile, shootable, true);
+            var scene = projectileData.ProjectileScene ?? _genericBulletScene;
+            var bullet = GenericBullet.Create(
+                scene,
+                CreateRuntimeContext(globalId),
+                projectileData,
+                GetObjectiveForItem(shootable, projectileData.CollisionObjective),
+                startPosition,
+                direction,
+                range);
+            if (bullet == null)
+                return;
+
+            AddChild(bullet);
+            return;
+        }
+
+        if (item is PlayerItemProjectile projectileItem) {
+            var projectileData = EnsureProjectileData(projectileItem.Projectile, projectileItem, false);
+            var scene = projectileData.ProjectileScene ?? _genericLaunchedProjectileScene;
+            var projectile = GenericLaunchedProjectile.Create(
+                scene,
+                CreateRuntimeContext(globalId),
+                projectileData,
+                GetObjectiveForItem(projectileItem, projectileData.CollisionObjective),
+                startPosition,
+                direction,
+                range);
+            if (projectile == null)
+                return;
+
+            AddChild(projectile);
+        }
     }
 
     private LocalPlayerData GetLocalPlayerDataForGlobalId(int globalId) {
