@@ -8,7 +8,7 @@ The item system should support fast arena gameplay while still feeling grounded.
 
 The core rule is that a player has one armor item, one or more inventory-providing items, and an array of carried items. The carried items array is only valid when every item fits into a slot provided by the player's available inventories, armor, or base carry capacity.
 
-The first implementation target is the modern theme, but the base structure should also support future themes such as medieval without rebuilding the inventory model.
+The first implementation target is modern-only content. The base structure should still support future themes without rebuilding the inventory model, but medieval content is intentionally deferred until the modern item/action slice works.
 
 ## Purchase Mode
 
@@ -288,12 +288,15 @@ Projectile data distinction:
 
 ## Theme Support
 
-The system should support multiple item themes through shared base structures.
+The system should support multiple item themes through shared base structures, but the first playable content pass is modern-only.
 
-Initial themes:
+Current content scope:
 
 - Modern
-- Medieval
+
+Deferred future themes:
+
+- Medieval or other non-modern themes
 
 Modern examples:
 
@@ -319,6 +322,8 @@ Medieval examples:
 
 The theme should change item content and presentation, not the core inventory rules. For example, a modern stim pouch and a medieval potion pouch can both provide small consumable slots through the same base slot-provider system.
 
+The first planned modern content list is tracked in `docs/modern-item-content-plan.md`.
+
 ## Theme Expansion Rule
 
 Theme-specific resources should inherit from the same base item resources. The code should avoid hardcoding modern-only concepts where a generic term works better.
@@ -332,7 +337,7 @@ Preferred generic terms:
 - `Shootable` behavior for guns, bows, crossbows, and launchers
 - `Instant` behavior for stims, potions, medkits, and powerups
 
-Modern can still be the first content set. The base wall of the system should be generic enough that medieval items can be added by creating new resources and theme data rather than rewriting player inventory logic.
+Modern is the first content set. The base wall of the system should be generic enough that future non-modern items can be added by creating new resources and theme data rather than rewriting player inventory logic, but that proof pass is not part of the first implementation slice.
 
 ## Implementation Order
 
@@ -346,7 +351,7 @@ Recommended first slice:
 - Add throwable, shootable, projectile, melee, instant, and objective resources.
 - Add purchase-mode validation that checks money, slot availability, and weight.
 - Add modern test items first.
-- Add medieval test items later to prove the base model is theme-safe.
+- Add future non-modern test items later, after the modern item/action slice is playable, to prove the base model is theme-safe.
 
 Next-session implementation focus is tracked in `docs/focuspoints.md`. That file should be treated as the short checklist for turning this plan into working game code and a dedicated test scene.
 

@@ -60,7 +60,7 @@ The LAN test currently covers:
 - Real `PlayerData` registration through the `Networking` autoload instead of hardcoded mock player ids.
 - Quantized player movement and aim tests through `GlobalId -> PlayerData -> LocalPlayerData` ownership/input resolution.
 - Godot physics movement collision for LAN test players, props, and wall TileMap collision.
-- Temporary SVG player front/back body sprites and pistol weapon sprite.
+- Temporary SVG player front/back body sprites and pistol item weapon sprite.
 
 Controls:
 
@@ -93,7 +93,7 @@ The status label shows player health and ownership mapping using `GlobalId -> Pl
 Current hitbox/collision/input test structure:
 
 - `DamageTestPlayer` is a `CharacterBody2D` with a direct circular `CollisionShape2D`. Click damage still uses its circular radius, and movement collision is resolved by Godot physics through `MoveAndSlide()`.
-- `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images and a pistol weapon `Sprite2D`. The weapon is offset from the body and rotated toward the active aim display vector.
+- `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images from `Assets/Players/` and a `Pistol-T1` weapon `Sprite2D` from `Assets/Items/Modern/Weapons/`. The weapon is offset from the body and rotated toward the active aim display vector.
 - `DamageTestPlayer` stores separate local and estimated aim vectors. Owned/local players display their locally calculated exact aim immediately. Remote/non-owned player display uses the replicated quantized estimated aim.
 - The player body sprite flips only by `BodySprite.Scale.X`; root scale, collision, label, and weapon positioning are not flipped through the root node. The body switches to the back SVG only when aim is sufficiently upward.
 - `LevelProp` is a `StaticBody2D` with a direct circular `CollisionShape2D` derived from `LevelPropData.Size`. Click damage still uses the same circular prop radius.

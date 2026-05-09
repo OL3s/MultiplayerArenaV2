@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d0yxikuin7wd7"
-path="res://.godot/imported/damage_test_pistol.svg-87b1f709f3dc295fb61997d4b793a4c8.ctex"
+uid="uid://b8cujgqg646qm"
+path="res://.godot/imported/rifle_t3.svg-f0dde3fdc62062ad61f031f3fbdfca97.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Assets/Players/damage_test_pistol.svg"
-dest_files=["res://.godot/imported/damage_test_pistol.svg-87b1f709f3dc295fb61997d4b793a4c8.ctex"]
+source_file="res://Assets/Items/Modern/Weapons/rifle_t3.svg"
+dest_files=["res://.godot/imported/rifle_t3.svg-f0dde3fdc62062ad61f031f3fbdfca97.ctex"]
 
 [params]
 

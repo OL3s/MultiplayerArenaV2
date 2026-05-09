@@ -44,6 +44,7 @@ The next target is to make players use simple working items first, then grow tha
 ## Keep In Mind
 
 - Do not build the full purchase menu first. Build working item actions first.
+- Keep the first item/action content pass modern-only. Use `docs/modern-item-content-plan.md` for the planned weapon, launcher, and grenade list.
 - Do not build the full inventory UI first. Add inventory validation after items exist.
 - Keep magazine reserves separate from normal carried item slots.
 - Keep armor protection and inventory capacity separate: armor can provide protection, movement penalties, and slot/provider rules.
@@ -52,6 +53,7 @@ The next target is to make players use simple working items first, then grow tha
 ## Relevant Docs
 
 - `docs/player-items-inventory-plan.md`
+- `docs/modern-item-content-plan.md`
 - `docs/combat-lan-test-handoff.md`
 - `docs/test-scenes.md`
 - `docs/multiplayer-networking.md`

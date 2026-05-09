@@ -4,7 +4,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private static readonly Vector2 DefaultSize = new(12.0f, 12.0f);
     private const string FrontTexturePath = "res://Assets/Players/damage_test_player_front.svg";
     private const string BackTexturePath = "res://Assets/Players/damage_test_player_back.svg";
-    private const string WeaponTexturePath = "res://Assets/Players/damage_test_pistol.svg";
+    private const string WeaponTexturePath = "res://Assets/Items/Modern/Weapons/pistol_t1.svg";
     private const float BackFacingYThreshold = -0.5f;
 
     private Area2D _hitbox;
