@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="PlayerItemShootable" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/Gameplay/PlayerItemShootable.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/Items/Modern/Weapons/pistol_t2.svg" id="2_texture"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "pistol_t2"
+DisplayName = "Pistol-T2"
+Theme = 1
+Cost = 350
+Weight = 1.15
+HeldTexture = ExtResource("2_texture")
+RecoverySeconds = 0.20
+AvailableFireModes = Array[int]([0])
+BurstMaxUseCount = 3
+Range = 560.0
+AimDisplayRange = 190.0
+AimMoveSpeedMultiplier = 1.0
+DefaultAccuracy = 0.03
+MovementAccuracy = 0.05
+AccuracyPushback = 0.016
+ShotAccuracyRecovery = 0.21
+MovementAccuracyRecovery = 1.00
+MaxInaccuracy = 0.20
+MagazineSize = 14
+ShotsPerSecond = 5.0

@@ -99,6 +99,8 @@ This is now the dedicated player movement, aim, and item/action test bed.
 - The player body sprite flips only by `BodySprite.Scale.X`; root scale, collision, label, and weapon positioning are not flipped through the root node. The body switches to the back SVG only when aim is sufficiently upward.
 - Player room movement uses Godot physics bodies: players are `CharacterBody2D`, the center prop is `StaticBody2D`, and wall movement collision comes from the rendered `WallLayer` `TileMapLayer`.
 - Local input first resolves to generic movement and aim vectors, then those vectors are quantized into 16 direction buckets and three strength states: `None`, `Some`, and `Full`. Keyboard/mouse and gamepad only differ at the vector-read step.
+- Local input also resolves an explicit active-aiming state. Keyboard/mouse is actively aiming while `Ctrl` or right mouse button is held. Gamepad is actively aiming while the right stick is outside the aim deadzone.
+- The debug aim indicator only draws while the local player is actively aiming, and server movement applies the selected item's `AimMoveSpeedMultiplier` while aiming.
 - For the current prototype, clients do not predict or simulate player movement locally. Clients send movement input vectors only when their quantized movement state changes, the host/server validates ownership, quantizes the vector, and the host/server is the only peer that simulates movement.
 - Aim state changes replicate independently from movement state changes. Aiming does not force movement updates. For gamepad players with no active right-stick aim, the aim state follows movement-state direction/strength changes.
 - Local aim display is allowed to be more exact than replicated aim state. Future shoot/throw actions should send their exact aim vector at action time and can use that exact vector to update the acting object's local aim display.
@@ -112,6 +114,8 @@ Player item room controls:
 - Client player movement: gamepad left stick. Client `LocalId 0` uses gamepad device `0`.
 - Host/local aim: mouse direction from the player body.
 - Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction for controller convenience.
+- Active aiming is separate from aim direction. Keyboard/mouse uses `Ctrl` or right mouse button; controller uses active right-stick aim.
+- While actively aiming, movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier`.
 - `1`: select `Pistol-T1` override.
 - `2`: select `Smg-T1` override.
 - `3`: select `AR-T1` override.

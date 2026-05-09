@@ -59,6 +59,9 @@ Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
 - Uses the same `DamageTestPlayer.GlobalId -> PlayerData` ownership lookup pattern as the old LAN player test path.
 - Player movement is currently server-authoritative and intentionally simple: clients send movement input vectors when quantized movement state changes, only the host/server simulates movement, and clients directly apply server movement-state plus every-physics-tick moving-position updates without interpolation or local prediction.
 - Player visuals use temporary SVG player body sprites in `Assets/Players/` plus the `Pistol-T1` item image in `Assets/Items/Modern/Weapons/`.
+- Player held-item visuals now come from the selected modern item `.tres` resource's `HeldTexture`.
+- The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
+- Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 
 ## LAN Player Item Room Controls
 
@@ -66,11 +69,24 @@ Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
 - Client player movement: gamepad left stick. Client `LocalId 0` uses gamepad device `0`.
 - Host/local aim: mouse direction from the player body.
 - Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction.
+- Active aiming is separate from aim direction. Keyboard/mouse is actively aiming while `Ctrl` or right mouse button is held. Controller is actively aiming while the right stick is outside the aim deadzone.
+- The debug aim indicator only draws while actively aiming, and movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier` while actively aiming.
 - `1`: set local player item override to `Pistol-T1`.
 - `2`: set local player item override to `Smg-T1`.
 - `3`: set local player item override to `AR-T1`.
 - `4`: set local player item override to `Rifle-T1`.
 - `5`: set local player item override to `NadeExplosive`.
+- `6`: set local player item override to `Rocketlauncher`.
+- `7`: set local player item override to `Grenadelauncher-T1`.
+- `8`: set local player item override to `Grenadelauncher-T2`.
+- `,` / `.`: cycle backward/forward through all modern item resources.
+- `F`: cycle the selected item's available fire modes.
+- `Space`: test item use through the selected fire mode and `RecoverySeconds`, applying temporary accuracy pushback until real firing/throw actions exist.
+
+Next player/item test-scene slice:
+
+- Replace temporary `Space` pushback-only behavior with real execution through generic bullet, thrown-item, and launched-projectile scenes.
+- Keep `F` fire-mode cycling and selected item recovery behavior active while wiring real item execution.
 
 ## Example CLI Usage
 

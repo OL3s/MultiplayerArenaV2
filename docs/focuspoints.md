@@ -4,9 +4,9 @@ This file tracks what to focus on in the next working session.
 
 ## Next Session Goal
 
-Continue the player item/action slice inside the dedicated player item/action LAN test scene.
+Continue the player item/action slice inside the dedicated player item/action LAN test scene, with the next focus on real item execution scenes.
 
-The next target is to make players use the modern items that already have SVG images, then grow that into inventory, armor, movement-speed, magazine, and dependency rules. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Reuse LAN runtime patterns where useful, but keep item/action testing separate before building final UI or purchase flow.
+The next target is to create the actual runtime `.tscn` pieces used by usable items: one generic bullet scene, one generic thrown-item scene, and one generic launched-projectile scene. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Reuse LAN runtime patterns where useful, but keep item/action testing separate before building final UI or purchase flow.
 
 ## Primary Focus
 
@@ -30,16 +30,16 @@ The next target is to make players use the modern items that already have SVG im
 
 ## Next Implementation Order
 
-1. Replace the temporary `1`-`5` item override strings in `TestPlayerItemRoomLAN` with real runtime item ownership that can select from the full modern item list.
-2. Add or complete the smallest useful player item/action data model: base item, equipable item, projectile data, and objective/effect data.
-3. Implement the shootable weapon family for every currently imaged tier: pistols, SMGs, ARs, and rifles.
-4. Implement launcher items for `Rocketlauncher`, `Grenadelauncher-T1`, and `Grenadelauncher-T2`, keeping launcher items separate from spawned projectile data.
-5. Implement throwable grenade items for `NadeExplosive`, `NadeIncendiary`, and `NadeSmoke`.
-6. Route weapon, launcher, and grenade damage through the existing `DamageContainer -> HealthContainer` backend.
-7. Use exact aim vectors for actual shot/throw actions, while keeping estimated aim for normal remote display.
-8. Add temporary runtime item ownership on `DamageTestPlayer` or a small player runtime data object before building full inventory.
-9. After all currently imaged modern items work, add the inventory/armor model: equipped armor, inventory providers, carried equipables, typed slots, and validation.
-10. Add movement-speed effects from armor, carried weight, or item loadout after the item/inventory state exists.
+1. Create a generic bullet scene and script for shootable weapons. It should use exact aim plus `PlayerItemAccuracyState.CurrentShotAngleOffset`, resolve collision against players, props, and destructible walls, and route damage through `DamageContainer -> HealthContainer`.
+2. Create a generic thrown-item scene and script for hand-thrown items. It should use throw strength/range projection, support simple travel/fuse/rest behavior, and execute throwable objectives such as explosive/incendiary/smoke resolution.
+3. Create a generic launched-projectile scene and script for launcher-style items. It should stay separate from carried launcher item resources and support rocket/grenade-launcher projectile behavior.
+4. Add `PackedScene` references or projectile data links from modern `.tres` item resources to the correct generic execution scene.
+5. Replace the temporary `Space` accuracy-pushback test in `TestPlayerItemRoomLAN` with real item action execution while preserving `RecoverySeconds`, selected fire mode, burst behavior, and server-authoritative request flow.
+6. Implement shootable weapon execution for pistols, SMGs, ARs, and rifles using the generic bullet scene first.
+7. Implement launcher execution for `Rocketlauncher`, `Grenadelauncher-T1`, and `Grenadelauncher-T2` using the generic launched-projectile scene.
+8. Implement throwable grenade execution for `NadeExplosive`, `NadeIncendiary`, and `NadeSmoke` using the generic thrown-item scene.
+9. Add temporary runtime item ownership on `DamageTestPlayer` or a small player runtime data object before building full inventory.
+10. After all currently imaged modern items execute, add the inventory/armor model: equipped armor, inventory providers, carried equipables, typed slots, and validation.
 11. Add magazine/ammo reserve dependencies after shootable weapons exist, so reload capacity is tested against real item use.
 12. Run `dotnet build MultiplayerArenaV2.csproj` and `godot --headless --path . --quit` after implementation. Run `godot --headless --path . --import` when adding or changing assets.
 
@@ -47,11 +47,18 @@ The next target is to make players use the modern items that already have SVG im
 
 - Host/local player can use a simple shootable item with keyboard/mouse aim.
 - Client gamepad players can use the same item path with their local aim/fallback aim model.
+- Generic bullet, thrown-item, and launched-projectile scenes can each be instantiated from item execution code.
 - Every currently imaged modern weapon tier can be selected in `TestPlayerItemRoomLAN` and executes through the same item-use path.
 - Every currently imaged modern grenade can be selected in `TestPlayerItemRoomLAN` and executes through the same throwable path.
 - A thrown/grenade item can apply radius damage to players, props, and destructible walls through the shared damage backend.
 - The new item/action test scene can be launched directly without relying on `TestMapDestructionLogicLAN.tscn` as the active scene.
 - Item actions use exact aim at action time, not only the quantized estimated aim state.
+- Shootable weapons apply spread around exact aim using item accuracy stats, and sustained fire naturally becomes less accurate based on pushback versus recovery.
+- Shot inaccuracy recovers separately from movement inaccuracy. Movement penalty snaps worse instantly, then recovers by item-specific movement recovery when slowing down or stopping.
+- Local aiming shows an aim line and crosshair/circle derived from the same current accuracy value used for firing spread.
+- Crosshair/circle radius changes with projection distance and current accuracy, instead of using a fixed screen/world radius.
+- Gun aim indicators use item range with a readable display cap for long-range weapons that reach beyond the screen, and stop at sampled collision so hit/miss readability is clearer.
+- Throwable aim indicators use predicted collision or throw endpoint, with gamepad aim-vector strength scaling throw distance.
 - Dead players cannot use items until respawn.
 - The first item data model does not hardcode modern-only assumptions so medieval-style items can be added later.
 

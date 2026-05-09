@@ -9,6 +9,37 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private const float InputFullEnterThreshold = 0.70f;
     private const float InputFullExitThreshold = 0.60f;
     private const int DirectionBucketCount = 16;
+    private const string DefaultItemId = "pistol_t1";
+
+    private static readonly string[] ModernItemIds = {
+        "pistol_t1", "pistol_t2", "pistol_t3",
+        "smg_t1", "smg_t2", "smg_t3",
+        "ar_t1", "ar_t2", "ar_t3",
+        "rifle_t1", "rifle_t2", "rifle_t3",
+        "rocketlauncher", "grenadelauncher_t1", "grenadelauncher_t2",
+        "nade_explosive", "nade_incendiary", "nade_smoke",
+    };
+
+    private static readonly Dictionary<string, string> ItemResourcePaths = new() {
+        ["pistol_t1"] = "res://Assets/Items/Modern/Weapons/pistol_t1.tres",
+        ["pistol_t2"] = "res://Assets/Items/Modern/Weapons/pistol_t2.tres",
+        ["pistol_t3"] = "res://Assets/Items/Modern/Weapons/pistol_t3.tres",
+        ["smg_t1"] = "res://Assets/Items/Modern/Weapons/smg_t1.tres",
+        ["smg_t2"] = "res://Assets/Items/Modern/Weapons/smg_t2.tres",
+        ["smg_t3"] = "res://Assets/Items/Modern/Weapons/smg_t3.tres",
+        ["ar_t1"] = "res://Assets/Items/Modern/Weapons/ar_t1.tres",
+        ["ar_t2"] = "res://Assets/Items/Modern/Weapons/ar_t2.tres",
+        ["ar_t3"] = "res://Assets/Items/Modern/Weapons/ar_t3.tres",
+        ["rifle_t1"] = "res://Assets/Items/Modern/Weapons/rifle_t1.tres",
+        ["rifle_t2"] = "res://Assets/Items/Modern/Weapons/rifle_t2.tres",
+        ["rifle_t3"] = "res://Assets/Items/Modern/Weapons/rifle_t3.tres",
+        ["rocketlauncher"] = "res://Assets/Items/Modern/Weapons/rocketlauncher.tres",
+        ["grenadelauncher_t1"] = "res://Assets/Items/Modern/Weapons/grenadelauncher_t1.tres",
+        ["grenadelauncher_t2"] = "res://Assets/Items/Modern/Weapons/grenadelauncher_t2.tres",
+        ["nade_explosive"] = "res://Assets/Items/Modern/Throwables/nade_explosive.tres",
+        ["nade_incendiary"] = "res://Assets/Items/Modern/Throwables/nade_incendiary.tres",
+        ["nade_smoke"] = "res://Assets/Items/Modern/Throwables/nade_smoke.tres",
+    };
 
     private enum InputStrength {
         None,
@@ -36,11 +67,13 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         public readonly Vector2 Movement;
         public readonly Vector2 Aim;
         public readonly bool AimFallsBackToMovement;
+        public readonly bool IsAiming;
 
-        public LocalInputVectors(Vector2 movement, Vector2 aim, bool aimFallsBackToMovement) {
+        public LocalInputVectors(Vector2 movement, Vector2 aim, bool aimFallsBackToMovement, bool isAiming) {
             Movement = movement;
             Aim = aim;
             AimFallsBackToMovement = aimFallsBackToMovement;
+            IsAiming = isAiming;
         }
     }
 
@@ -55,7 +88,17 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private readonly Dictionary<int, QuantizedInputState> _aimStatesByGlobalId = new();
     private readonly Dictionary<int, QuantizedInputState> _lastLocalMovementStatesByGlobalId = new();
     private readonly Dictionary<int, QuantizedInputState> _lastLocalAimStatesByGlobalId = new();
-    private readonly Dictionary<int, string> _itemOverrideByGlobalId = new();
+    private readonly Dictionary<int, bool> _isAimingByGlobalId = new();
+    private readonly Dictionary<int, bool> _lastLocalIsAimingByGlobalId = new();
+    private readonly Dictionary<int, PlayerEquipable> _itemsByGlobalId = new();
+    private readonly Dictionary<int, PlayerItemAccuracyState> _accuracyStatesByGlobalId = new();
+    private readonly Dictionary<int, float> _aimStrengthByGlobalId = new();
+    private readonly Dictionary<int, PlayerItemFireMode> _selectedFireModesByGlobalId = new();
+    private readonly Dictionary<int, double> _itemRecoverySecondsByGlobalId = new();
+    private readonly Dictionary<int, bool> _wasUseHeldByGlobalId = new();
+    private readonly Dictionary<int, int> _burstUseCountsByGlobalId = new();
+    private readonly Dictionary<string, PlayerEquipable> _loadedItemsById = new();
+    private PlayerAimIndicator _aimIndicator;
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -68,6 +111,8 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _camera = GetNode<Camera2D>("Camera2D");
         _statusLabel = GetNode<Label>("CanvasLayer/StatusLabel");
         _networking = GetNode<Networking>("/root/Networking");
+        _aimIndicator = new PlayerAimIndicator { Name = "AimIndicator", ZIndex = 20 };
+        AddChild(_aimIndicator);
 
         ApplyCommandLineOverrides();
         EnsureDefaultNetworkMode();
@@ -96,11 +141,14 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     public override void _Process(double delta) {
+        ProcessLocalItemUse(delta);
         UpdateStatusLabel();
+        UpdateLocalAimIndicator();
     }
 
     public override void _PhysicsProcess(double delta) {
         ProcessLocalPlayerInputStates();
+        UpdateAccuracyStates(delta);
         if (_networking.IsServer || _networking.IsLocal)
             SimulatePlayerMovement(delta);
 
@@ -111,17 +159,29 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
             return;
 
-        var itemOverride = keyEvent.PhysicalKeycode switch {
-            Key.Key1 => "Pistol-T1",
-            Key.Key2 => "Smg-T1",
-            Key.Key3 => "AR-T1",
-            Key.Key4 => "Rifle-T1",
-            Key.Key5 => "NadeExplosive",
+        var itemId = keyEvent.PhysicalKeycode switch {
+            Key.Key1 => "pistol_t1",
+            Key.Key2 => "smg_t1",
+            Key.Key3 => "ar_t1",
+            Key.Key4 => "rifle_t1",
+            Key.Key5 => "nade_explosive",
+            Key.Key6 => "rocketlauncher",
+            Key.Key7 => "grenadelauncher_t1",
+            Key.Key8 => "grenadelauncher_t2",
             _ => string.Empty,
         };
 
-        if (!string.IsNullOrEmpty(itemOverride))
-            ApplyLocalItemOverride(itemOverride);
+        if (!string.IsNullOrEmpty(itemId)) {
+            ApplyLocalItemSelection(itemId);
+            return;
+        }
+
+        if (keyEvent.PhysicalKeycode == Key.Period)
+            CycleLocalItem(1);
+        else if (keyEvent.PhysicalKeycode == Key.Comma)
+            CycleLocalItem(-1);
+        else if (keyEvent.PhysicalKeycode == Key.F)
+            CycleLocalFireMode();
     }
 
     private void TryStartHost() {
@@ -261,7 +321,15 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             _aimStatesByGlobalId.Remove(removedGlobalId);
             _lastLocalMovementStatesByGlobalId.Remove(removedGlobalId);
             _lastLocalAimStatesByGlobalId.Remove(removedGlobalId);
-            _itemOverrideByGlobalId.Remove(removedGlobalId);
+            _isAimingByGlobalId.Remove(removedGlobalId);
+            _lastLocalIsAimingByGlobalId.Remove(removedGlobalId);
+            _itemsByGlobalId.Remove(removedGlobalId);
+            _accuracyStatesByGlobalId.Remove(removedGlobalId);
+            _aimStrengthByGlobalId.Remove(removedGlobalId);
+            _selectedFireModesByGlobalId.Remove(removedGlobalId);
+            _itemRecoverySecondsByGlobalId.Remove(removedGlobalId);
+            _wasUseHeldByGlobalId.Remove(removedGlobalId);
+            _burstUseCountsByGlobalId.Remove(removedGlobalId);
         }
     }
 
@@ -281,7 +349,15 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _aimStatesByGlobalId.Clear();
         _lastLocalMovementStatesByGlobalId.Clear();
         _lastLocalAimStatesByGlobalId.Clear();
-        _itemOverrideByGlobalId.Clear();
+        _isAimingByGlobalId.Clear();
+        _lastLocalIsAimingByGlobalId.Clear();
+        _itemsByGlobalId.Clear();
+        _accuracyStatesByGlobalId.Clear();
+        _aimStrengthByGlobalId.Clear();
+        _selectedFireModesByGlobalId.Clear();
+        _itemRecoverySecondsByGlobalId.Clear();
+        _wasUseHeldByGlobalId.Clear();
+        _burstUseCountsByGlobalId.Clear();
     }
 
     private void AddPlayer(int globalId, Vector2I tilePosition) {
@@ -291,7 +367,13 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _playersByGlobalId[globalId] = player;
         _movementStatesByGlobalId[globalId] = GetNoInputState();
         _aimStatesByGlobalId[globalId] = new QuantizedInputState(0, InputStrength.Full);
-        _itemOverrideByGlobalId[globalId] = "Pistol-T1";
+        _isAimingByGlobalId[globalId] = false;
+        _aimStrengthByGlobalId[globalId] = 1.0f;
+        _itemRecoverySecondsByGlobalId[globalId] = 0.0;
+        _wasUseHeldByGlobalId[globalId] = false;
+        _burstUseCountsByGlobalId[globalId] = 0;
+        _accuracyStatesByGlobalId[globalId] = new PlayerItemAccuracyState();
+        SetPlayerItem(globalId, DefaultItemId);
         player.SetEstimatedAimDirection(DirectionIndexToVector(0), true);
     }
 
@@ -315,9 +397,17 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             var inputVectors = GetLocalInputVectors(localPlayerData, player);
             var movementState = QuantizeInput(inputVectors.Movement, previousMovementState);
             var aimState = GetAimState(inputVectors, movementState, previousAimState);
+            _aimStrengthByGlobalId[playerEntry.Key] = GetAimStrength(inputVectors, movementState, localPlayerData);
             ApplyLocalAimDisplay(player, inputVectors, aimState);
             ApplyLocalMovementStateChange(playerEntry.Key, inputVectors.Movement, movementState);
-            ApplyLocalAimStateChange(playerEntry.Key, aimState);
+            ApplyLocalAimStateChange(playerEntry.Key, aimState, inputVectors.IsAiming);
+        }
+    }
+
+    private void UpdateAccuracyStates(double delta) {
+        foreach (var accuracyStateEntry in _accuracyStatesByGlobalId) {
+            var movementStrength = GetMovementStrength(accuracyStateEntry.Key);
+            accuracyStateEntry.Value.Update(movementStrength, delta);
         }
     }
 
@@ -352,17 +442,21 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         }
     }
 
-    private void ApplyLocalAimStateChange(int globalId, QuantizedInputState aimState) {
-        if (_lastLocalAimStatesByGlobalId.TryGetValue(globalId, out var lastState) && lastState.Equals(aimState))
+    private void ApplyLocalAimStateChange(int globalId, QuantizedInputState aimState, bool isAiming) {
+        if (_lastLocalAimStatesByGlobalId.TryGetValue(globalId, out var lastState)
+            && lastState.Equals(aimState)
+            && _lastLocalIsAimingByGlobalId.TryGetValue(globalId, out var lastIsAiming)
+            && lastIsAiming == isAiming)
             return;
 
         _lastLocalAimStatesByGlobalId[globalId] = aimState;
-        SetPlayerAimState(globalId, aimState, false);
+        _lastLocalIsAimingByGlobalId[globalId] = isAiming;
+        SetPlayerAimState(globalId, aimState, isAiming, false);
 
         if (_networking.IsClient && _networking.HasActiveNetworkPeer)
-            RpcId(1, nameof(RpcRequestSetPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength);
+            RpcId(1, nameof(RpcRequestSetPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength, isAiming);
         else if (CanSendHostRpc())
-            SyncPlayerAimState(globalId, aimState);
+            SyncPlayerAimState(globalId, aimState, isAiming);
     }
 
     private void SimulatePlayerMovement(double delta) {
@@ -375,8 +469,17 @@ public partial class TestPlayerItemRoomLAN : Node2D {
                 continue;
 
             var speedMultiplier = movementState.Strength == InputStrength.Full ? 1.0f : 0.5f;
+            if (_isAimingByGlobalId.TryGetValue(playerEntry.Key, out var isAiming) && isAiming)
+                speedMultiplier *= GetAimMoveSpeedMultiplier(playerEntry.Key);
+
             player.MoveWithVelocity(DirectionIndexToVector(movementState.DirectionIndex) * TestPlayerMoveSpeed * speedMultiplier);
         }
+    }
+
+    private float GetAimMoveSpeedMultiplier(int globalId) {
+        return _itemsByGlobalId.TryGetValue(globalId, out var item) && item != null
+            ? item.AimMoveSpeedMultiplier
+            : 0.9f;
     }
 
     private void SetPlayerMovementState(int globalId, QuantizedInputState movementState, bool forcePositionSync, float worldX = 0.0f, float worldY = 0.0f) {
@@ -386,8 +489,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             player.SetSyncedPosition(new Vector2(worldX, worldY));
     }
 
-    private void SetPlayerAimState(int globalId, QuantizedInputState aimState, bool syncToPlayer) {
+    private void SetPlayerAimState(int globalId, QuantizedInputState aimState, bool isAiming, bool syncToPlayer) {
         _aimStatesByGlobalId[globalId] = aimState;
+        _isAimingByGlobalId[globalId] = isAiming;
 
         if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
             return;
@@ -428,42 +532,183 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         }
     }
 
-    private void SyncPlayerAimState(int globalId, QuantizedInputState aimState) {
+    private void SyncPlayerAimState(int globalId, QuantizedInputState aimState, bool isAiming) {
         if (!CanSendHostRpc())
             return;
 
-        Rpc(nameof(RpcSyncPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength);
+        Rpc(nameof(RpcSyncPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength, isAiming);
     }
 
-    private void ApplyLocalItemOverride(string itemOverride) {
+    private void ApplyLocalItemSelection(string itemId) {
         foreach (var playerEntry in _playersByGlobalId) {
             var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
             if (playerData == null || !playerData.IsLocalPlayer)
                 continue;
 
             if (_networking.IsClient && _networking.HasActiveNetworkPeer)
-                RpcId(1, nameof(RpcRequestSetPlayerItemOverride), playerEntry.Key, itemOverride);
+                RpcId(1, nameof(RpcRequestSetPlayerItem), playerEntry.Key, itemId);
             else if (CanSendHostRpc()) {
-                SetPlayerItemOverride(playerEntry.Key, itemOverride);
-                SyncPlayerItemOverride(playerEntry.Key, itemOverride);
+                SetPlayerItem(playerEntry.Key, itemId);
+                SyncPlayerItem(playerEntry.Key, itemId);
             }
             else {
-                SetPlayerItemOverride(playerEntry.Key, itemOverride);
+                SetPlayerItem(playerEntry.Key, itemId);
             }
 
             return;
         }
     }
 
-    private void SetPlayerItemOverride(int globalId, string itemOverride) {
-        _itemOverrideByGlobalId[globalId] = itemOverride;
-        PrintTestNetworkLog($"P{globalId} item override: {itemOverride}.");
+    private void SetPlayerItem(int globalId, string itemId) {
+        var item = LoadItem(itemId) ?? LoadItem(DefaultItemId);
+        if (item == null)
+            return;
+
+        _itemsByGlobalId[globalId] = item;
+        if (!_accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState)) {
+            accuracyState = new PlayerItemAccuracyState();
+            _accuracyStatesByGlobalId[globalId] = accuracyState;
+        }
+
+        accuracyState.SetItem(item);
+        EnsureSelectedFireMode(globalId, item);
+        _itemRecoverySecondsByGlobalId[globalId] = 0.0;
+        _burstUseCountsByGlobalId[globalId] = 0;
+        _wasUseHeldByGlobalId[globalId] = false;
+        if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
+            player.SetHeldTexture(item.HeldTexture);
+
+        PrintTestNetworkLog($"P{globalId} item: {item.DisplayName}.");
         UpdateStatusLabel();
     }
 
-    private void SyncPlayerItemOverride(int globalId, string itemOverride) {
+    private void SyncPlayerItem(int globalId, string itemId) {
         if (CanSendHostRpc())
-            Rpc(nameof(RpcSyncPlayerItemOverride), globalId, itemOverride);
+            Rpc(nameof(RpcSyncPlayerItem), globalId, itemId);
+    }
+
+    private PlayerEquipable LoadItem(string itemId) {
+        if (_loadedItemsById.TryGetValue(itemId, out var loadedItem))
+            return loadedItem;
+
+        if (!ItemResourcePaths.TryGetValue(itemId, out var itemPath))
+            return null;
+
+        var item = GD.Load<PlayerEquipable>(itemPath);
+        if (item != null)
+            _loadedItemsById[itemId] = item;
+
+        return item;
+    }
+
+    private void CycleLocalItem(int direction) {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            var currentItemId = _itemsByGlobalId.TryGetValue(playerEntry.Key, out var currentItem) ? currentItem.ItemId : DefaultItemId;
+            var currentIndex = System.Array.IndexOf(ModernItemIds, currentItemId);
+            if (currentIndex < 0)
+                currentIndex = 0;
+
+            var nextIndex = Mathf.PosMod(currentIndex + direction, ModernItemIds.Length);
+            ApplyLocalItemSelection(ModernItemIds[nextIndex]);
+            return;
+        }
+    }
+
+    private void ProcessLocalItemUse(double delta) {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            ProcessLocalPlayerItemUse(playerEntry.Key, delta);
+        }
+    }
+
+    private void ProcessLocalPlayerItemUse(int globalId, double delta) {
+        if (!_itemsByGlobalId.TryGetValue(globalId, out var item) || item == null)
+            return;
+
+        _itemRecoverySecondsByGlobalId[globalId] = Mathf.Max(
+            _itemRecoverySecondsByGlobalId.TryGetValue(globalId, out var recoverySeconds) ? recoverySeconds - delta : 0.0,
+            0.0);
+
+        var isUseHeld = Input.IsKeyPressed(Key.Space);
+        var wasUseHeld = _wasUseHeldByGlobalId.TryGetValue(globalId, out var previousUseHeld) && previousUseHeld;
+        _wasUseHeldByGlobalId[globalId] = isUseHeld;
+
+        if (!isUseHeld) {
+            _burstUseCountsByGlobalId[globalId] = 0;
+            return;
+        }
+
+        if (_itemRecoverySecondsByGlobalId[globalId] > 0.0)
+            return;
+
+        var selectedFireMode = GetSelectedFireMode(globalId, item);
+        if (selectedFireMode == PlayerItemFireMode.Solo && wasUseHeld)
+            return;
+
+        if (selectedFireMode == PlayerItemFireMode.Burst) {
+            var burstUseCount = _burstUseCountsByGlobalId.TryGetValue(globalId, out var currentBurstUseCount) ? currentBurstUseCount : 0;
+            if (burstUseCount >= Mathf.Max(item.BurstMaxUseCount, 1))
+                return;
+
+            _burstUseCountsByGlobalId[globalId] = burstUseCount + 1;
+        }
+
+        ApplyLocalItemUsePushback(globalId, item);
+    }
+
+    private void ApplyLocalItemUsePushback(int globalId, PlayerEquipable item) {
+        if (_accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState))
+            accuracyState.ApplyUsePushback();
+
+        _itemRecoverySecondsByGlobalId[globalId] = Mathf.Max(item.RecoverySeconds, 0.0f);
+    }
+
+    private void CycleLocalFireMode() {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            if (!_itemsByGlobalId.TryGetValue(playerEntry.Key, out var item) || item == null)
+                return;
+
+            var selectedFireMode = GetSelectedFireMode(playerEntry.Key, item);
+            var currentIndex = item.AvailableFireModes.IndexOf(selectedFireMode);
+            if (currentIndex < 0)
+                currentIndex = 0;
+
+            var nextIndex = Mathf.PosMod(currentIndex + 1, item.AvailableFireModes.Count);
+            _selectedFireModesByGlobalId[playerEntry.Key] = item.AvailableFireModes[nextIndex];
+            _burstUseCountsByGlobalId[playerEntry.Key] = 0;
+            PrintTestNetworkLog($"P{playerEntry.Key} fire mode: {_selectedFireModesByGlobalId[playerEntry.Key]}.");
+            UpdateStatusLabel();
+
+            return;
+        }
+    }
+
+    private PlayerItemFireMode GetSelectedFireMode(int globalId, PlayerEquipable item) {
+        EnsureSelectedFireMode(globalId, item);
+        return _selectedFireModesByGlobalId[globalId];
+    }
+
+    private void EnsureSelectedFireMode(int globalId, PlayerEquipable item) {
+        if (item.AvailableFireModes.Count == 0) {
+            _selectedFireModesByGlobalId[globalId] = PlayerItemFireMode.Solo;
+            return;
+        }
+
+        if (_selectedFireModesByGlobalId.TryGetValue(globalId, out var selectedFireMode) && item.SupportsFireMode(selectedFireMode))
+            return;
+
+        _selectedFireModesByGlobalId[globalId] = item.AvailableFireModes[0];
     }
 
     private LocalPlayerData GetLocalPlayerData(int localId) {
@@ -480,12 +725,14 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             LocalPlayerData.LocalInputType.KeyboardMouse => new LocalInputVectors(
                 GetKeyboardMovementInput(),
                 GetGlobalMousePosition() - player.GlobalPosition,
-                false),
+                false,
+                IsKeyboardMouseAiming()),
             LocalPlayerData.LocalInputType.Gamepad => new LocalInputVectors(
                 GetGamepadMovementInput(localPlayerData.DeviceId),
                 GetGamepadAimInput(localPlayerData.DeviceId),
-                true),
-            _ => new LocalInputVectors(Vector2.Zero, Vector2.Zero, false),
+                true,
+                GetGamepadAimInput(localPlayerData.DeviceId).Length() >= GamepadDeadzone),
+            _ => new LocalInputVectors(Vector2.Zero, Vector2.Zero, false, false),
         };
     }
 
@@ -498,6 +745,20 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             return movementState;
 
         return previousAimState.HasInput ? previousAimState : GetNoInputState();
+    }
+
+    private static float GetAimStrength(LocalInputVectors inputVectors, QuantizedInputState movementState, LocalPlayerData localPlayerData) {
+        if (localPlayerData.InputType == LocalPlayerData.LocalInputType.KeyboardMouse)
+            return 1.0f;
+
+        var aimLength = Mathf.Clamp(inputVectors.Aim.Length(), 0.0f, 1.0f);
+        if (aimLength >= GamepadDeadzone)
+            return aimLength;
+
+        if (inputVectors.AimFallsBackToMovement && movementState.HasInput)
+            return movementState.Strength == InputStrength.Full ? 1.0f : 0.5f;
+
+        return 1.0f;
     }
 
     private static Vector2 GetKeyboardMovementInput() {
@@ -535,6 +796,10 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     private static bool IsKeyboardWalkHeld() {
         return Input.IsKeyPressed(Key.Shift);
+    }
+
+    private static bool IsKeyboardMouseAiming() {
+        return Input.IsKeyPressed(Key.Ctrl) || Input.IsMouseButtonPressed(MouseButton.Right);
     }
 
     private static QuantizedInputState QuantizeInput(Vector2 input, QuantizedInputState previousState) {
@@ -582,6 +847,104 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             : Vector2.Right;
     }
 
+    private float GetMovementStrength(int globalId) {
+        if (!_movementStatesByGlobalId.TryGetValue(globalId, out var movementState) || !movementState.HasInput)
+            return 0.0f;
+
+        return movementState.Strength == InputStrength.Full ? 1.0f : 0.5f;
+    }
+
+    private void UpdateLocalAimIndicator() {
+        if (_aimIndicator == null)
+            return;
+
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            var player = playerEntry.Value;
+            if (!IsInstanceValid(player) || player.IsDead()) {
+                _aimIndicator.SetAim(Vector2.Zero, Vector2.Zero, 0.0f, false);
+                return;
+            }
+
+            if (!_itemsByGlobalId.TryGetValue(playerEntry.Key, out var item) || item == null) {
+                _aimIndicator.SetAim(Vector2.Zero, Vector2.Zero, 0.0f, false);
+                return;
+            }
+
+            if (!_isAimingByGlobalId.TryGetValue(playerEntry.Key, out var isAiming) || !isAiming) {
+                _aimIndicator.SetAim(Vector2.Zero, Vector2.Zero, 0.0f, false);
+                return;
+            }
+
+            var aimDirection = player.DisplayAimDirection;
+            if (aimDirection.LengthSquared() <= 0.0001f) {
+                _aimIndicator.SetAim(Vector2.Zero, Vector2.Zero, 0.0f, false);
+                return;
+            }
+
+            var aimStrength = _aimStrengthByGlobalId.TryGetValue(playerEntry.Key, out var strength) ? strength : 1.0f;
+            var shotDirection = aimDirection.Normalized();
+            var spreadAccuracy = item.DefaultAccuracy;
+            if (_accuracyStatesByGlobalId.TryGetValue(playerEntry.Key, out var accuracyState)) {
+                shotDirection = shotDirection.Rotated(accuracyState.CurrentShotAngleOffset);
+                spreadAccuracy = accuracyState.CurrentSpreadAccuracy;
+            }
+
+            var aimDistance = GetAimProjectionDistance(playerEntry.Key, item, player.GlobalPosition, shotDirection, aimStrength);
+            var aimEnd = player.GlobalPosition + (shotDirection * aimDistance);
+            var spreadRadius = PlayerItemAccuracyState.GetSpreadRadiusAtDistance(spreadAccuracy, aimDistance);
+            _aimIndicator.SetAim(player.GlobalPosition, aimEnd, spreadRadius, true);
+            return;
+        }
+
+        _aimIndicator.SetAim(Vector2.Zero, Vector2.Zero, 0.0f, false);
+    }
+
+    private float GetAimProjectionDistance(int globalId, PlayerEquipable item, Vector2 start, Vector2 direction, float aimStrength) {
+        if (item is PlayerItemThrowable throwable)
+            return GetThrowableProjectionDistance(globalId, throwable, start, direction, aimStrength);
+
+        return GetCollisionAwareProjectionDistance(globalId, start, direction, Mathf.Max(item.GetAimDisplayDistance(), 0.0f));
+    }
+
+    private float GetThrowableProjectionDistance(int globalId, PlayerItemThrowable throwable, Vector2 start, Vector2 direction, float aimStrength) {
+        var throwStrength = throwable.ThrowStrengthAffectsRange ? Mathf.Clamp(aimStrength, 0.0f, 1.0f) : 1.0f;
+        var maxDistance = Mathf.Lerp(throwable.MinThrowRange, throwable.Range, throwStrength);
+        return GetCollisionAwareProjectionDistance(globalId, start, direction, maxDistance);
+    }
+
+    private float GetCollisionAwareProjectionDistance(int globalId, Vector2 start, Vector2 direction, float maxDistance) {
+        const float sampleStep = 4.0f;
+        for (var distance = sampleStep; distance <= maxDistance; distance += sampleStep) {
+            var samplePosition = start + (direction * distance);
+            if (IsAimProjectionBlocked(globalId, samplePosition))
+                return distance;
+        }
+
+        return maxDistance;
+    }
+
+    private bool IsAimProjectionBlocked(int ownerGlobalId, Vector2 worldPosition) {
+        if (_arenaMapData != null && _arenaMapData.IsWallTile(_arenaMapData.WorldToTile(worldPosition, TestTileSize)))
+            return true;
+
+        if (_centerProp != null && IsInstanceValid(_centerProp) && _centerProp.ContainsWorldPosition(worldPosition))
+            return true;
+
+        foreach (var playerEntry in _playersByGlobalId) {
+            if (playerEntry.Key == ownerGlobalId)
+                continue;
+
+            if (IsInstanceValid(playerEntry.Value) && playerEntry.Value.ContainsWorldPosition(worldPosition))
+                return true;
+        }
+
+        return false;
+    }
+
     private float GetPlayerPositionX(int globalId) {
         return _playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player) ? player.GlobalPosition.X : 0.0f;
     }
@@ -620,22 +983,22 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRequestSetPlayerAimState(int globalId, int directionIndex, int strengthValue) {
+    public void RpcRequestSetPlayerAimState(int globalId, int directionIndex, int strengthValue, bool isAiming) {
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
         var aimState = new QuantizedInputState(directionIndex, ToInputStrength(strengthValue));
-        SetPlayerAimState(globalId, aimState, true);
-        SyncPlayerAimState(globalId, aimState);
+        SetPlayerAimState(globalId, aimState, isAiming, true);
+        SyncPlayerAimState(globalId, aimState, isAiming);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRequestSetPlayerItemOverride(int globalId, string itemOverride) {
+    public void RpcRequestSetPlayerItem(int globalId, string itemId) {
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
-        SetPlayerItemOverride(globalId, itemOverride);
-        SyncPlayerItemOverride(globalId, itemOverride);
+        SetPlayerItem(globalId, itemId);
+        SyncPlayerItem(globalId, itemId);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -650,13 +1013,13 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcSyncPlayerAimState(int globalId, int directionIndex, int strengthValue) {
-        SetPlayerAimState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), true);
+    public void RpcSyncPlayerAimState(int globalId, int directionIndex, int strengthValue, bool isAiming) {
+        SetPlayerAimState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), isAiming, true);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcSyncPlayerItemOverride(int globalId, string itemOverride) {
-        SetPlayerItemOverride(globalId, itemOverride);
+    public void RpcSyncPlayerItem(int globalId, string itemId) {
+        SetPlayerItem(globalId, itemId);
     }
 
     private LocalPlayerData GetLocalPlayerDataForGlobalId(int globalId) {
@@ -700,7 +1063,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (_networking == null)
             return;
 
-        _statusLabel.Text = $"Player Item Test Room\nPeers connected: {GetConnectedPeerCount()}\nControls: 1 Pistol-T1 | 2 Smg-T1 | 3 AR-T1 | 4 Rifle-T1 | 5 NadeExplosive\nPlayers: {GetPlayerText()}";
+        _statusLabel.Text = $"Player Item Test Room\nPeers connected: {GetConnectedPeerCount()}\nControls: 1 Pistol | 2 Smg | 3 AR | 4 Rifle | 5 Nade | 6 Rocket | 7 GL1 | 8 GL2 | ,/. item | F fire mode | Space use\nPlayers: {GetPlayerText()}";
     }
 
     private string GetPlayerText() {
@@ -709,8 +1072,10 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
             var ownerText = playerData == null ? "peer ?" : $"peer {playerData.PeerId}:local {playerData.LocalId}";
             var inputText = GetPlayerInputText(playerEntry.Key);
-            var itemText = _itemOverrideByGlobalId.TryGetValue(playerEntry.Key, out var itemOverride) ? itemOverride : "none";
-            playerTexts.Add($"P{playerEntry.Key} {ownerText} {inputText} item {itemText}");
+            var itemText = _itemsByGlobalId.TryGetValue(playerEntry.Key, out var item) ? item.DisplayName : "none";
+            var fireModeText = item != null ? $" {GetSelectedFireMode(playerEntry.Key, item)}" : string.Empty;
+            var accuracyText = _accuracyStatesByGlobalId.TryGetValue(playerEntry.Key, out var accuracyState) ? $" acc {accuracyState.CurrentAccuracy:0.000}" : string.Empty;
+            playerTexts.Add($"P{playerEntry.Key} {ownerText} {inputText} item {itemText}{fireModeText}{accuracyText}");
         }
 
         return playerTexts.Count == 0 ? "waiting" : string.Join(", ", playerTexts);

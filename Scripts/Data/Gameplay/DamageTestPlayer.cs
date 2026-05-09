@@ -4,7 +4,6 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private static readonly Vector2 DefaultSize = new(12.0f, 12.0f);
     private const string FrontTexturePath = "res://Assets/Players/damage_test_player_front.svg";
     private const string BackTexturePath = "res://Assets/Players/damage_test_player_back.svg";
-    private const string WeaponTexturePath = "res://Assets/Items/Modern/Weapons/pistol_t1.svg";
     private const float BackFacingYThreshold = -0.5f;
 
     private Area2D _hitbox;
@@ -19,6 +18,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private Vector2 _estimatedAimDirection = Vector2.Right;
     private float _bodyFacingScaleX = 1.0f;
     private bool _drawBackBody;
+    private Texture2D _heldTexture;
 
     public int GlobalId { get; private set; } = -1;
 
@@ -29,6 +29,8 @@ public partial class DamageTestPlayer : CharacterBody2D {
     public HealthContainer Health { get; private set; } = new();
 
     public bool IsAlive => _isAlive;
+
+    public Vector2 DisplayAimDirection => _hasLocalAimDirection ? _localAimDirection : _estimatedAimDirection;
 
     public Rect2 WorldHitbox => new(GlobalPosition - (Size * 0.5f), Size);
 
@@ -132,6 +134,13 @@ public partial class DamageTestPlayer : CharacterBody2D {
         UpdateWeapon();
     }
 
+    public void SetHeldTexture(Texture2D heldTexture) {
+        _heldTexture = heldTexture;
+        EnsureNodes();
+        if (_weapon != null)
+            _weapon.Texture = _heldTexture;
+    }
+
     public void Respawn(Vector2 worldPosition) {
         Position = worldPosition;
         Health = CreateDefaultHealth();
@@ -180,7 +189,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
 
         _weapon = new Sprite2D {
             Name = "Weapon",
-            Texture = GD.Load<Texture2D>(WeaponTexturePath),
+            Texture = _heldTexture,
             ZIndex = 2,
         };
         AddChild(_weapon);

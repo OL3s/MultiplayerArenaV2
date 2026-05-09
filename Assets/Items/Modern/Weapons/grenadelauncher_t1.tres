@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="PlayerItemProjectile" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/Gameplay/PlayerItemProjectile.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/Items/Modern/Weapons/grenadelauncher_t1.svg" id="2_texture"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "grenadelauncher_t1"
+DisplayName = "Grenadelauncher-T1"
+Theme = 1
+Cost = 1800
+Weight = 5.0
+HeldTexture = ExtResource("2_texture")
+RecoverySeconds = 0.95
+AvailableFireModes = Array[int]([0])
+BurstMaxUseCount = 3
+Range = 620.0
+AimDisplayRange = 230.0
+AimMoveSpeedMultiplier = 0.76
+DefaultAccuracy = 0.055
+MovementAccuracy = 0.14
+AccuracyPushback = 0.045
+ShotAccuracyRecovery = 0.09
+MovementAccuracyRecovery = 0.34
+MaxInaccuracy = 0.30
+MagazineSize = 1
+ShotsPerSecond = 1.05
+UsesSpecialMagazineReserve = true
