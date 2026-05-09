@@ -6,7 +6,12 @@ public partial class DamageTestPlayer : Node2D {
     private Area2D _hitbox;
     private CollisionShape2D _collisionShape;
     private Label _label;
+    private Line2D _weapon;
     private bool _isAlive = true;
+    private bool _hasLocalAimDirection;
+    private bool _hasEstimatedAimDirection = true;
+    private Vector2 _localAimDirection = Vector2.Right;
+    private Vector2 _estimatedAimDirection = Vector2.Right;
 
     public int GlobalId { get; private set; } = -1;
 
@@ -75,6 +80,40 @@ public partial class DamageTestPlayer : Node2D {
         return true;
     }
 
+    public bool Move(Vector2 movementDelta) {
+        if (IsDead() || movementDelta == Vector2.Zero)
+            return false;
+
+        GlobalPosition += movementDelta;
+        return true;
+    }
+
+    public void SetSyncedPosition(Vector2 worldPosition) {
+        GlobalPosition = worldPosition;
+    }
+
+    public void SetAimDirection(Vector2 aimDirection, bool hasAim) {
+        SetEstimatedAimDirection(aimDirection, hasAim);
+    }
+
+    public void SetLocalAimDirection(Vector2 aimDirection, bool hasAim) {
+        if (TryNormalizeAimDirection(aimDirection, out var normalizedAimDirection))
+            _localAimDirection = normalizedAimDirection;
+
+        _hasLocalAimDirection = hasAim;
+        EnsureNodes();
+        UpdateWeapon();
+    }
+
+    public void SetEstimatedAimDirection(Vector2 aimDirection, bool hasAim) {
+        if (TryNormalizeAimDirection(aimDirection, out var normalizedAimDirection))
+            _estimatedAimDirection = normalizedAimDirection;
+
+        _hasEstimatedAimDirection = true;
+        EnsureNodes();
+        UpdateWeapon();
+    }
+
     public void Respawn(Vector2 worldPosition) {
         Position = worldPosition;
         Health = CreateDefaultHealth();
@@ -113,6 +152,17 @@ public partial class DamageTestPlayer : Node2D {
         };
         _label.AddThemeFontSizeOverride("font_size", 8);
         AddChild(_label);
+
+        _weapon = new Line2D {
+            Name = "Weapon",
+            Width = 3.0f,
+            DefaultColor = Colors.Yellow,
+            ZIndex = 2,
+        };
+        _weapon.AddPoint(Vector2.Zero);
+        _weapon.AddPoint(new Vector2(10.0f, 0.0f));
+        AddChild(_weapon);
+        UpdateWeapon();
     }
 
     private void SetAlive(bool alive) {
@@ -129,6 +179,32 @@ public partial class DamageTestPlayer : Node2D {
         SetProcess(alive);
         SetPhysicsProcess(alive);
         SetProcessInput(alive);
+
+        if (_weapon != null)
+            _weapon.Visible = alive;
+    }
+
+    private void UpdateWeapon() {
+        if (_weapon == null)
+            return;
+
+        var aimDirection = _hasLocalAimDirection ? _localAimDirection : _estimatedAimDirection;
+        if (!TryNormalizeAimDirection(aimDirection, out aimDirection))
+            aimDirection = Vector2.Right;
+
+        _weapon.Visible = _isAlive;
+        _weapon.Position = aimDirection * 9.0f;
+        _weapon.Rotation = aimDirection.Angle();
+    }
+
+    private static bool TryNormalizeAimDirection(Vector2 aimDirection, out Vector2 normalizedAimDirection) {
+        if (aimDirection.LengthSquared() <= 0.0001f) {
+            normalizedAimDirection = Vector2.Zero;
+            return false;
+        }
+
+        normalizedAimDirection = aimDirection.Normalized();
+        return true;
     }
 
     private void UpdateLabel() {

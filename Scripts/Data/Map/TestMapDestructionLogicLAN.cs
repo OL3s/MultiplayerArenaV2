@@ -6,7 +6,48 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     private const float TestExplosiveRadius = 56.0f;
     private const float TestBulletDamage = 125.0f;
     private const float TestExplosiveDamage = 250.0f;
+    private const float TestPlayerMoveSpeed = 96.0f;
+    private const float GamepadDeadzone = 0.25f;
+    private const float InputStopThreshold = 0.18f;
+    private const float InputFullEnterThreshold = 0.70f;
+    private const float InputFullExitThreshold = 0.60f;
+    private const float PositionCorrectionDistance = 48.0f;
+    private const int DirectionBucketCount = 16;
     private static readonly Color DebugExplosiveRadiusColor = new(1.0f, 0.55f, 0.2f, 0.9f);
+
+    private enum InputStrength {
+        None,
+        Some,
+        Full,
+    }
+
+    private readonly struct QuantizedInputState {
+        public readonly int DirectionIndex;
+        public readonly InputStrength Strength;
+
+        public QuantizedInputState(int directionIndex, InputStrength strength) {
+            DirectionIndex = directionIndex;
+            Strength = strength;
+        }
+
+        public bool HasInput => Strength != InputStrength.None && DirectionIndex >= 0;
+
+        public bool Equals(QuantizedInputState other) {
+            return DirectionIndex == other.DirectionIndex && Strength == other.Strength;
+        }
+    }
+
+    private readonly struct LocalInputVectors {
+        public readonly Vector2 Movement;
+        public readonly Vector2 Aim;
+        public readonly bool AimFallsBackToMovement;
+
+        public LocalInputVectors(Vector2 movement, Vector2 aim, bool aimFallsBackToMovement) {
+            Movement = movement;
+            Aim = aim;
+            AimFallsBackToMovement = aimFallsBackToMovement;
+        }
+    }
 
     private static readonly (Vector2I Position, float DamageAmount)[] InitialWallDamageSamples = {
         (new Vector2I(3, 4), 125.0f),
@@ -24,6 +65,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     private DamageType _selectedDamageType = DamageType.Crush;
     private readonly List<LevelProp> _props = new();
     private readonly Dictionary<int, DamageTestPlayer> _playersByGlobalId = new();
+    private readonly Dictionary<int, QuantizedInputState> _movementStatesByGlobalId = new();
+    private readonly Dictionary<int, QuantizedInputState> _aimStatesByGlobalId = new();
+    private readonly Dictionary<int, QuantizedInputState> _lastLocalMovementStatesByGlobalId = new();
+    private readonly Dictionary<int, QuantizedInputState> _lastLocalAimStatesByGlobalId = new();
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -71,6 +116,11 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     public override void _Process(double delta) {
         _debugRadiusDrawer.QueueRedraw();
         UpdateStatusLabel();
+    }
+
+    public override void _PhysicsProcess(double delta) {
+        ProcessLocalPlayerInputStates();
+        SimulatePlayerMovement(delta);
     }
 
     public override void _UnhandledInput(InputEvent @event) {
@@ -146,11 +196,16 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         _networking.LocalLobbyData.LocalPlayers.Clear();
 
         for (var localId = 0; localId < targetLocalPlayerCount; localId++) {
+            var inputType = _networking.IsClient
+                ? LocalPlayerData.LocalInputType.Gamepad
+                : LocalPlayerData.LocalInputType.KeyboardMouse;
+            var deviceId = _networking.IsClient ? localId : -1;
+
             _networking.LocalLobbyData.LocalPlayers.Add(new LocalPlayerData {
                 LocalId = localId,
                 IsActive = true,
-                InputType = localId == 0 ? LocalPlayerData.LocalInputType.KeyboardMouse : LocalPlayerData.LocalInputType.Gamepad,
-                DeviceId = localId == 0 ? 0 : localId - 1,
+                InputType = inputType,
+                DeviceId = deviceId,
                 DisplayName = GetDefaultTestPlayerName(localId),
             });
         }
@@ -298,6 +353,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
                 player.QueueFree();
 
             _playersByGlobalId.Remove(removedGlobalId);
+            _movementStatesByGlobalId.Remove(removedGlobalId);
+            _aimStatesByGlobalId.Remove(removedGlobalId);
+            _lastLocalMovementStatesByGlobalId.Remove(removedGlobalId);
+            _lastLocalAimStatesByGlobalId.Remove(removedGlobalId);
         }
     }
 
@@ -313,6 +372,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         }
 
         _playersByGlobalId.Clear();
+        _movementStatesByGlobalId.Clear();
+        _aimStatesByGlobalId.Clear();
+        _lastLocalMovementStatesByGlobalId.Clear();
+        _lastLocalAimStatesByGlobalId.Clear();
     }
 
     private void AddDamageTestPlayer(int globalId, Vector2I tilePosition) {
@@ -320,11 +383,290 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         AddChild(player);
         player.Initialize(globalId, TileToWorldCenter(tilePosition));
         _playersByGlobalId[globalId] = player;
+        _movementStatesByGlobalId[globalId] = GetNoInputState();
+        _aimStatesByGlobalId[globalId] = new QuantizedInputState(0, InputStrength.Full);
+        player.SetEstimatedAimDirection(DirectionIndexToVector(0), true);
     }
 
     private void RespawnDamageTestPlayers() {
-        foreach (var playerEntry in _playersByGlobalId)
+        foreach (var playerEntry in _playersByGlobalId) {
             playerEntry.Value.Respawn(TileToWorldCenter(GetTestPlayerTilePosition(playerEntry.Key)));
+            _movementStatesByGlobalId[playerEntry.Key] = GetNoInputState();
+            playerEntry.Value.SetEstimatedAimDirection(GetAimDirection(playerEntry.Key), true);
+        }
+    }
+
+    private void ProcessLocalPlayerInputStates() {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var player = playerEntry.Value;
+            if (!IsInstanceValid(player) || player.IsDead())
+                continue;
+
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            var localPlayerData = GetLocalPlayerData(playerData.LocalId);
+            if (localPlayerData == null)
+                continue;
+
+            _lastLocalMovementStatesByGlobalId.TryGetValue(playerEntry.Key, out var previousMovementState);
+            _lastLocalAimStatesByGlobalId.TryGetValue(playerEntry.Key, out var previousAimState);
+
+            var inputVectors = GetLocalInputVectors(localPlayerData, player);
+            var movementState = QuantizeInput(inputVectors.Movement, previousMovementState);
+            var aimState = GetAimState(inputVectors, movementState, previousAimState);
+            ApplyLocalAimDisplay(player, inputVectors, aimState);
+            ApplyLocalMovementStateChange(playerEntry.Key, movementState);
+            ApplyLocalAimStateChange(playerEntry.Key, aimState);
+        }
+    }
+
+    private void ApplyLocalAimDisplay(DamageTestPlayer player, LocalInputVectors inputVectors, QuantizedInputState aimState) {
+        if (inputVectors.Aim.Length() >= GamepadDeadzone) {
+            player.SetLocalAimDirection(inputVectors.Aim, true);
+            return;
+        }
+
+        if (inputVectors.AimFallsBackToMovement && aimState.HasInput) {
+            player.SetLocalAimDirection(DirectionIndexToVector(aimState.DirectionIndex), true);
+            return;
+        }
+
+        player.SetLocalAimDirection(Vector2.Zero, false);
+    }
+
+    private void ApplyLocalMovementStateChange(int globalId, QuantizedInputState movementState) {
+        if (_lastLocalMovementStatesByGlobalId.TryGetValue(globalId, out var lastState) && lastState.Equals(movementState))
+            return;
+
+        _lastLocalMovementStatesByGlobalId[globalId] = movementState;
+        SetPlayerMovementState(globalId, movementState, false);
+
+        if (_networking.IsClient && _networking.HasActiveNetworkPeer)
+            RpcId(1, nameof(RpcRequestSetPlayerMovementState), globalId, movementState.DirectionIndex, (int)movementState.Strength, GetPlayerPositionX(globalId), GetPlayerPositionY(globalId));
+        else if (CanSendHostRpc())
+            SyncPlayerMovementState(globalId, movementState, false);
+    }
+
+    private void ApplyLocalAimStateChange(int globalId, QuantizedInputState aimState) {
+        if (_lastLocalAimStatesByGlobalId.TryGetValue(globalId, out var lastState) && lastState.Equals(aimState))
+            return;
+
+        _lastLocalAimStatesByGlobalId[globalId] = aimState;
+        SetPlayerAimState(globalId, aimState, false);
+
+        if (_networking.IsClient && _networking.HasActiveNetworkPeer)
+            RpcId(1, nameof(RpcRequestSetPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength);
+        else if (CanSendHostRpc())
+            SyncPlayerAimState(globalId, aimState);
+    }
+
+    private void SimulatePlayerMovement(double delta) {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var globalId = playerEntry.Key;
+            var player = playerEntry.Value;
+            if (!IsInstanceValid(player) || player.IsDead())
+                continue;
+
+            if (!_movementStatesByGlobalId.TryGetValue(globalId, out var movementState) || !movementState.HasInput)
+                continue;
+
+            var speedMultiplier = movementState.Strength == InputStrength.Full ? 1.0f : 0.5f;
+            player.Move(DirectionIndexToVector(movementState.DirectionIndex) * TestPlayerMoveSpeed * speedMultiplier * (float)delta);
+        }
+    }
+
+    private void SetPlayerMovementState(int globalId, QuantizedInputState movementState, bool forcePositionSync, float worldX = 0.0f, float worldY = 0.0f) {
+        _movementStatesByGlobalId[globalId] = movementState;
+
+        if (forcePositionSync && _playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
+            player.SetSyncedPosition(new Vector2(worldX, worldY));
+    }
+
+    private void SetPlayerAimState(int globalId, QuantizedInputState aimState, bool syncToPlayer) {
+        _aimStatesByGlobalId[globalId] = aimState;
+
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
+            return;
+
+        if (!aimState.HasInput) {
+            player.SetEstimatedAimDirection(GetAimDirection(globalId), false);
+            return;
+        }
+
+        var aimDirection = DirectionIndexToVector(aimState.DirectionIndex);
+        player.SetEstimatedAimDirection(aimDirection, true);
+    }
+
+    private void SyncPlayerMovementState(int globalId, QuantizedInputState movementState, bool includePosition) {
+        if (!CanSendHostRpc())
+            return;
+
+        Rpc(
+            nameof(RpcSyncPlayerMovementState),
+            globalId,
+            movementState.DirectionIndex,
+            (int)movementState.Strength,
+            GetPlayerPositionX(globalId),
+            GetPlayerPositionY(globalId),
+            includePosition);
+    }
+
+    private void SyncPlayerAimState(int globalId, QuantizedInputState aimState) {
+        if (!CanSendHostRpc())
+            return;
+
+        Rpc(nameof(RpcSyncPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength);
+    }
+
+    private LocalPlayerData GetLocalPlayerData(int localId) {
+        foreach (var localPlayerData in _networking.LocalLobbyData.LocalPlayers) {
+            if (localPlayerData.IsActive && localPlayerData.LocalId == localId)
+                return localPlayerData;
+        }
+
+        return null;
+    }
+
+    private LocalInputVectors GetLocalInputVectors(LocalPlayerData localPlayerData, DamageTestPlayer player) {
+        return localPlayerData.InputType switch {
+            LocalPlayerData.LocalInputType.KeyboardMouse => new LocalInputVectors(
+                GetKeyboardMovementInput(),
+                GetGlobalMousePosition() - player.GlobalPosition,
+                false),
+            LocalPlayerData.LocalInputType.Gamepad => new LocalInputVectors(
+                GetGamepadMovementInput(localPlayerData.DeviceId),
+                GetGamepadAimInput(localPlayerData.DeviceId),
+                true),
+            _ => new LocalInputVectors(Vector2.Zero, Vector2.Zero, false),
+        };
+    }
+
+    private QuantizedInputState GetAimState(LocalInputVectors inputVectors, QuantizedInputState movementState, QuantizedInputState previousAimState) {
+        var aimState = QuantizeInput(inputVectors.Aim, previousAimState);
+        if (aimState.HasInput || !inputVectors.AimFallsBackToMovement)
+            return aimState;
+
+        if (movementState.HasInput)
+            return movementState;
+
+        return previousAimState.HasInput ? previousAimState : GetNoInputState();
+    }
+
+    private static Vector2 GetKeyboardMovementInput() {
+        var direction = Vector2.Zero;
+        if (Input.IsKeyPressed(Key.A) || Input.IsKeyPressed(Key.Left))
+            direction.X -= 1.0f;
+        if (Input.IsKeyPressed(Key.D) || Input.IsKeyPressed(Key.Right))
+            direction.X += 1.0f;
+        if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up))
+            direction.Y -= 1.0f;
+        if (Input.IsKeyPressed(Key.S) || Input.IsKeyPressed(Key.Down))
+            direction.Y += 1.0f;
+
+        if (direction.LengthSquared() > 1.0f)
+            direction = direction.Normalized();
+
+        return IsKeyboardWalkHeld() ? direction * 0.5f : direction;
+    }
+
+    private static Vector2 GetGamepadMovementInput(int deviceId) {
+        var direction = new Vector2(
+            Input.GetJoyAxis(deviceId, JoyAxis.LeftX),
+            Input.GetJoyAxis(deviceId, JoyAxis.LeftY));
+
+        return ClampInputVector(direction);
+    }
+
+    private static Vector2 GetGamepadAimInput(int deviceId) {
+        var direction = new Vector2(
+            Input.GetJoyAxis(deviceId, JoyAxis.RightX),
+            Input.GetJoyAxis(deviceId, JoyAxis.RightY));
+
+        return ClampInputVector(direction);
+    }
+
+    private static Vector2 ClampInputVector(Vector2 input) {
+        return input.LengthSquared() > 1.0f ? input.Normalized() : input;
+    }
+
+    private static bool IsKeyboardWalkHeld() {
+        return Input.IsKeyPressed(Key.Shift);
+    }
+
+    private static QuantizedInputState QuantizeInput(Vector2 input, QuantizedInputState previousState) {
+        var length = input.Length();
+        var inputThreshold = previousState.HasInput ? InputStopThreshold : GamepadDeadzone;
+        if (length < inputThreshold)
+            return GetNoInputState();
+
+        var angle = Mathf.PosMod(input.Angle(), Mathf.Tau);
+        var directionIndex = Mathf.PosMod(Mathf.RoundToInt(angle / Mathf.Tau * DirectionBucketCount), DirectionBucketCount);
+        if (previousState.HasInput && IsAngleInsideDirectionBucket(angle, previousState.DirectionIndex, 0.25f))
+            directionIndex = previousState.DirectionIndex;
+
+        var strength = previousState.Strength == InputStrength.Full
+            ? length >= InputFullExitThreshold ? InputStrength.Full : InputStrength.Some
+            : length >= InputFullEnterThreshold ? InputStrength.Full : InputStrength.Some;
+        return new QuantizedInputState(directionIndex, strength);
+    }
+
+    private static bool IsAngleInsideDirectionBucket(float angle, int directionIndex, float extraBucketFraction) {
+        if (directionIndex < 0)
+            return false;
+
+        var bucketAngle = Mathf.Tau * directionIndex / DirectionBucketCount;
+        var angleDelta = Mathf.Abs(Mathf.AngleDifference(angle, bucketAngle));
+        var bucketWidth = Mathf.Tau / DirectionBucketCount;
+        return angleDelta <= (bucketWidth * (0.5f + extraBucketFraction));
+    }
+
+    private static QuantizedInputState GetNoInputState() {
+        return new QuantizedInputState(-1, InputStrength.None);
+    }
+
+    private static Vector2 DirectionIndexToVector(int directionIndex) {
+        if (directionIndex < 0)
+            return Vector2.Zero;
+
+        var angle = Mathf.Tau * directionIndex / DirectionBucketCount;
+        return Vector2.FromAngle(angle);
+    }
+
+    private Vector2 GetAimDirection(int globalId) {
+        return _aimStatesByGlobalId.TryGetValue(globalId, out var aimState) && aimState.HasInput
+            ? DirectionIndexToVector(aimState.DirectionIndex)
+            : Vector2.Right;
+    }
+
+    private float GetPlayerPositionX(int globalId) {
+        return _playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player) ? player.GlobalPosition.X : 0.0f;
+    }
+
+    private float GetPlayerPositionY(int globalId) {
+        return _playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player) ? player.GlobalPosition.Y : 0.0f;
+    }
+
+    private bool IsPlayerStateRequestAllowed(int globalId) {
+        if (!_networking.HasActiveNetworkPeer || !_networking.IsServer)
+            return false;
+
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+        return playerData != null && playerData.PeerId == Multiplayer.GetRemoteSenderId();
+    }
+
+    private bool ShouldCorrectPlayerPosition(int globalId, Vector2 clientWorldPosition) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
+            return false;
+
+        return player.GlobalPosition.DistanceTo(clientWorldPosition) > PositionCorrectionDistance;
+    }
+
+    private static InputStrength ToInputStrength(int strengthValue) {
+        return System.Enum.IsDefined(typeof(InputStrength), strengthValue)
+            ? (InputStrength)strengthValue
+            : InputStrength.None;
     }
 
     private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer() {
@@ -456,6 +798,37 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcDamageInRadius(float worldCenterX, float worldCenterY, int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
         ApplyRadiusDamage(new Vector2(worldCenterX, worldCenterY), new Vector2I(centerX, centerY), radius, ToDamageType(damageTypeValue), damageAmount, true);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestSetPlayerMovementState(int globalId, int directionIndex, int strengthValue, float clientWorldX, float clientWorldY) {
+        if (!IsPlayerStateRequestAllowed(globalId))
+            return;
+
+        var movementState = new QuantizedInputState(directionIndex, ToInputStrength(strengthValue));
+        var shouldCorrectPosition = ShouldCorrectPlayerPosition(globalId, new Vector2(clientWorldX, clientWorldY));
+        SetPlayerMovementState(globalId, movementState, false);
+        SyncPlayerMovementState(globalId, movementState, shouldCorrectPosition);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestSetPlayerAimState(int globalId, int directionIndex, int strengthValue) {
+        if (!IsPlayerStateRequestAllowed(globalId))
+            return;
+
+        var aimState = new QuantizedInputState(directionIndex, ToInputStrength(strengthValue));
+        SetPlayerAimState(globalId, aimState, true);
+        SyncPlayerAimState(globalId, aimState);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncPlayerMovementState(int globalId, int directionIndex, int strengthValue, float worldX, float worldY, bool includePosition) {
+        SetPlayerMovementState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), includePosition, worldX, worldY);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncPlayerAimState(int globalId, int directionIndex, int strengthValue) {
+        SetPlayerAimState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), true);
     }
 
     private void ApplyRadiusDamage(Vector2 worldCenter, Vector2I centerTile, int radius, DamageType damageType, float damageAmount, bool damageProps) {
@@ -602,10 +975,26 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
             var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
             var ownerText = playerData == null ? "peer ?" : $"peer {playerData.PeerId}:local {playerData.LocalId}";
-            playerTexts.Add($"P{playerEntry.Key} {ownerText} {player.Health.CurrentHealth}/{player.Health.MaxHealth}");
+            var inputText = GetPlayerInputText(playerData);
+            playerTexts.Add($"P{playerEntry.Key} {ownerText} {inputText} {player.Health.CurrentHealth}/{player.Health.MaxHealth}");
         }
 
         return playerTexts.Count == 0 ? "none" : string.Join(", ", playerTexts);
+    }
+
+    private string GetPlayerInputText(PlayerData playerData) {
+        if (playerData == null || !playerData.IsLocalPlayer)
+            return "remote";
+
+        var localPlayerData = GetLocalPlayerData(playerData.LocalId);
+        if (localPlayerData == null)
+            return "input ?";
+
+        return localPlayerData.InputType switch {
+            LocalPlayerData.LocalInputType.KeyboardMouse => "keyboard+mouse",
+            LocalPlayerData.LocalInputType.Gamepad => $"gamepad {localPlayerData.DeviceId}",
+            _ => "input none",
+        };
     }
 
     private BiomeConfig.BiomeType GetCurrentWallBiome() {

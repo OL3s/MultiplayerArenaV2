@@ -58,6 +58,7 @@ The LAN test currently covers:
 - Damage type selection with number keys.
 - Radius damage falloff, strongest at the explosion center.
 - Real `PlayerData` registration through the `Networking` autoload instead of hardcoded mock player ids.
+- Quantized player movement and aim tests through `GlobalId -> PlayerData -> LocalPlayerData` ownership/input resolution.
 
 Controls:
 
@@ -68,11 +69,15 @@ Controls:
 - Left click: damage the first target under the cursor. Priority is player, prop, then wall.
 - `Shift + Left Click`: radius damage against players, props, and walls.
 - Right click: rebuild/reset the arena and respawn player damage targets.
+- Host/local player movement: keyboard `WASD` or arrow keys. Hold `Shift` to emit a half-strength movement vector for walking.
+- Client player movement: gamepad left stick. Client `LocalId 0` uses gamepad device `0`; client `LocalId 1` uses gamepad device `1`.
+- Host/local aim: mouse direction from the player body.
+- Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction for controller convenience. If both sticks are idle, aim keeps the previous valid direction instead of hiding the weapon. Aim is displayed immediately on the local client for responsiveness.
 
 The LAN test seeds local lobby data before hosting/joining:
 
-- Host/local instances register one active local player: `LocalId 0`.
-- Client instances register two active local players: `LocalId 0` and `LocalId 1`.
+- Host/local instances register one active keyboard/mouse local player: `LocalId 0`.
+- Client instances register two active gamepad local players: `LocalId 0` on device `0` and `LocalId 1` on device `1`.
 - The client still joins through the real join flow, so the server assigns `GlobalId`s and syncs `PlayerData` back.
 
 Expected player mapping with one host and one client:
@@ -82,6 +87,20 @@ Expected player mapping with one host and one client:
 - Client second local player: `P2 peer <clientPeer>:local 1`.
 
 The status label shows player health and ownership mapping using `GlobalId -> PlayerData -> PeerId/LocalId`.
+
+Current hitbox/input test structure:
+
+- `DamageTestPlayer` creates an `Area2D` hitbox with a `CollisionShape2D`, but click damage currently uses its manual `16x16` `WorldHitbox` rectangle.
+- `DamageTestPlayer` creates a simple child `Line2D` named `Weapon`. The weapon is offset from the body and rotated toward the active aim display vector.
+- `DamageTestPlayer` stores separate local and estimated aim vectors. Owned/local players display their locally calculated exact aim immediately. Remote/non-owned player display uses the replicated quantized estimated aim.
+- `LevelProp` creates an `Area2D` hitbox with a `CollisionShape2D`, but click damage currently uses a manual rectangle from `LevelPropData.Size`.
+- Wall damage is tile-data authoritative: world positions are converted to `Vector2I` tile coordinates and checked against `ArenaMapData` wall tiles. Wall tiles currently behave as full `16x16` damage cells.
+- Local input first resolves to generic movement and aim vectors, then those vectors are quantized into 16 direction buckets and three strength states: `None`, `Some`, and `Full`. Keyboard/mouse and gamepad only differ at the vector-read step.
+- Movement state changes only replicate when the direction bucket or strength state changes. Direction and strength use hysteresis so analog stick input does not flicker rapidly at bucket/threshold edges. The host/server simulates movement from the latest state instead of receiving movement every physics tick.
+- Aim state changes replicate independently from movement state changes. Aiming does not force movement updates. For gamepad players with no active right-stick aim, the aim state follows movement-state direction/strength changes.
+- Local aim display is allowed to be more exact than replicated aim state. Future shoot/throw actions should send their exact aim vector at action time and can use that exact vector to update the acting object's local aim display.
+- Client movement and aim input are sent to the host/server as state-change requests. The host validates ownership by comparing the requested player's `PeerId` with the RPC sender and then syncs the accepted state back to clients.
+- Position correction is not applied on every movement-state change. Client position is sent with movement changes as a drift hint, and the server only includes a correction when the difference is currently over `48px`. Future shot/throw actions should send their exact aim vector or coordinate at action time instead of relying only on the quantized display aim.
 
 ## Damage Test Player Runtime
 
@@ -150,9 +169,9 @@ Recommended next steps:
 
 1. Keep `DamageTestPlayer.GlobalId` as the only ownership key on the runtime body.
 2. Use `Networking.MultiplayerData.GetPlayerByGlobalId(GlobalId)` to resolve `PeerId` and `LocalId`.
-3. Add input ownership checks from `PeerId + LocalId` instead of duplicating ownership data on the runtime player.
-4. Start with movement in the LAN test scene before moving it into a final gameplay scene.
-5. Keep server-authoritative direction in mind: client input should become requests/commands, not direct authority over shared state.
+3. Keep input ownership checks based on `PeerId + LocalId` instead of duplicating ownership data on the runtime player.
+4. Continue hardening quantized movement/aim in the LAN test scene before moving it into a final gameplay scene.
+5. Keep server-authoritative direction in mind: client input should remain requests/commands, not direct authority over shared state.
 
 ## Verification Commands
 
