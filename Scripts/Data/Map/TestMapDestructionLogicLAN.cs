@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 public partial class TestMapDestructionLogicLAN : Node2D {
     private static readonly Vector2I TestTileSize = new(16, 16);
@@ -21,6 +22,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     private Label _statusLabel;
     private Networking _networking;
     private DamageType _selectedDamageType = DamageType.Crush;
+    private readonly List<LevelProp> _props = new();
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -162,6 +164,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         AddFloorRectangle(new Rect2I(14, 7, 8, 3));
         AddFloorRectangle(new Rect2I(10, 12, 6, 5));
         _arenaMapData.ResetWallTiles();
+        BuildMockProps();
         ApplyInitialWallDamage();
         _tileLayerRenderer.Render(_arenaMapData);
     }
@@ -174,6 +177,16 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     private void DamageWallUnderCursor() {
+        var mousePosition = GetGlobalMousePosition();
+        var propIndex = GetPropIndexAtWorldPosition(mousePosition);
+        if (propIndex >= 0) {
+            if (!DamageProp(propIndex, _selectedDamageType, TestBulletDamage))
+                return;
+
+            ReplicatePropDamage(propIndex, _selectedDamageType, TestBulletDamage);
+            return;
+        }
+
         var tilePosition = _arenaMapData.WorldToTile(GetGlobalMousePosition(), TestTileSize);
         if (!_arenaMapData.DamageWallTile(tilePosition, _selectedDamageType, TestBulletDamage))
             return;
@@ -183,20 +196,48 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     private void DamageWallsInExplosiveRadius() {
-        var centerTile = _arenaMapData.WorldToTile(GetGlobalMousePosition(), TestTileSize);
+        var worldCenter = GetGlobalMousePosition();
+        var changedProps = DamagePropsInWorldRadius(worldCenter, TestExplosiveRadius, _selectedDamageType, TestExplosiveDamage);
+        var centerTile = _arenaMapData.WorldToTile(worldCenter, TestTileSize);
         var tileRadius = Mathf.CeilToInt(TestExplosiveRadius / Mathf.Max(1, TestTileSize.X));
         var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
 
-        if (changedTiles.Count == 0)
+        if (changedTiles.Count == 0 && !changedProps)
             return;
 
         _tileLayerRenderer.Render(_arenaMapData);
-        ReplicateRadiusDamage(centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
+        ReplicateRadiusDamage(worldCenter, centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
     }
 
     private void ApplyInitialWallDamage() {
         foreach (var (position, damageAmount) in InitialWallDamageSamples)
             _arenaMapData.DamageWallTile(position, DamageType.Crush, damageAmount);
+    }
+
+    private void BuildMockProps() {
+        ClearMockProps();
+        AddMockProp(LevelPropType.Barrel, new Vector2I(7, 7));
+        AddMockProp(LevelPropType.Rock, new Vector2I(17, 8));
+        AddMockProp(LevelPropType.Tree, new Vector2I(12, 14));
+    }
+
+    private void AddMockProp(LevelPropType propType, Vector2I tilePosition) {
+        var propData = new LevelPropData();
+        propData.Configure(propType);
+
+        var prop = new LevelProp { Name = propData.DisplayName };
+        AddChild(prop);
+        prop.Initialize(propData, TileToWorldCenter(tilePosition));
+        _props.Add(prop);
+    }
+
+    private void ClearMockProps() {
+        foreach (var prop in _props) {
+            if (IsInstanceValid(prop))
+                prop.QueueFree();
+        }
+
+        _props.Clear();
     }
 
     private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer() {
@@ -228,12 +269,20 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         Rpc(nameof(RpcDamageWallTile), tilePosition.X, tilePosition.Y, (int)damageType, damageAmount);
     }
 
-    private void ReplicateRadiusDamage(Vector2I centerTile, int radius, DamageType damageType, float damageAmount) {
+    private void ReplicatePropDamage(int propIndex, DamageType damageType, float damageAmount) {
+        if (!CanSendHostRpc())
+            return;
+
+        PrintTestNetworkLog($"RPC send: {damageType} prop damage at index {propIndex} amount {damageAmount}.");
+        Rpc(nameof(RpcDamageProp), propIndex, (int)damageType, damageAmount);
+    }
+
+    private void ReplicateRadiusDamage(Vector2 worldCenter, Vector2I centerTile, int radius, DamageType damageType, float damageAmount) {
         if (!CanSendHostRpc())
             return;
 
         PrintTestNetworkLog($"RPC send: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
-        Rpc(nameof(RpcDamageWallsInRadius), centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
+        Rpc(nameof(RpcDamageInRadius), worldCenter.X, worldCenter.Y, centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
     }
 
     private bool HandleDamageTypeInput(InputEvent @event) {
@@ -286,17 +335,79 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcDamageProp(int propIndex, int damageTypeValue, float damageAmount) {
+        var damageType = ToDamageType(damageTypeValue);
+        if (!DamageProp(propIndex, damageType, damageAmount))
+            return;
+
+        PrintTestNetworkLog($"RPC apply: {damageType} prop damage at index {propIndex} amount {damageAmount}.");
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcDamageWallsInRadius(int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
+        ApplyRadiusDamage(Vector2.Zero, new Vector2I(centerX, centerY), radius, ToDamageType(damageTypeValue), damageAmount, false);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcDamageInRadius(float worldCenterX, float worldCenterY, int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
+        ApplyRadiusDamage(new Vector2(worldCenterX, worldCenterY), new Vector2I(centerX, centerY), radius, ToDamageType(damageTypeValue), damageAmount, true);
+    }
+
+    private void ApplyRadiusDamage(Vector2 worldCenter, Vector2I centerTile, int radius, DamageType damageType, float damageAmount, bool damageProps) {
         if (_arenaMapData == null)
             return;
 
-        var damageType = ToDamageType(damageTypeValue);
-        var changedTiles = _arenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, damageType, damageAmount);
-        if (changedTiles.Count == 0)
+        var changedProps = damageProps && DamagePropsInWorldRadius(worldCenter, TestExplosiveRadius, damageType, damageAmount);
+        var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, radius, damageType, damageAmount);
+        if (changedTiles.Count == 0 && !changedProps)
             return;
 
-        PrintTestNetworkLog($"RPC apply: {damageType} radius damage at ({centerX}, {centerY}) radius {radius} amount {damageAmount}.");
+        PrintTestNetworkLog($"RPC apply: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
         _tileLayerRenderer.Render(_arenaMapData);
+    }
+
+    private int GetPropIndexAtWorldPosition(Vector2 worldPosition) {
+        for (var i = 0; i < _props.Count; i++) {
+            var prop = _props[i];
+            if (IsInstanceValid(prop) && prop.ContainsWorldPosition(worldPosition))
+                return i;
+        }
+
+        return -1;
+    }
+
+    private bool DamageProp(int propIndex, DamageType damageType, float damageAmount) {
+        if (propIndex < 0 || propIndex >= _props.Count)
+            return false;
+
+        var prop = _props[propIndex];
+        if (!IsInstanceValid(prop))
+            return false;
+
+        return prop.ApplyDamage(DamageContainer.FromDamage(damageType, damageAmount));
+    }
+
+    private bool DamagePropsInWorldRadius(Vector2 worldCenter, float radius, DamageType damageType, float damageAmount) {
+        var changed = false;
+        foreach (var prop in _props) {
+            if (!IsInstanceValid(prop) || !prop.IsInsideWorldRadius(worldCenter, radius))
+                continue;
+
+            var multiplier = prop.GetRadiusDamageMultiplier(worldCenter, radius);
+            if (multiplier <= 0.0f)
+                continue;
+
+            prop.ApplyDamage(DamageContainer.FromDamage(damageType, damageAmount * multiplier));
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private Vector2 TileToWorldCenter(Vector2I tilePosition) {
+        return new Vector2(
+            (tilePosition.X * TestTileSize.X) + (TestTileSize.X * 0.5f),
+            (tilePosition.Y * TestTileSize.Y) + (TestTileSize.Y * 0.5f));
     }
 
     private static DamageType ToDamageType(int damageTypeValue) {

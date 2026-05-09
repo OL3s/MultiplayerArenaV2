@@ -210,7 +210,14 @@ public partial class ArenaMapData : Resource {
 
         var affectedTiles = GetTilesInRadius(centerTile, radius);
         foreach (var tilePosition in affectedTiles) {
-            if (!DamageWallTile(tilePosition, damageContainer))
+            var damageMultiplier = GetRadiusDamageMultiplier(centerTile, tilePosition, radius);
+            if (damageMultiplier <= 0.0f)
+                continue;
+
+            var scaledDamageContainer = new DamageContainer {
+                Damage = damageContainer.Damage.Scaled(damageMultiplier),
+            };
+            if (!DamageWallTile(tilePosition, scaledDamageContainer))
                 continue;
 
             changedTiles.Add(tilePosition);
@@ -278,11 +285,23 @@ public partial class ArenaMapData : Resource {
         return tiles;
     }
 
+    private float GetRadiusDamageMultiplier(Vector2I centerTile, Vector2I tilePosition, int radius) {
+        if (radius <= 0)
+            return tilePosition == centerTile ? 1.0f : 0.0f;
+
+        var distance = new Vector2(centerTile.X, centerTile.Y).DistanceTo(new Vector2(tilePosition.X, tilePosition.Y));
+        return Mathf.Clamp(1.0f - (distance / radius), 0.0f, 1.0f);
+    }
+
     private int CalculateWallDamageStage(int damage, int maxDamage) {
-        if (damage <= 1 || maxDamage <= 1)
+        if (damage <= 0 || maxDamage <= 1)
             return 0;
 
-        return damage >= Mathf.CeilToInt(maxDamage * 0.5f) ? 2 : 1;
+        var healthRatio = (maxDamage - damage) / (float)maxDamage;
+        if (healthRatio < 0.5f)
+            return 2;
+
+        return healthRatio < 0.9f ? 1 : 0;
     }
 
     private Vector2I GetWallDamageAtlasCoords(int damageStage) {
