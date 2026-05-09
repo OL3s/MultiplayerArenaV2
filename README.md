@@ -57,14 +57,14 @@ Use separate scenes for destruction testing and player/item testing.
 Destruction LAN host/client:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host
+godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host & \
 godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700
 ```
 
 Player/item LAN host/client:
 
 ```bash
-godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role host
+godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role host & \
 godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role client --address 127.0.0.1 --port 7700
 ```
 
