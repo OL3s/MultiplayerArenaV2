@@ -49,4 +49,6 @@ The next target is to make players use simple working items first, then grow tha
 
 - `docs/player-items-inventory-plan.md`
 - `docs/combat-lan-test-handoff.md`
-- `README.md`
+- `docs/test-scenes.md`
+- `docs/multiplayer-networking.md`
+- `docs/destructible-environment.md`

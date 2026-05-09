@@ -4,9 +4,9 @@ This document is the current handoff for the shared combat backend, destructible
 
 ## Current Branch
 
-- Current branch after the last merge is `feature/player-controls-actions`.
-- `main` already contains the completed shared damage resources, destructible props, and LAN player damage target commits.
-- The next planned work is player controls/actions on top of the LAN test player/runtime model.
+- Current working branch is usually `main` unless a new feature branch is created for a focused slice.
+- `main` contains the shared damage resources, destructible props, LAN player damage targets, and player movement/aim test runtime.
+- The next planned work is the player item/action slice tracked in `docs/focuspoints.md` and `docs/player-items-inventory-plan.md`.
 
 ## Shared Combat Backend
 
@@ -166,17 +166,17 @@ Current prop types:
 
 Props use `HealthContainer` and `ArmorResource` directly. They should follow the same combat path as players and walls.
 
-## Next Work: Player Controls And Actions
+## Next Work: Player Items And Actions
 
-The current branch is ready for player controls/actions work.
+The current runtime model is ready for player item/action work in the LAN test scene.
 
 Recommended next steps:
 
 1. Keep `DamageTestPlayer.GlobalId` as the only ownership key on the runtime body.
 2. Use `Networking.MultiplayerData.GetPlayerByGlobalId(GlobalId)` to resolve `PeerId` and `LocalId`.
 3. Keep input ownership checks based on `PeerId + LocalId` instead of duplicating ownership data on the runtime player.
-4. Continue hardening quantized movement/aim in the LAN test scene before moving it into a final gameplay scene.
-5. Keep server-authoritative direction in mind: client input should remain requests/commands, not direct authority over shared state.
+4. Use exact aim vectors for shot/throw/use actions instead of relying only on quantized display aim.
+5. Keep server-authoritative direction in mind: client item input should remain requests/commands, not direct authority over shared state.
 
 ## Verification Commands
 
