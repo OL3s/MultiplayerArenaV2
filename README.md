@@ -45,8 +45,9 @@ if (a == b)
 
 ## Planning Docs
 
+- `docs/combat-lan-test-handoff.md` tracks the shared combat backend, destructible walls/props, LAN damage-test player targets, and next player controls/actions direction.
 - `docs/player-items-inventory-plan.md` tracks the planned player item, inventory, weight, backstrap, magazine reserve, and purchase-mode model.
-- `docs/focuspoints.md` tracks the next-session implementation focus. Current focus is turning the player item/inventory resource model into a working Godot test scene.
+- `docs/focuspoints.md` tracks the next-session implementation focus. Current focus is player controls/actions on the LAN damage-test setup.
 - `docs/svg-input-icon-generation.md` documents the SVG input-icon generation approach, including why button labels are generated as vector geometry instead of SVG `<text>`.
 
 ## Game Concept
@@ -82,7 +83,17 @@ private readonly HashSet<Vector2I> _floorTiles = new();
 private readonly Dictionary<Vector2I, WallDamageData> _hitWallTiles = new();
 ```
 
-`WallDamageData` should contain the state needed to decide how damaged a tile is, when it should be destroyed, and which visual damage tile should be shown.
+`WallDamageData` contains the combat state needed to decide how damaged a tile is, when it should be destroyed, and which visual damage tile should be shown. It now owns a `HealthContainer` and uses the same damage backend as props and players.
+
+Current shared combat model:
+
+- `DamageType` currently supports `Crush`, `Slash`, `Heat`, and `Explosive`.
+- `StatusEffectType` currently supports `Fire`.
+- `DamageResource` contains typed direct damage values and typed status effect values.
+- `DamageContainer` applies a `DamageResource` to a `HealthContainer`.
+- `ArmorResource` stores typed damage/status-effect reduction percentages.
+- `HealthContainer` defaults to `100/100` health and owns armor plus active status effects.
+- Players, props, and walls should all route damage through `DamageContainer -> HealthContainer.ApplyDamage()`.
 
 Current debug tile asset:
 
@@ -100,14 +111,26 @@ Current map data classes:
 - `ArenaMapData.GenerateMap()` exists as the main generation entry point, but is intentionally empty until the real map algorithm is chosen.
 - `ArenaMapData.ResetWallTiles()` rebuilds the wall hashset from current floors using all 8 neighboring cells, so corner walls are included and no smoothing is applied.
 - `ArenaMapData.FillWallsFromFloors()` currently delegates to `ResetWallTiles()`.
-- `ArenaMapData.DamageWallTile()` tracks damage per wall tile in `WallDamageData` and destroys the wall when max damage is reached.
+- `ArenaMapData.DamageWallTile()` tracks damage per wall tile in `WallDamageData` and destroys the wall when its `HealthContainer` reaches zero.
 - `ArenaMapData.DamageWallFromWorldPosition()` converts a world hit position back into a tile coordinate before applying single-tile wall damage.
 - `ArenaMapData.WorldToTile()` is the shared world-to-grid conversion helper for destructible wall logic.
-- `ArenaMapData.GetTilesInRadius()`, `DamageWallsInRadius()`, and `DamageWallsInWorldRadius()` support tile-accurate explosive damage instead of row-based or merged-physics damage.
+- `ArenaMapData.GetTilesInRadius()`, `DamageWallsInRadius()`, and `DamageWallsInWorldRadius()` support tile-accurate radius damage with damage falloff from the radius center.
 - `ArenaMapData.DestroyWallTile()` converts the destroyed wall tile into a floor tile, then rebuilds surrounding walls from the floor hashset so the data stays consistent.
 - `ArenaMapData.GenerateLayerTileMapData()` emits `MapTileData` for separate logical layers: `Floor`, `Wall`, and `WallDamage`.
 - `MapTileData` now stores both tile type and logical layer type so a renderer can rebuild visible tile layers from data without using the rendered TileMap state as authority.
-- `WallDamageData` stores `Damage`, `MaxDamage`, and `DamageStage` for one wall tile.
+- `WallDamageData` stores a wall `HealthContainer`, exposes `Damage`, `MaxDamage`, and `DamageStage`, and configures default wall armor through a biome switch hook.
+- Default wall health is `500`.
+- Default wall armor has `Heat` immunity, `Slash` 95% reduction, `Crush` 0% reduction, `Explosive` 0% reduction, and `Fire` status immunity.
+- Wall damage overlays are health-ratio based: no decal above or at 90% health, light decal below 90%, and heavy decal below 50%.
+
+Current level prop structure:
+
+- `LevelPropData` defines prop type, visual path, hitbox size, health, and armor.
+- `LevelProp` is the temporary runtime prop node used in test scenes.
+- `LevelPropType` currently supports `Barrel`, `Rock`, and `Tree`.
+- Prop SVG assets live in `Assets/Props/`.
+- Barrel and rock are `16x16`; tree is `16x32`.
+- Props use the same `HealthContainer` and `DamageContainer` path as players and walls.
 
 Current rendering structure for destructible map testing:
 
@@ -146,13 +169,17 @@ Current destruction test scene:
 Current LAN destruction test scene:
 
 - `Scenes/Tests/TestMapDestructionLogicLAN.tscn` is a temporary LAN/RTC-focused test scene for server-authoritative wall destruction sync.
-- `TestMapDestructionLogicLAN` uses the same scene-local mock map flow as `TestMapDestructionLogic`, then forwards host damage/reset RPCs to connected clients.
+- `TestMapDestructionLogicLAN` uses the same scene-local map flow as `TestMapDestructionLogic`, then forwards host damage/reset RPCs to connected clients.
 - The scene includes a status label that shows waiting/connection state while testing host/client behavior.
 - `Networking` owns the shared `--role` CLI override and maps it to `NetworkMode`; this scene reads `Networking.CurrentMode` instead of keeping a separate role enum.
 - `TestMapDestructionLogicLAN` still supports scene-local CLI overrides through Godot user args: `--address` and `--port` for the direct client target.
-- The host instance is the only peer allowed to apply wall damage input.
+- The host instance is the only peer allowed to apply shared damage input.
 - The client instance is a read-only viewer that applies and re-renders scene-local RPC updates sent by the host.
-- Current controls on the host are the same as the local test scene: `Left Click` for bullet-style damage, `Shift + Left Click` for explosive radius damage, and `Right Click` to rebuild/reset the mock arena.
+- Current controls on the host: `1` selects `Crush`, `2` selects `Slash`, `3` selects `Heat`, `4` selects `Explosive`, `Left Click` damages the first target under the cursor, `Shift + Left Click` applies radius damage, and `Right Click` rebuilds/resets the arena.
+- Click damage priority is player, prop, then wall.
+- The LAN test seeds real `LocalLobbyData` before hosting/joining. Host/local instances register one active local player. Client instances register two active local players to test multiple players on one peer.
+- Runtime player targets are built from `Networking.MultiplayerData.Players`, keyed only by `GlobalId`, and resolve `PeerId`/`LocalId` through `MultiplayerData.GetPlayerByGlobalId(...)`.
+- `DamageTestPlayer` is the temporary runtime player body for damage/control testing. On death, it disables hitbox monitoring, monitorable state, collision shape, processing, physics processing, and input processing. Respawn resets health, teleports back to test spawn, and re-enables those features.
 - The LAN test scene currently focuses on live sync for already-connected peers. Start both peers first, then perform destruction tests from the host side.
 - Initial map construction and late-join catch-up are still not fully synchronized yet. Those are deferred follow-up tasks, not part of the current networking slice.
 
