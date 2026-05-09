@@ -51,16 +51,15 @@ Scene: `Scenes/Tests/TestMapDestructionLogicLAN.tscn`
 
 Script: `Scripts/Data/Map/TestMapDestructionLogicLAN.cs`
 
-The LAN test currently covers:
+The LAN destruction test currently covers:
 
 - Server-authoritative wall damage replication.
-- Shared combat damage against wall tiles, props, and player targets.
+- Shared combat damage against wall tiles and props.
 - Damage type selection with number keys.
 - Radius damage falloff, strongest at the explosion center.
 - Real `PlayerData` registration through the `Networking` autoload instead of hardcoded mock player ids.
-- Quantized player movement and aim tests through `GlobalId -> PlayerData -> LocalPlayerData` ownership/input resolution.
-- Godot physics movement collision for LAN test players, props, and wall TileMap collision.
-- Temporary SVG player front/back body sprites and pistol item weapon sprite.
+- Godot physics collision for props and wall TileMap collision.
+- Player targets were moved to `Scenes/Tests/TestPlayerItemRoomLAN.tscn`.
 
 Controls:
 
@@ -68,44 +67,56 @@ Controls:
 - `2`: select `Slash` damage.
 - `3`: select `Heat` damage.
 - `4`: select `Explosive` damage.
-- Left click: damage the first target under the cursor. Priority is player, prop, then wall.
-- `Shift + Left Click`: radius damage against players, props, and walls.
-- Right click: rebuild/reset the arena and respawn player damage targets.
-- Host/local player movement: keyboard `WASD` or arrow keys. Hold `Shift` to emit a half-strength movement vector for walking.
-- Client player movement: gamepad left stick. Client `LocalId 0` uses gamepad device `0`; client `LocalId 1` uses gamepad device `1`.
-- Host/local aim: mouse direction from the player body.
-- Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction for controller convenience. If both sticks are idle, aim keeps the previous valid direction instead of hiding the weapon. Aim is displayed immediately on the local client for responsiveness.
+- Left click: damage the first prop or wall target under the cursor. Priority is prop, then wall.
+- `Shift + Left Click`: radius damage against props and walls.
+- Right click: rebuild/reset the arena.
 
-The LAN test seeds local lobby data before hosting/joining:
+Player/item controls now live in `Scenes/Tests/TestPlayerItemRoomLAN.tscn`.
 
-- Host/local instances register one active keyboard/mouse local player: `LocalId 0`.
-- Client instances register two active gamepad local players: `LocalId 0` on device `0` and `LocalId 1` on device `1`.
-- The client still joins through the real join flow, so the server assigns `GlobalId`s and syncs `PlayerData` back.
-
-Expected player mapping with one host and one client:
-
-- Host player: `P0 peer 1:local 0`.
-- Client first local player: `P1 peer <clientPeer>:local 0`.
-- Client second local player: `P2 peer <clientPeer>:local 1`.
-
-The status label shows player health and ownership mapping using `GlobalId -> PlayerData -> PeerId/LocalId`.
+The LAN destruction test still seeds local lobby data before hosting/joining so host/client setup and RPC flow use the real `Networking` autoload, but it does not spawn player targets.
 
 Current hitbox/collision/input test structure:
 
-- `DamageTestPlayer` is a `CharacterBody2D` with a direct circular `CollisionShape2D`. Click damage still uses its circular radius, and movement collision is resolved by Godot physics through `MoveAndSlide()`.
+- `LevelProp` is a `StaticBody2D` with a direct circular `CollisionShape2D` derived from `LevelPropData.Size`. Click damage uses the same circular prop radius.
+- Wall damage is tile-data authoritative: world positions are converted to `Vector2I` tile coordinates and checked against `ArenaMapData` wall tiles. Wall tiles currently behave as full `16x16` damage cells.
+- Props are `StaticBody2D`, and wall movement/collision shape data comes from the rendered `WallLayer` `TileMapLayer`. `ArenaTileLayerRenderer` adds a runtime physics layer/polygon to the loaded wall `TileSet`, while `ArenaMapData.WallTiles` remains the gameplay authority for wall damage/destruction checks.
+
+## LAN Player Item Room Test Scene
+
+Scene: `Scenes/Tests/TestPlayerItemRoomLAN.tscn`
+
+Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
+
+This is now the dedicated player movement, aim, and item/action test bed.
+
+- Builds a square floor/wall room with one center barrel prop.
+- Host/local instances register one active keyboard/mouse local player: `LocalId 0`.
+- Client instances register one active gamepad local player: `LocalId 0` on device `0`.
+- Runtime player targets are built from `Networking.MultiplayerData.Players`, keyed only by `GlobalId`, and resolve `PeerId`/`LocalId` through `MultiplayerData.GetPlayerByGlobalId(...)`.
+- Expected player mapping with one host and one client is host `P0 peer 1:local 0` and client `P1 peer <clientPeer>:local 0`.
 - `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images from `Assets/Players/` and a `Pistol-T1` weapon `Sprite2D` from `Assets/Items/Modern/Weapons/`. The weapon is offset from the body and rotated toward the active aim display vector.
 - `DamageTestPlayer` stores separate local and estimated aim vectors. Owned/local players display their locally calculated exact aim immediately. Remote/non-owned player display uses the replicated quantized estimated aim.
 - The player body sprite flips only by `BodySprite.Scale.X`; root scale, collision, label, and weapon positioning are not flipped through the root node. The body switches to the back SVG only when aim is sufficiently upward.
-- `LevelProp` is a `StaticBody2D` with a direct circular `CollisionShape2D` derived from `LevelPropData.Size`. Click damage still uses the same circular prop radius.
-- Wall damage is tile-data authoritative: world positions are converted to `Vector2I` tile coordinates and checked against `ArenaMapData` wall tiles. Wall tiles currently behave as full `16x16` damage cells.
-- LAN test movement uses Godot physics bodies: players are `CharacterBody2D`, props are `StaticBody2D`, and wall movement collision comes from the rendered `WallLayer` `TileMapLayer`. `ArenaTileLayerRenderer` adds a runtime physics layer/polygon to the loaded wall `TileSet`, while `ArenaMapData.WallTiles` remains the gameplay authority for wall damage/destruction checks.
+- Player room movement uses Godot physics bodies: players are `CharacterBody2D`, the center prop is `StaticBody2D`, and wall movement collision comes from the rendered `WallLayer` `TileMapLayer`.
 - Local input first resolves to generic movement and aim vectors, then those vectors are quantized into 16 direction buckets and three strength states: `None`, `Some`, and `Full`. Keyboard/mouse and gamepad only differ at the vector-read step.
 - For the current prototype, clients do not predict or simulate player movement locally. Clients send movement input vectors only when their quantized movement state changes, the host/server validates ownership, quantizes the vector, and the host/server is the only peer that simulates movement.
 - Aim state changes replicate independently from movement state changes. Aiming does not force movement updates. For gamepad players with no active right-stick aim, the aim state follows movement-state direction/strength changes.
 - Local aim display is allowed to be more exact than replicated aim state. Future shoot/throw actions should send their exact aim vector at action time and can use that exact vector to update the acting object's local aim display.
-- Client movement and aim input are sent to the host/server as state-change requests. The host validates ownership by comparing the requested player's `PeerId` with the RPC sender and then syncs the accepted state back to clients.
-- Accepted movement-state syncs include the server position, and the host/server also broadcasts moving player positions every server physics tick while movement continues. Clients directly apply server positions with no interpolation or local prediction for now. Future shot/throw actions should send their exact aim vector or coordinate at action time instead of relying only on the quantized display aim.
+- Accepted movement-state syncs include the server position, and the host/server also broadcasts moving player positions every server physics tick while movement continues. Clients directly apply server positions with no interpolation or local prediction for now.
+- Number keys `1` through `5` currently set temporary item override strings on the local player: `Pistol-T1`, `Smg-T1`, `AR-T1`, `Rifle-T1`, and `NadeExplosive`.
 - Spawn/respawn placement is not yet overlap-safe. `MoveAndSlide()` should not be relied on to push a player out of an initial overlap; add a circular physics-space spawn query and nearby free-floor fallback before relying on respawns in real gameplay.
+
+Player item room controls:
+
+- Host/local player movement: keyboard `WASD` or arrow keys. Hold `Shift` to emit a half-strength movement vector for walking.
+- Client player movement: gamepad left stick. Client `LocalId 0` uses gamepad device `0`.
+- Host/local aim: mouse direction from the player body.
+- Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction for controller convenience.
+- `1`: select `Pistol-T1` override.
+- `2`: select `Smg-T1` override.
+- `3`: select `AR-T1` override.
+- `4`: select `Rifle-T1` override.
+- `5`: select `NadeExplosive` override.
 
 ## Damage Test Player Runtime
 

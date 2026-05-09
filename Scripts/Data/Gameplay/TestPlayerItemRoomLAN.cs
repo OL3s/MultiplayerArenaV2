@@ -1,18 +1,14 @@
 using Godot;
 using System.Collections.Generic;
 
-public partial class TestMapDestructionLogicLAN : Node2D {
+public partial class TestPlayerItemRoomLAN : Node2D {
     private static readonly Vector2I TestTileSize = new(16, 16);
-    private const float TestExplosiveRadius = 56.0f;
-    private const float TestBulletDamage = 125.0f;
-    private const float TestExplosiveDamage = 250.0f;
     private const float TestPlayerMoveSpeed = 96.0f;
     private const float GamepadDeadzone = 0.25f;
     private const float InputStopThreshold = 0.18f;
     private const float InputFullEnterThreshold = 0.70f;
     private const float InputFullExitThreshold = 0.60f;
     private const int DirectionBucketCount = 16;
-    private static readonly Color DebugExplosiveRadiusColor = new(1.0f, 0.55f, 0.2f, 0.9f);
 
     private enum InputStrength {
         None,
@@ -48,26 +44,18 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         }
     }
 
-    private static readonly (Vector2I Position, float DamageAmount)[] InitialWallDamageSamples = {
-        (new Vector2I(3, 4), 125.0f),
-        (new Vector2I(14, 4), 250.0f),
-        (new Vector2I(22, 8), 375.0f),
-        (new Vector2I(9, 17), 125.0f),
-    };
-
     private ArenaMapData _arenaMapData;
     private ArenaTileLayerRenderer _tileLayerRenderer;
-    private DebugExplosionRadiusDrawer _debugRadiusDrawer;
     private Camera2D _camera;
     private Label _statusLabel;
     private Networking _networking;
-    private DamageType _selectedDamageType = DamageType.Crush;
-    private readonly List<LevelProp> _props = new();
+    private LevelProp _centerProp;
     private readonly Dictionary<int, DamageTestPlayer> _playersByGlobalId = new();
     private readonly Dictionary<int, QuantizedInputState> _movementStatesByGlobalId = new();
     private readonly Dictionary<int, QuantizedInputState> _aimStatesByGlobalId = new();
     private readonly Dictionary<int, QuantizedInputState> _lastLocalMovementStatesByGlobalId = new();
     private readonly Dictionary<int, QuantizedInputState> _lastLocalAimStatesByGlobalId = new();
+    private readonly Dictionary<int, string> _itemOverrideByGlobalId = new();
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -75,15 +63,11 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     [Export]
     public int ClientPort { get; set; } = 7700;
 
-    [Export]
-    public BiomeConfig.BiomeType TestWallBiome { get; set; } = BiomeConfig.BiomeType.Arena;
-
     public override void _Ready() {
         _tileLayerRenderer = GetNode<ArenaTileLayerRenderer>("ArenaTileLayerRenderer");
         _camera = GetNode<Camera2D>("Camera2D");
         _statusLabel = GetNode<Label>("CanvasLayer/StatusLabel");
         _networking = GetNode<Networking>("/root/Networking");
-        _debugRadiusDrawer = CreateDebugRadiusDrawer();
 
         ApplyCommandLineOverrides();
         EnsureDefaultNetworkMode();
@@ -96,11 +80,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
         if (_networking.IsServer && !_networking.HasActiveNetworkPeer)
             TryStartHost();
-        else if (_networking.IsClient && !_networking.HasActiveNetworkPeer) {
+        else if (_networking.IsClient && !_networking.HasActiveNetworkPeer)
             TryStartClient();
-        }
 
-        BuildMockArena();
+        BuildTestRoom();
         CenterCamera();
     }
 
@@ -113,7 +96,6 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     public override void _Process(double delta) {
-        _debugRadiusDrawer.QueueRedraw();
         UpdateStatusLabel();
     }
 
@@ -126,30 +108,20 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     public override void _UnhandledInput(InputEvent @event) {
-        if (!CanApplyHostInput())
+        if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
             return;
 
-        if (HandleDamageTypeInput(@event))
-            return;
+        var itemOverride = keyEvent.PhysicalKeycode switch {
+            Key.Key1 => "Pistol-T1",
+            Key.Key2 => "Smg-T1",
+            Key.Key3 => "AR-T1",
+            Key.Key4 => "Rifle-T1",
+            Key.Key5 => "NadeExplosive",
+            _ => string.Empty,
+        };
 
-        if (@event is not InputEventMouseButton mouseButtonEvent || !mouseButtonEvent.Pressed)
-            return;
-
-        if (mouseButtonEvent.ButtonIndex == MouseButton.Right) {
-            BuildMockArena();
-            ReplicateMockArenaReset();
-            return;
-        }
-
-        if (mouseButtonEvent.ButtonIndex == MouseButton.Left) {
-            if (mouseButtonEvent.ShiftPressed)
-                DamageWallsInExplosiveRadius();
-            else {
-                DamageWallUnderCursor();
-            }
-
-            return;
-        }
+        if (!string.IsNullOrEmpty(itemOverride))
+            ApplyLocalItemOverride(itemOverride);
     }
 
     private void TryStartHost() {
@@ -194,27 +166,19 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     private void EnsureTestLocalLobbyPlayer() {
-        var targetLocalPlayerCount = _networking.IsClient ? 2 : 1;
         _networking.LocalLobbyData.LocalPlayers.Clear();
+        var inputType = _networking.IsClient
+            ? LocalPlayerData.LocalInputType.Gamepad
+            : LocalPlayerData.LocalInputType.KeyboardMouse;
+        var deviceId = _networking.IsClient ? 0 : -1;
 
-        for (var localId = 0; localId < targetLocalPlayerCount; localId++) {
-            var inputType = _networking.IsClient
-                ? LocalPlayerData.LocalInputType.Gamepad
-                : LocalPlayerData.LocalInputType.KeyboardMouse;
-            var deviceId = _networking.IsClient ? localId : -1;
-
-            _networking.LocalLobbyData.LocalPlayers.Add(new LocalPlayerData {
-                LocalId = localId,
-                IsActive = true,
-                InputType = inputType,
-                DeviceId = deviceId,
-                DisplayName = GetDefaultTestPlayerName(localId),
-            });
-        }
-    }
-
-    private string GetDefaultTestPlayerName(int localId) {
-        return _networking.IsClient ? $"Client LocalId {localId}" : $"Host LocalId {localId}";
+        _networking.LocalLobbyData.LocalPlayers.Add(new LocalPlayerData {
+            LocalId = 0,
+            IsActive = true,
+            InputType = inputType,
+            DeviceId = deviceId,
+            DisplayName = _networking.IsClient ? "Client Player" : "Host Player",
+        });
     }
 
     private void ApplyPortOverride(string portValue) {
@@ -232,22 +196,19 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         return true;
     }
 
-    private void BuildMockArena() {
+    private void BuildTestRoom() {
         _arenaMapData = new ArenaMapData {
             SourceId = 0,
             WallDamageSourceId = 1,
             DefaultWallMaxDamage = WallDamageData.DefaultWallHealth,
-            DefaultWallBiome = TestWallBiome,
+            DefaultWallBiome = BiomeConfig.BiomeType.Arena,
         };
 
-        AddFloorRectangle(new Rect2I(4, 4, 10, 8));
-        AddFloorRectangle(new Rect2I(14, 7, 8, 3));
-        AddFloorRectangle(new Rect2I(10, 12, 6, 5));
+        AddFloorRectangle(new Rect2I(5, 5, 18, 10));
         _arenaMapData.ResetWallTiles();
-        ClearDamageTestPlayers();
-        BuildMockProps();
-        ApplyInitialWallDamage();
         RenderArenaWithCollision();
+        BuildCenterProp();
+        RebuildPlayersFromNetworkData();
     }
 
     private void AddFloorRectangle(Rect2I rect) {
@@ -257,75 +218,22 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         }
     }
 
-    private void DamageWallUnderCursor() {
-        var mousePosition = GetGlobalMousePosition();
-        var propIndex = GetPropIndexAtWorldPosition(mousePosition);
-        if (propIndex >= 0) {
-            if (!DamageProp(propIndex, _selectedDamageType, TestBulletDamage))
-                return;
+    private void BuildCenterProp() {
+        if (_centerProp != null && IsInstanceValid(_centerProp))
+            _centerProp.QueueFree();
 
-            ReplicatePropDamage(propIndex, _selectedDamageType, TestBulletDamage);
-            return;
-        }
-
-        var tilePosition = _arenaMapData.WorldToTile(GetGlobalMousePosition(), TestTileSize);
-        if (!_arenaMapData.DamageWallTile(tilePosition, _selectedDamageType, TestBulletDamage))
-            return;
-
-        RenderArenaWithCollision();
-        ReplicateWallDamage(tilePosition, _selectedDamageType, TestBulletDamage);
-    }
-
-    private void DamageWallsInExplosiveRadius() {
-        var worldCenter = GetGlobalMousePosition();
-        var changedProps = DamagePropsInWorldRadius(worldCenter, TestExplosiveRadius, _selectedDamageType, TestExplosiveDamage);
-        var centerTile = _arenaMapData.WorldToTile(worldCenter, TestTileSize);
-        var tileRadius = Mathf.CeilToInt(TestExplosiveRadius / Mathf.Max(1, TestTileSize.X));
-        var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
-
-        if (changedTiles.Count == 0 && !changedProps)
-            return;
-
-        RenderArenaWithCollision();
-        ReplicateRadiusDamage(worldCenter, centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
-    }
-
-    private void ApplyInitialWallDamage() {
-        foreach (var (position, damageAmount) in InitialWallDamageSamples)
-            _arenaMapData.DamageWallTile(position, DamageType.Crush, damageAmount);
-    }
-
-    private void BuildMockProps() {
-        ClearMockProps();
-        AddMockProp(LevelPropType.Barrel, new Vector2I(7, 7));
-        AddMockProp(LevelPropType.Rock, new Vector2I(17, 8));
-        AddMockProp(LevelPropType.Tree, new Vector2I(12, 14));
-    }
-
-    private void AddMockProp(LevelPropType propType, Vector2I tilePosition) {
         var propData = new LevelPropData();
-        propData.Configure(propType);
-
-        var prop = new LevelProp { Name = propData.DisplayName };
-        AddChild(prop);
-        prop.Initialize(propData, TileToWorldCenter(tilePosition));
-        _props.Add(prop);
-    }
-
-    private void ClearMockProps() {
-        foreach (var prop in _props) {
-            if (IsInstanceValid(prop))
-                prop.QueueFree();
-        }
-
-        _props.Clear();
+        propData.Configure(LevelPropType.Barrel);
+        _centerProp = new LevelProp { Name = "CenterBarrel" };
+        AddChild(_centerProp);
+        _centerProp.Initialize(propData, TileToWorldCenter(new Vector2I(14, 10)));
     }
 
     private void RenderArenaWithCollision() {
         _tileLayerRenderer.Render(_arenaMapData);
     }
 
-    private void SyncDamageTestPlayersWithNetworkData() {
+    private void SyncPlayersWithNetworkData() {
         var activeGlobalIds = new HashSet<int>();
         foreach (var playerData in _networking.MultiplayerData.Players) {
             if (playerData.GlobalId < 0)
@@ -335,7 +243,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             if (_playersByGlobalId.TryGetValue(playerData.GlobalId, out var existingPlayer) && IsInstanceValid(existingPlayer))
                 continue;
 
-            AddDamageTestPlayer(playerData.GlobalId, GetTestPlayerTilePosition(playerData.GlobalId));
+            AddPlayer(playerData.GlobalId, GetTestPlayerTilePosition(playerData.GlobalId));
         }
 
         var removedGlobalIds = new List<int>();
@@ -353,15 +261,16 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             _aimStatesByGlobalId.Remove(removedGlobalId);
             _lastLocalMovementStatesByGlobalId.Remove(removedGlobalId);
             _lastLocalAimStatesByGlobalId.Remove(removedGlobalId);
+            _itemOverrideByGlobalId.Remove(removedGlobalId);
         }
     }
 
-    private void RebuildDamageTestPlayersFromNetworkData() {
-        ClearDamageTestPlayers();
-        SyncDamageTestPlayersWithNetworkData();
+    private void RebuildPlayersFromNetworkData() {
+        ClearPlayers();
+        SyncPlayersWithNetworkData();
     }
 
-    private void ClearDamageTestPlayers() {
+    private void ClearPlayers() {
         foreach (var player in _playersByGlobalId.Values) {
             if (IsInstanceValid(player))
                 player.QueueFree();
@@ -372,24 +281,18 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         _aimStatesByGlobalId.Clear();
         _lastLocalMovementStatesByGlobalId.Clear();
         _lastLocalAimStatesByGlobalId.Clear();
+        _itemOverrideByGlobalId.Clear();
     }
 
-    private void AddDamageTestPlayer(int globalId, Vector2I tilePosition) {
-        var player = new DamageTestPlayer { Name = $"DamageTestPlayer{globalId}" };
+    private void AddPlayer(int globalId, Vector2I tilePosition) {
+        var player = new DamageTestPlayer { Name = $"ItemTestPlayer{globalId}" };
         AddChild(player);
         player.Initialize(globalId, TileToWorldCenter(tilePosition));
         _playersByGlobalId[globalId] = player;
         _movementStatesByGlobalId[globalId] = GetNoInputState();
         _aimStatesByGlobalId[globalId] = new QuantizedInputState(0, InputStrength.Full);
+        _itemOverrideByGlobalId[globalId] = "Pistol-T1";
         player.SetEstimatedAimDirection(DirectionIndexToVector(0), true);
-    }
-
-    private void RespawnDamageTestPlayers() {
-        foreach (var playerEntry in _playersByGlobalId) {
-            playerEntry.Value.Respawn(TileToWorldCenter(GetTestPlayerTilePosition(playerEntry.Key)));
-            _movementStatesByGlobalId[playerEntry.Key] = GetNoInputState();
-            playerEntry.Value.SetEstimatedAimDirection(GetAimDirection(playerEntry.Key), true);
-        }
     }
 
     private void ProcessLocalPlayerInputStates() {
@@ -464,12 +367,11 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private void SimulatePlayerMovement(double delta) {
         foreach (var playerEntry in _playersByGlobalId) {
-            var globalId = playerEntry.Key;
             var player = playerEntry.Value;
             if (!IsInstanceValid(player) || player.IsDead())
                 continue;
 
-            if (!_movementStatesByGlobalId.TryGetValue(globalId, out var movementState) || !movementState.HasInput)
+            if (!_movementStatesByGlobalId.TryGetValue(playerEntry.Key, out var movementState) || !movementState.HasInput)
                 continue;
 
             var speedMultiplier = movementState.Strength == InputStrength.Full ? 1.0f : 0.5f;
@@ -495,8 +397,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return;
         }
 
-        var aimDirection = DirectionIndexToVector(aimState.DirectionIndex);
-        player.SetEstimatedAimDirection(aimDirection, true);
+        player.SetEstimatedAimDirection(DirectionIndexToVector(aimState.DirectionIndex), true);
     }
 
     private void SyncPlayerMovementState(int globalId, QuantizedInputState movementState, bool includePosition) {
@@ -532,6 +433,37 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return;
 
         Rpc(nameof(RpcSyncPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength);
+    }
+
+    private void ApplyLocalItemOverride(string itemOverride) {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            if (_networking.IsClient && _networking.HasActiveNetworkPeer)
+                RpcId(1, nameof(RpcRequestSetPlayerItemOverride), playerEntry.Key, itemOverride);
+            else if (CanSendHostRpc()) {
+                SetPlayerItemOverride(playerEntry.Key, itemOverride);
+                SyncPlayerItemOverride(playerEntry.Key, itemOverride);
+            }
+            else {
+                SetPlayerItemOverride(playerEntry.Key, itemOverride);
+            }
+
+            return;
+        }
+    }
+
+    private void SetPlayerItemOverride(int globalId, string itemOverride) {
+        _itemOverrideByGlobalId[globalId] = itemOverride;
+        PrintTestNetworkLog($"P{globalId} item override: {itemOverride}.");
+        UpdateStatusLabel();
+    }
+
+    private void SyncPlayerItemOverride(int globalId, string itemOverride) {
+        if (CanSendHostRpc())
+            Rpc(nameof(RpcSyncPlayerItemOverride), globalId, itemOverride);
     }
 
     private LocalPlayerData GetLocalPlayerData(int localId) {
@@ -586,19 +518,15 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     private static Vector2 GetGamepadMovementInput(int deviceId) {
-        var direction = new Vector2(
+        return ClampInputVector(new Vector2(
             Input.GetJoyAxis(deviceId, JoyAxis.LeftX),
-            Input.GetJoyAxis(deviceId, JoyAxis.LeftY));
-
-        return ClampInputVector(direction);
+            Input.GetJoyAxis(deviceId, JoyAxis.LeftY)));
     }
 
     private static Vector2 GetGamepadAimInput(int deviceId) {
-        var direction = new Vector2(
+        return ClampInputVector(new Vector2(
             Input.GetJoyAxis(deviceId, JoyAxis.RightX),
-            Input.GetJoyAxis(deviceId, JoyAxis.RightY));
-
-        return ClampInputVector(direction);
+            Input.GetJoyAxis(deviceId, JoyAxis.RightY)));
     }
 
     private static Vector2 ClampInputVector(Vector2 input) {
@@ -676,134 +604,8 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             : InputStrength.None;
     }
 
-    private DebugExplosionRadiusDrawer CreateDebugRadiusDrawer() {
-        var debugRadiusDrawer = new DebugExplosionRadiusDrawer {
-            Name = "DebugExplosionRadiusDrawer",
-            Radius = TestExplosiveRadius,
-            DrawColor = DebugExplosiveRadiusColor,
-            CanDraw = CanApplyHostInput,
-            ZIndex = 10,
-        };
-
-        AddChild(debugRadiusDrawer);
-        return debugRadiusDrawer;
-    }
-
-    private void ReplicateMockArenaReset() {
-        if (!CanSendHostRpc())
-            return;
-
-        PrintTestNetworkLog("RPC send: reset mock arena.");
-        Rpc(nameof(RpcResetMockArena));
-    }
-
-    private void ReplicateWallDamage(Vector2I tilePosition, DamageType damageType, float damageAmount) {
-        if (!CanSendHostRpc())
-            return;
-
-        PrintTestNetworkLog($"RPC send: {damageType} wall damage at {tilePosition} amount {damageAmount}.");
-        Rpc(nameof(RpcDamageWallTile), tilePosition.X, tilePosition.Y, (int)damageType, damageAmount);
-    }
-
-    private void ReplicatePropDamage(int propIndex, DamageType damageType, float damageAmount) {
-        if (!CanSendHostRpc())
-            return;
-
-        PrintTestNetworkLog($"RPC send: {damageType} prop damage at index {propIndex} amount {damageAmount}.");
-        Rpc(nameof(RpcDamageProp), propIndex, (int)damageType, damageAmount);
-    }
-
-    private void ReplicatePlayerDamage(int globalId, DamageType damageType, float damageAmount) {
-        if (!CanSendHostRpc())
-            return;
-
-        PrintTestNetworkLog($"RPC send: {damageType} player damage for global id {globalId} amount {damageAmount}.");
-        Rpc(nameof(RpcDamagePlayer), globalId, (int)damageType, damageAmount);
-    }
-
-    private void ReplicateRadiusDamage(Vector2 worldCenter, Vector2I centerTile, int radius, DamageType damageType, float damageAmount) {
-        if (!CanSendHostRpc())
-            return;
-
-        PrintTestNetworkLog($"RPC send: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
-        Rpc(nameof(RpcDamageInRadius), worldCenter.X, worldCenter.Y, centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
-    }
-
-    private bool HandleDamageTypeInput(InputEvent @event) {
-        if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
-            return false;
-
-        var damageType = keyEvent.PhysicalKeycode switch {
-            Key.Key1 => DamageType.Crush,
-            Key.Key2 => DamageType.Slash,
-            Key.Key3 => DamageType.Heat,
-            Key.Key4 => DamageType.Explosive,
-            Key.Kp1 => DamageType.Crush,
-            Key.Kp2 => DamageType.Slash,
-            Key.Kp3 => DamageType.Heat,
-            Key.Kp4 => DamageType.Explosive,
-            _ => _selectedDamageType,
-        };
-
-        if (damageType == _selectedDamageType)
-            return false;
-
-        _selectedDamageType = damageType;
-        PrintTestNetworkLog($"Selected damage type: {_selectedDamageType}.");
-        UpdateStatusLabel();
-        return true;
-    }
-
     private bool CanSendHostRpc() {
         return _networking.HasActiveNetworkPeer && _networking.IsServer;
-    }
-
-    private bool CanApplyHostInput() {
-        return _networking.IsServer || _networking.IsLocal;
-    }
-
-    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcResetMockArena() {
-        PrintTestNetworkLog("RPC apply: reset mock arena.");
-        BuildMockArena();
-    }
-
-    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageWallTile(int x, int y, int damageTypeValue, float damageAmount) {
-        var damageType = ToDamageType(damageTypeValue);
-        if (_arenaMapData == null || !_arenaMapData.DamageWallTile(new Vector2I(x, y), damageType, damageAmount))
-            return;
-
-        PrintTestNetworkLog($"RPC apply: {damageType} wall damage at ({x}, {y}) amount {damageAmount}.");
-        RenderArenaWithCollision();
-    }
-
-    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageProp(int propIndex, int damageTypeValue, float damageAmount) {
-        var damageType = ToDamageType(damageTypeValue);
-        if (!DamageProp(propIndex, damageType, damageAmount))
-            return;
-
-        PrintTestNetworkLog($"RPC apply: {damageType} prop damage at index {propIndex} amount {damageAmount}.");
-    }
-
-    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamagePlayer(int globalId, int damageTypeValue, float damageAmount) {
-        var damageType = ToDamageType(damageTypeValue);
-        if (!DamagePlayer(globalId, damageType, damageAmount))
-            return;
-
-        PrintTestNetworkLog($"RPC apply: {damageType} player damage for global id {globalId} amount {damageAmount}.");
-    }
-
-    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageWallsInRadius(int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
-        ApplyRadiusDamage(Vector2.Zero, new Vector2I(centerX, centerY), radius, ToDamageType(damageTypeValue), damageAmount, false);
-    }
-
-    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcDamageInRadius(float worldCenterX, float worldCenterY, int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
-        ApplyRadiusDamage(new Vector2(worldCenterX, worldCenterY), new Vector2I(centerX, centerY), radius, ToDamageType(damageTypeValue), damageAmount, true);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -827,6 +629,15 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         SyncPlayerAimState(globalId, aimState);
     }
 
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestSetPlayerItemOverride(int globalId, string itemOverride) {
+        if (!IsPlayerStateRequestAllowed(globalId))
+            return;
+
+        SetPlayerItemOverride(globalId, itemOverride);
+        SyncPlayerItemOverride(globalId, itemOverride);
+    }
+
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerMovementState(int globalId, int directionIndex, int strengthValue, float worldX, float worldY, bool includePosition) {
         SetPlayerMovementState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), includePosition, worldX, worldY);
@@ -843,90 +654,14 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         SetPlayerAimState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), true);
     }
 
-    private void ApplyRadiusDamage(Vector2 worldCenter, Vector2I centerTile, int radius, DamageType damageType, float damageAmount, bool damageProps) {
-        if (_arenaMapData == null)
-            return;
-
-        var changedPlayers = damageProps && DamagePlayersInWorldRadius(worldCenter, TestExplosiveRadius, damageType, damageAmount);
-        var changedProps = damageProps && DamagePropsInWorldRadius(worldCenter, TestExplosiveRadius, damageType, damageAmount);
-        var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, radius, damageType, damageAmount);
-        if (changedTiles.Count == 0 && !changedProps && !changedPlayers)
-            return;
-
-        PrintTestNetworkLog($"RPC apply: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
-        RenderArenaWithCollision();
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncPlayerItemOverride(int globalId, string itemOverride) {
+        SetPlayerItemOverride(globalId, itemOverride);
     }
 
-    private int GetPropIndexAtWorldPosition(Vector2 worldPosition) {
-        for (var i = 0; i < _props.Count; i++) {
-            var prop = _props[i];
-            if (IsInstanceValid(prop) && prop.ContainsWorldPosition(worldPosition))
-                return i;
-        }
-
-        return -1;
-    }
-
-    private int GetPlayerGlobalIdAtWorldPosition(Vector2 worldPosition) {
-        foreach (var playerEntry in _playersByGlobalId) {
-            var player = playerEntry.Value;
-            if (IsInstanceValid(player) && player.ContainsWorldPosition(worldPosition))
-                return playerEntry.Key;
-        }
-
-        return -1;
-    }
-
-    private bool DamagePlayer(int globalId, DamageType damageType, float damageAmount) {
-        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
-            return false;
-
-        return player.ApplyDamage(DamageContainer.FromDamage(damageType, damageAmount));
-    }
-
-    private bool DamagePlayersInWorldRadius(Vector2 worldCenter, float radius, DamageType damageType, float damageAmount) {
-        var changed = false;
-        foreach (var player in _playersByGlobalId.Values) {
-            if (!IsInstanceValid(player) || !player.IsInsideWorldRadius(worldCenter, radius))
-                continue;
-
-            var multiplier = player.GetRadiusDamageMultiplier(worldCenter, radius);
-            if (multiplier <= 0.0f)
-                continue;
-
-            player.ApplyDamage(DamageContainer.FromDamage(damageType, damageAmount * multiplier));
-            changed = true;
-        }
-
-        return changed;
-    }
-
-    private bool DamageProp(int propIndex, DamageType damageType, float damageAmount) {
-        if (propIndex < 0 || propIndex >= _props.Count)
-            return false;
-
-        var prop = _props[propIndex];
-        if (!IsInstanceValid(prop))
-            return false;
-
-        return prop.ApplyDamage(DamageContainer.FromDamage(damageType, damageAmount));
-    }
-
-    private bool DamagePropsInWorldRadius(Vector2 worldCenter, float radius, DamageType damageType, float damageAmount) {
-        var changed = false;
-        foreach (var prop in _props) {
-            if (!IsInstanceValid(prop) || !prop.IsInsideWorldRadius(worldCenter, radius))
-                continue;
-
-            var multiplier = prop.GetRadiusDamageMultiplier(worldCenter, radius);
-            if (multiplier <= 0.0f)
-                continue;
-
-            prop.ApplyDamage(DamageContainer.FromDamage(damageType, damageAmount * multiplier));
-            changed = true;
-        }
-
-        return changed;
+    private LocalPlayerData GetLocalPlayerDataForGlobalId(int globalId) {
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+        return playerData == null ? null : GetLocalPlayerData(playerData.LocalId);
     }
 
     private Vector2 TileToWorldCenter(Vector2I tilePosition) {
@@ -937,18 +672,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private Vector2I GetTestPlayerTilePosition(int globalId) {
         return globalId switch {
-            0 => new Vector2I(8, 8),
-            1 => new Vector2I(18, 9),
-            2 => new Vector2I(12, 15),
-            3 => new Vector2I(20, 8),
-            _ => new Vector2I(8 + (globalId % 10), 8 + (globalId / 10)),
+            0 => new Vector2I(7, 10),
+            1 => new Vector2I(21, 10),
+            _ => new Vector2I(7 + (globalId % 14), 10),
         };
-    }
-
-    private static DamageType ToDamageType(int damageTypeValue) {
-        return System.Enum.IsDefined(typeof(DamageType), damageTypeValue)
-            ? (DamageType)damageTypeValue
-            : DamageType.Crush;
     }
 
     private void OnConnectionStateChanged() {
@@ -957,6 +684,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     private void OnLobbyStateChanged() {
+        SyncPlayersWithNetworkData();
         UpdateStatusLabel();
     }
 
@@ -965,39 +693,35 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     private void PrintTestNetworkLog(string message) {
-        GD.Print($"[LANDestructionTest][Mode={_networking.CurrentMode}] {message}");
+        GD.Print($"[PlayerItemRoomTest][Mode={_networking.CurrentMode}] {message}");
     }
 
     private void UpdateStatusLabel() {
         if (_networking == null)
             return;
 
-        _statusLabel.Text = CanApplyHostInput()
-            ? $"Peers connected: {GetConnectedPeerCount()}\nBiome: {GetCurrentWallBiome()}\nDamage type: {GetDamageTypeSelectionText()}\nPlayers: disabled in destruction test. Use TestPlayerItemRoomLAN for player/item testing."
-            : string.Empty;
+        _statusLabel.Text = $"Player Item Test Room\nPeers connected: {GetConnectedPeerCount()}\nControls: 1 Pistol-T1 | 2 Smg-T1 | 3 AR-T1 | 4 Rifle-T1 | 5 NadeExplosive\nPlayers: {GetPlayerText()}";
     }
 
-    private string GetPlayerHealthText() {
+    private string GetPlayerText() {
         var playerTexts = new List<string>();
         foreach (var playerEntry in _playersByGlobalId) {
-            var player = playerEntry.Value;
-            if (!IsInstanceValid(player) || player.Health == null)
-                continue;
-
             var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
             var ownerText = playerData == null ? "peer ?" : $"peer {playerData.PeerId}:local {playerData.LocalId}";
-            var inputText = GetPlayerInputText(playerData);
-            playerTexts.Add($"P{playerEntry.Key} {ownerText} {inputText} {player.Health.CurrentHealth}/{player.Health.MaxHealth}");
+            var inputText = GetPlayerInputText(playerEntry.Key);
+            var itemText = _itemOverrideByGlobalId.TryGetValue(playerEntry.Key, out var itemOverride) ? itemOverride : "none";
+            playerTexts.Add($"P{playerEntry.Key} {ownerText} {inputText} item {itemText}");
         }
 
-        return playerTexts.Count == 0 ? "none" : string.Join(", ", playerTexts);
+        return playerTexts.Count == 0 ? "waiting" : string.Join(", ", playerTexts);
     }
 
-    private string GetPlayerInputText(PlayerData playerData) {
+    private string GetPlayerInputText(int globalId) {
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
         if (playerData == null || !playerData.IsLocalPlayer)
             return "remote";
 
-        var localPlayerData = GetLocalPlayerData(playerData.LocalId);
+        var localPlayerData = GetLocalPlayerDataForGlobalId(globalId);
         if (localPlayerData == null)
             return "input ?";
 
@@ -1006,18 +730,6 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             LocalPlayerData.LocalInputType.Gamepad => $"gamepad {localPlayerData.DeviceId}",
             _ => "input none",
         };
-    }
-
-    private BiomeConfig.BiomeType GetCurrentWallBiome() {
-        return _arenaMapData?.DefaultWallBiome ?? TestWallBiome;
-    }
-
-    private string GetDamageTypeSelectionText() {
-        return $"1 {FormatDamageTypeOption(DamageType.Crush)} | 2 {FormatDamageTypeOption(DamageType.Slash)} | 3 {FormatDamageTypeOption(DamageType.Heat)} | 4 {FormatDamageTypeOption(DamageType.Explosive)}";
-    }
-
-    private string FormatDamageTypeOption(DamageType damageType) {
-        return damageType == _selectedDamageType ? $"[{damageType}]" : damageType.ToString();
     }
 
     private string GetNetworkDebugText() {

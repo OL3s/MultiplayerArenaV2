@@ -4,32 +4,31 @@ This file tracks what to focus on in the next working session.
 
 ## Next Session Goal
 
-Create a dedicated player item/action test scene, then start the player item/action slice there.
+Continue the player item/action slice inside the dedicated player item/action LAN test scene.
 
-The next target is to make players use simple working items first, then grow that into inventory, armor, movement-speed, magazine, and dependency rules. Build a new focused test scene for this slice instead of continuing to overload the LAN destruction test scene. Reuse the LAN test runtime patterns where useful, but keep the item/action test bed separate before building final UI or purchase flow.
+The next target is to make players use simple working items first, then grow that into inventory, armor, movement-speed, magazine, and dependency rules. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Reuse LAN runtime patterns where useful, but keep item/action testing separate before building final UI or purchase flow.
 
 ## Primary Focus
 
 - Continue from `main` unless a new feature branch is created for the item slice.
 - Read `docs/player-items-inventory-plan.md` first.
-- Create a new test scene under `Scenes/Tests/` for player items/actions, with a matching script under `Scripts/Data/Map/` or `Scripts/Data/Gameplay/` depending on the final scene responsibility.
-- Use `Scenes/Tests/TestMapDestructionLogicLAN.tscn` as a reference for networking, damage targets, input ownership, and destructible wall/prop interaction, not as the primary item/action test scene.
+- Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` and `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs` as the primary player item/action test bed.
+- Keep `Scenes/Tests/TestMapDestructionLogicLAN.tscn` focused on destructible map and prop damage sync; it no longer spawns player targets for item testing.
 - Keep `DamageTestPlayer.GlobalId` as the runtime identity key and resolve ownership through `Networking.MultiplayerData.GetPlayerByGlobalId(GlobalId)`.
 - Keep item use shaped like future server-authoritative commands: local input requests an item action, host/server validates and applies it, clients display the result.
 
 ## Next Implementation Order
 
-1. Create the dedicated player item/action test scene and wire it into the existing networking/local test startup pattern.
-2. Bring over only the required runtime pieces from the LAN destruction test: player spawning, ownership resolution, aim/movement input, damage targets, props, and destructible wall interaction.
-3. Add the smallest useful player item/action data model: base item, equipable item, and objective/effect data.
-4. Add one simple working shootable weapon and one simple throwable grenade-style item.
-5. Route weapon/grenade damage through the existing `DamageContainer -> HealthContainer` backend.
-6. Use exact aim vectors for actual shot/throw actions, while keeping estimated aim for normal remote display.
-7. Add temporary runtime item ownership on `DamageTestPlayer` or a small player runtime data object before building full inventory.
-8. After items work, add the inventory/armor model: equipped armor, inventory providers, carried equipables, typed slots, and validation.
-9. Add movement-speed effects from armor, carried weight, or item loadout after the item/inventory state exists.
-10. Add magazine/ammo reserve dependencies after shootable weapons exist, so reload capacity is tested against real item use.
-11. Run `dotnet build MultiplayerArenaV2.csproj` and `godot --headless --path . --quit` after implementation. Run `godot --headless --path . --import` when adding or changing assets.
+1. Replace the temporary `1`-`5` item override strings in `TestPlayerItemRoomLAN` with real runtime item ownership.
+2. Add the smallest useful player item/action data model: base item, equipable item, and objective/effect data.
+3. Add one simple working shootable weapon and one simple throwable grenade-style item.
+4. Route weapon/grenade damage through the existing `DamageContainer -> HealthContainer` backend.
+5. Use exact aim vectors for actual shot/throw actions, while keeping estimated aim for normal remote display.
+6. Add temporary runtime item ownership on `DamageTestPlayer` or a small player runtime data object before building full inventory.
+7. After items work, add the inventory/armor model: equipped armor, inventory providers, carried equipables, typed slots, and validation.
+8. Add movement-speed effects from armor, carried weight, or item loadout after the item/inventory state exists.
+9. Add magazine/ammo reserve dependencies after shootable weapons exist, so reload capacity is tested against real item use.
+10. Run `dotnet build MultiplayerArenaV2.csproj` and `godot --headless --path . --quit` after implementation. Run `godot --headless --path . --import` when adding or changing assets.
 
 ## First Test Cases
 
