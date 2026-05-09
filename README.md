@@ -36,15 +36,17 @@ AI assistants working on this project should keep this index and the referenced 
 
 Use this as the documentation dictionary:
 
-- `docs/development-reference.md`: CLI commands, C# style rules, tech stack, target platforms, project status, and broad development goals.
-- `docs/game-concept.md`: high-level game concept, planned game modes, and core design direction.
-- `docs/destructible-environment.md`: destructible map data model, wall damage rules, tile rendering, debug tile assets, props, and destruction authority rules.
-- `docs/multiplayer-networking.md`: local/online multiplayer model, split-screen identity rules, lobby/setup config, network modes, transport direction, debug overlay, settings, and RPC state sync.
-- `docs/test-scenes.md`: current test scenes, how to launch them, controls, test-specific notes, and runtime logging conventions.
-- `docs/combat-lan-test-handoff.md`: current combat/LAN handoff for the shared damage backend, LAN damage-test player runtime, and immediate player control/action context.
-- `docs/player-items-inventory-plan.md`: planned player item, inventory, weight, backstrap, magazine reserve, theme, and purchase-mode model.
-- `docs/focuspoints.md`: next-session implementation focus and short working checklist.
-- `docs/svg-input-icon-generation.md`: SVG input-icon generation approach and why button labels are generated as vector geometry instead of SVG `<text>`.
+| Doc | Use For |
+| --- | --- |
+| [Development Reference](docs/development-reference.md) | CLI commands, C# style rules, tech stack, target platforms, project status, and broad development goals. |
+| [Game Concept](docs/game-concept.md) | High-level game concept, planned game modes, and core design direction. |
+| [Destructible Environment](docs/destructible-environment.md) | Destructible map data model, wall damage rules, tile rendering, debug tile assets, props, and destruction authority rules. |
+| [Multiplayer And Networking](docs/multiplayer-networking.md) | Local/online multiplayer model, split-screen identity rules, lobby/setup config, network modes, transport direction, debug overlay, settings, and RPC state sync. |
+| [Test Scenes](docs/test-scenes.md) | Current test scenes, how to launch them, controls, test-specific notes, and runtime logging conventions. |
+| [Combat LAN Test Handoff](docs/combat-lan-test-handoff.md) | Current combat/LAN handoff for the shared damage backend, LAN damage-test player runtime, and immediate player control/action context. |
+| [Player Items And Inventory Plan](docs/player-items-inventory-plan.md) | Planned player item, inventory, weight, backstrap, magazine reserve, theme, and purchase-mode model. |
+| [Focus Points](docs/focuspoints.md) | Next-session implementation focus and short working checklist. |
+| [SVG Input Icon Generation](docs/svg-input-icon-generation.md) | SVG input-icon generation approach and why button labels are generated as vector geometry instead of SVG `<text>`. |
 
 ## Current Test Entry Point
 
