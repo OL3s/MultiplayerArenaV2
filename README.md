@@ -45,9 +45,11 @@ if (a == b)
 
 ## Planning Docs
 
+AI assistants working on this project should keep this section and the referenced planning docs updated as work progresses. Store relevant decisions, current implementation notes, deferred follow-ups, and future-reference context here instead of leaving that knowledge only in chat history.
+
 - `docs/combat-lan-test-handoff.md` tracks the shared combat backend, destructible walls/props, LAN damage-test player targets, and next player controls/actions direction.
 - `docs/player-items-inventory-plan.md` tracks the planned player item, inventory, weight, backstrap, magazine reserve, and purchase-mode model.
-- `docs/focuspoints.md` tracks the next-session implementation focus. Current focus is player controls/actions on the LAN damage-test setup.
+- `docs/focuspoints.md` tracks the next-session implementation focus.
 - `docs/svg-input-icon-generation.md` documents the SVG input-icon generation approach, including why button labels are generated as vector geometry instead of SVG `<text>`.
 
 ## Game Concept
