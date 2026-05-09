@@ -30,7 +30,7 @@ The next target is to create the actual runtime `.tscn` pieces used by usable it
 
 ## Next Implementation Order
 
-1. Create a generic bullet scene and script for shootable weapons. It should use exact aim plus `PlayerItemAccuracyState.CurrentShotAngleOffset`, resolve collision against players, props, and destructible walls, and route damage through `DamageContainer -> HealthContainer`.
+1. Create a generic bullet scene and script for shootable weapons. It should use exact aim plus `PlayerItemAccuracyState.CurrentAccuracy` spread, resolve collision against players, props, and destructible walls, and route damage through `DamageContainer -> HealthContainer`.
 2. Create a generic thrown-item scene and script for hand-thrown items. It should use throw strength/range projection, support simple travel/fuse/rest behavior, and execute throwable objectives such as explosive/incendiary/smoke resolution.
 3. Create a generic launched-projectile scene and script for launcher-style items. It should stay separate from carried launcher item resources and support rocket/grenade-launcher projectile behavior.
 4. Add `PackedScene` references or projectile data links from modern `.tres` item resources to the correct generic execution scene.

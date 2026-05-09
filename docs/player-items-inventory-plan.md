@@ -299,8 +299,8 @@ These scenes should be data-driven from item/projectile resources. The carried i
 Execution rules:
 
 - Use exact aim at action time, not only quantized remote aim.
-- Apply the current shot-angle offset from `PlayerItemAccuracyState` for shootable/projectile aim deviation.
-- Keep movement accuracy and shot offset readable through the existing aim indicator.
+- Apply current shot and movement inaccuracy from `PlayerItemAccuracyState` for shootable/projectile aim deviation.
+- Keep movement accuracy and shot inaccuracy readable through the existing aim indicator.
 - Route all damage through `DamageContainer -> HealthContainer` for players, props, and destructible walls.
 - Keep server-authoritative flow: clients request item use, host/server validates ownership, recovery, fire mode, ammo later, and then executes or replicates the result.
 - Keep spawned projectile/throwable visuals under `Assets/Projectiles/`, not `Assets/Items/`, when separate visuals are needed.
@@ -329,18 +329,14 @@ movementInaccuracy = MovementAccuracy * MovementAccuracyResponse(currentMovement
 if movementInaccuracy is worse than currentMovementInaccuracy, snap currentMovementInaccuracy up immediately
 if movementInaccuracy is better than currentMovementInaccuracy, recover down non-linearly by MovementAccuracyRecovery and slow near target
 shotInaccuracy += AccuracyPushback when firing
-shotAngleOffset += random left/right offset between 50% and 100% of AccuracyPushback
-shotAngleOffset is clamped by shotInaccuracy and recovers toward 0
 shotInaccuracy recovers toward 0 by ShotAccuracyRecovery, slowing near 0
-currentInaccuracy = DefaultAccuracy + abs(shotAngleOffset) + movementInaccuracy
-shotDirection = aimDirection rotated by shotAngleOffset
+currentInaccuracy = DefaultAccuracy + shotInaccuracy + movementInaccuracy
+shotDirection = aimDirection plus random spread inside currentInaccuracy
 ```
 
 This model should balance sustained fire by itself: a weapon with high pushback and low recovery becomes inaccurate during spam, while a weapon with low pushback or fast recovery remains tighter. Burst timing matters because waiting lets the current inaccuracy recover toward the movement-adjusted base value.
 
 Shot inaccuracy and movement inaccuracy are intentionally separate. Movement inaccuracy gets worse instantly from the current movement state so high-movement weapons are punished immediately instead of slowly building up, but movement inaccuracy recovers non-linearly when going from moving to walking or standing still. Shot and movement recovery should not feel linear: the farther the runtime inaccuracy component is from its target, the faster it can recover, but it should slow as it approaches the target/resting value.
-
-Shooting penalty should not be modeled as every shot randomly picking a point in a huge cone. Instead, repeated use builds a signed `shotAngleOffset` that pushes the effective shot direction left or right from the exact aim vector. Each use adds a random left/right offset between half and full `AccuracyPushback`, clamped by current shot inaccuracy, and recovery brings the offset back toward zero. This punishes rapid fire while keeping shots readable and avoiding unrealistic 90-degree cone spray.
 
 Movement recovery should support fast arena pacing. Current modern tuning makes pistols recover movement penalty fastest, SMGs next, then ARs and rifles close behind, while heavier launchers recover more slowly. ARs and rifles also use higher shot recovery than the first-pass values so they can re-center quickly between controlled shots.
 
@@ -376,7 +372,7 @@ First implementation notes:
 
 - Handling fields now live on `PlayerEquipable`: `DefaultAccuracy`, `MovementAccuracy`, `AccuracyPushback`, `ShotAccuracyRecovery`, `MovementAccuracyRecovery`, and `MaxInaccuracy`.
 - Runtime current accuracy is tracked by `PlayerItemAccuracyState`, separate from static item resource data.
-- `PlayerItemAccuracyState` stores `CurrentShotInaccuracy`, `CurrentShotAngleOffset`, and `CurrentMovementInaccuracy`; `CurrentAccuracy` is calculated from base accuracy, absolute shot offset, and movement inaccuracy.
+- `PlayerItemAccuracyState` stores `CurrentShotInaccuracy` and `CurrentMovementInaccuracy`; `CurrentAccuracy` is calculated from base accuracy plus both runtime components.
 - Modern item tuning is stored in `.tres` resources so each weapon tier can differ by pushback, shot recovery, movement recovery, base accuracy, movement accuracy, magazine size, fire rate, cost, and weight.
 - Start with weapon/projectile accuracy. Throwable grenades can use separate throw variance later if needed, but they should not block the first shootable implementation.
 - Keep stat names generic enough for non-modern weapons later. A bow, crossbow, wand, rifle, and launcher can all use the same accuracy/pushback/recovery concepts with different tuning.

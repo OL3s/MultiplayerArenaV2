@@ -886,15 +886,10 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             }
 
             var aimStrength = _aimStrengthByGlobalId.TryGetValue(playerEntry.Key, out var strength) ? strength : 1.0f;
-            var shotDirection = aimDirection.Normalized();
-            var spreadAccuracy = item.DefaultAccuracy;
-            if (_accuracyStatesByGlobalId.TryGetValue(playerEntry.Key, out var accuracyState)) {
-                shotDirection = shotDirection.Rotated(accuracyState.CurrentShotAngleOffset);
-                spreadAccuracy = accuracyState.CurrentSpreadAccuracy;
-            }
-
-            var aimDistance = GetAimProjectionDistance(playerEntry.Key, item, player.GlobalPosition, shotDirection, aimStrength);
-            var aimEnd = player.GlobalPosition + (shotDirection * aimDistance);
+            var aimDirectionNormalized = aimDirection.Normalized();
+            var aimDistance = GetAimProjectionDistance(playerEntry.Key, item, player.GlobalPosition, aimDirectionNormalized, aimStrength);
+            var aimEnd = player.GlobalPosition + (aimDirectionNormalized * aimDistance);
+            var spreadAccuracy = _accuracyStatesByGlobalId.TryGetValue(playerEntry.Key, out var accuracyState) ? accuracyState.CurrentSpreadAccuracy : item.DefaultAccuracy;
             var spreadRadius = PlayerItemAccuracyState.GetSpreadRadiusAtDistance(spreadAccuracy, aimDistance);
             _aimIndicator.SetAim(player.GlobalPosition, aimEnd, spreadRadius, true);
             return;

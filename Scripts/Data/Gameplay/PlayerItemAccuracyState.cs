@@ -8,15 +8,13 @@ public sealed class PlayerItemAccuracyState {
 
     public float CurrentAccuracy => Item == null
         ? 0.0f
-        : Mathf.Min(Item.DefaultAccuracy + Mathf.Abs(CurrentShotAngleOffset) + CurrentMovementInaccuracy, GetMaxCurrentAccuracy());
+        : Mathf.Min(Item.DefaultAccuracy + CurrentShotInaccuracy + CurrentMovementInaccuracy, GetMaxCurrentAccuracy());
 
     public float CurrentSpreadAccuracy => Item == null
         ? 0.0f
-        : Mathf.Min(Item.DefaultAccuracy + CurrentMovementInaccuracy, GetMaxCurrentAccuracy());
+        : CurrentAccuracy;
 
     public float CurrentShotInaccuracy { get; private set; }
-
-    public float CurrentShotAngleOffset { get; private set; }
 
     public float CurrentMovementInaccuracy { get; private set; }
 
@@ -26,14 +24,12 @@ public sealed class PlayerItemAccuracyState {
 
         Item = item;
         CurrentShotInaccuracy = 0.0f;
-        CurrentShotAngleOffset = 0.0f;
         CurrentMovementInaccuracy = 0.0f;
     }
 
     public void Update(float movementStrength, double delta) {
         if (Item == null) {
             CurrentShotInaccuracy = 0.0f;
-            CurrentShotAngleOffset = 0.0f;
             CurrentMovementInaccuracy = 0.0f;
             return;
         }
@@ -49,11 +45,6 @@ public sealed class PlayerItemAccuracyState {
         CurrentShotInaccuracy += Item.AccuracyPushback;
         if (Item.MaxInaccuracy > 0.0f)
             CurrentShotInaccuracy = Mathf.Min(CurrentShotInaccuracy, Mathf.Max(Item.MaxInaccuracy - Item.DefaultAccuracy - CurrentMovementInaccuracy, 0.0f));
-
-        var side = GD.Randf() < 0.5f ? -1.0f : 1.0f;
-        var offsetAmount = Mathf.Lerp(Item.AccuracyPushback * 0.5f, Item.AccuracyPushback, GD.Randf());
-        CurrentShotAngleOffset += side * offsetAmount;
-        CurrentShotAngleOffset = Mathf.Clamp(CurrentShotAngleOffset, -CurrentShotInaccuracy, CurrentShotInaccuracy);
     }
 
     public float GetBaseAccuracy(float movementStrength) {
@@ -95,8 +86,6 @@ public sealed class PlayerItemAccuracyState {
         var recoveryRatio = Mathf.Clamp(difference / recoveryRange, NearBaseRecoveryMultiplier, 1.0f);
         var recoveryStep = Item.ShotAccuracyRecovery * recoveryRatio * (float)delta;
         CurrentShotInaccuracy = Mathf.MoveToward(CurrentShotInaccuracy, 0.0f, recoveryStep);
-        CurrentShotAngleOffset = Mathf.MoveToward(CurrentShotAngleOffset, 0.0f, recoveryStep);
-        CurrentShotAngleOffset = Mathf.Clamp(CurrentShotAngleOffset, -CurrentShotInaccuracy, CurrentShotInaccuracy);
     }
 
     private void RecoverMovementInaccuracy(float targetMovementInaccuracy, double delta) {
