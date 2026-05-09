@@ -11,7 +11,6 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     private const float InputStopThreshold = 0.18f;
     private const float InputFullEnterThreshold = 0.70f;
     private const float InputFullExitThreshold = 0.60f;
-    private const float PositionCorrectionDistance = 48.0f;
     private const int DirectionBucketCount = 16;
     private static readonly Color DebugExplosiveRadiusColor = new(1.0f, 0.55f, 0.2f, 0.9f);
 
@@ -120,7 +119,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     public override void _PhysicsProcess(double delta) {
         ProcessLocalPlayerInputStates();
-        SimulatePlayerMovement(delta);
+        if (_networking.IsServer || _networking.IsLocal)
+            SimulatePlayerMovement(delta);
+
+        SyncMovingPlayerPositions();
     }
 
     public override void _UnhandledInput(InputEvent @event) {
@@ -421,7 +423,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             var movementState = QuantizeInput(inputVectors.Movement, previousMovementState);
             var aimState = GetAimState(inputVectors, movementState, previousAimState);
             ApplyLocalAimDisplay(player, inputVectors, aimState);
-            ApplyLocalMovementStateChange(playerEntry.Key, movementState);
+            ApplyLocalMovementStateChange(playerEntry.Key, inputVectors.Movement, movementState);
             ApplyLocalAimStateChange(playerEntry.Key, aimState);
         }
     }
@@ -440,17 +442,21 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         player.SetLocalAimDirection(Vector2.Zero, false);
     }
 
-    private void ApplyLocalMovementStateChange(int globalId, QuantizedInputState movementState) {
+    private void ApplyLocalMovementStateChange(int globalId, Vector2 movementVector, QuantizedInputState movementState) {
         if (_lastLocalMovementStatesByGlobalId.TryGetValue(globalId, out var lastState) && lastState.Equals(movementState))
             return;
 
         _lastLocalMovementStatesByGlobalId[globalId] = movementState;
-        SetPlayerMovementState(globalId, movementState, false);
 
         if (_networking.IsClient && _networking.HasActiveNetworkPeer)
-            RpcId(1, nameof(RpcRequestSetPlayerMovementState), globalId, movementState.DirectionIndex, (int)movementState.Strength, GetPlayerPositionX(globalId), GetPlayerPositionY(globalId));
-        else if (CanSendHostRpc())
-            SyncPlayerMovementState(globalId, movementState, false);
+            RpcId(1, nameof(RpcRequestSetPlayerMovementVector), globalId, movementVector.X, movementVector.Y);
+        else if (CanSendHostRpc()) {
+            SetPlayerMovementState(globalId, movementState, false);
+            SyncPlayerMovementState(globalId, movementState, true);
+        }
+        else {
+            SetPlayerMovementState(globalId, movementState, false);
+        }
     }
 
     private void ApplyLocalAimStateChange(int globalId, QuantizedInputState aimState) {
@@ -515,6 +521,20 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             GetPlayerPositionX(globalId),
             GetPlayerPositionY(globalId),
             includePosition);
+    }
+
+    private void SyncMovingPlayerPositions() {
+        if (!CanSendHostRpc())
+            return;
+
+        foreach (var playerEntry in _playersByGlobalId) {
+            if (!_movementStatesByGlobalId.TryGetValue(playerEntry.Key, out var movementState) || !movementState.HasInput)
+                continue;
+
+            var player = playerEntry.Value;
+            if (IsInstanceValid(player))
+                Rpc(nameof(RpcSyncPlayerPosition), playerEntry.Key, player.GlobalPosition.X, player.GlobalPosition.Y);
+        }
     }
 
     private void SyncPlayerAimState(int globalId, QuantizedInputState aimState) {
@@ -660,13 +680,6 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         return playerData != null && playerData.PeerId == Multiplayer.GetRemoteSenderId();
     }
 
-    private bool ShouldCorrectPlayerPosition(int globalId, Vector2 clientWorldPosition) {
-        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
-            return false;
-
-        return player.GlobalPosition.DistanceTo(clientWorldPosition) > PositionCorrectionDistance;
-    }
-
     private static InputStrength ToInputStrength(int strengthValue) {
         return System.Enum.IsDefined(typeof(InputStrength), strengthValue)
             ? (InputStrength)strengthValue
@@ -805,14 +818,14 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRequestSetPlayerMovementState(int globalId, int directionIndex, int strengthValue, float clientWorldX, float clientWorldY) {
+    public void RpcRequestSetPlayerMovementVector(int globalId, float movementX, float movementY) {
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
-        var movementState = new QuantizedInputState(directionIndex, ToInputStrength(strengthValue));
-        var shouldCorrectPosition = ShouldCorrectPlayerPosition(globalId, new Vector2(clientWorldX, clientWorldY));
+        _movementStatesByGlobalId.TryGetValue(globalId, out var previousMovementState);
+        var movementState = QuantizeInput(new Vector2(movementX, movementY), previousMovementState);
         SetPlayerMovementState(globalId, movementState, false);
-        SyncPlayerMovementState(globalId, movementState, shouldCorrectPosition);
+        SyncPlayerMovementState(globalId, movementState, true);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -828,6 +841,12 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerMovementState(int globalId, int directionIndex, int strengthValue, float worldX, float worldY, bool includePosition) {
         SetPlayerMovementState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), includePosition, worldX, worldY);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Unreliable)]
+    public void RpcSyncPlayerPosition(int globalId, float worldX, float worldY) {
+        if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
+            player.SetSyncedPosition(new Vector2(worldX, worldY));
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
