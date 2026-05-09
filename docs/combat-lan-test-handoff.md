@@ -88,13 +88,14 @@ Expected player mapping with one host and one client:
 
 The status label shows player health and ownership mapping using `GlobalId -> PlayerData -> PeerId/LocalId`.
 
-Current hitbox/input test structure:
+Current hitbox/collision/input test structure:
 
-- `DamageTestPlayer` creates an `Area2D` hitbox with a `CollisionShape2D`, but click damage currently uses its manual `16x16` `WorldHitbox` rectangle.
+- `DamageTestPlayer` is a `CharacterBody2D` with a direct circular `CollisionShape2D`. Click damage still uses its circular radius, and movement collision is resolved by Godot physics through `MoveAndSlide()`.
 - `DamageTestPlayer` creates a simple child `Line2D` named `Weapon`. The weapon is offset from the body and rotated toward the active aim display vector.
 - `DamageTestPlayer` stores separate local and estimated aim vectors. Owned/local players display their locally calculated exact aim immediately. Remote/non-owned player display uses the replicated quantized estimated aim.
-- `LevelProp` creates an `Area2D` hitbox with a `CollisionShape2D`, but click damage currently uses a manual rectangle from `LevelPropData.Size`.
+- `LevelProp` is a `StaticBody2D` with a direct circular `CollisionShape2D` derived from `LevelPropData.Size`. Click damage still uses the same circular prop radius.
 - Wall damage is tile-data authoritative: world positions are converted to `Vector2I` tile coordinates and checked against `ArenaMapData` wall tiles. Wall tiles currently behave as full `16x16` damage cells.
+- LAN test movement uses Godot physics bodies: players are `CharacterBody2D`, props are `StaticBody2D`, and wall movement collision comes from the rendered `WallLayer` `TileMapLayer`. `ArenaTileLayerRenderer` adds a runtime physics layer/polygon to the loaded wall `TileSet`, while `ArenaMapData.WallTiles` remains the gameplay authority for wall damage/destruction checks.
 - Local input first resolves to generic movement and aim vectors, then those vectors are quantized into 16 direction buckets and three strength states: `None`, `Some`, and `Full`. Keyboard/mouse and gamepad only differ at the vector-read step.
 - Movement state changes only replicate when the direction bucket or strength state changes. Direction and strength use hysteresis so analog stick input does not flicker rapidly at bucket/threshold edges. The host/server simulates movement from the latest state instead of receiving movement every physics tick.
 - Aim state changes replicate independently from movement state changes. Aiming does not force movement updates. For gamepad players with no active right-stick aim, the aim state follows movement-state direction/strength changes.
@@ -110,7 +111,7 @@ File: `Scripts/Data/Gameplay/DamageTestPlayer.cs`
 
 - It owns `GlobalId` and a `HealthContainer`.
 - It draws a simple body, health bar, and label.
-- It has an `Area2D` hitbox and `CollisionShape2D`.
+- It is a `CharacterBody2D` with a circular `CollisionShape2D`.
 - On death it disables hitbox monitoring, monitorable state, collision shape, processing, physics processing, and input processing.
 - Dead players ignore further damage.
 - `Respawn(worldPosition)` resets health, restores alive state, re-enables disabled features, and moves the body to a spawn/test position.

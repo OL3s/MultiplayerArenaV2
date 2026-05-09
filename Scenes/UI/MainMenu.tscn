@@ -1,8 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://cqb3ugv7ettpp"]
+[gd_scene format=3 uid="uid://cqb3ugv7ettpp"]
 
 [ext_resource type="Script" uid="uid://btib1l2dguqjn" path="res://Scripts/UI/MainMenu.cs" id="1_mainmenu"]
-[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_lan.svg" id="4_network_lan"]
-[ext_resource type="Texture2D" path="res://Assets/Network/NetworkModes/network_client.svg" id="5_network_client"]
+[ext_resource type="Texture2D" uid="uid://boqnysulqxwin" path="res://Assets/Network/NetworkModes/network_lan.svg" id="4_network_lan"]
+[ext_resource type="Texture2D" uid="uid://bnkssvlrb0114" path="res://Assets/Network/NetworkModes/network_client.svg" id="5_network_client"]
 
 [node name="MainMenu" type="Control" unique_id=585385200]
 layout_mode = 3

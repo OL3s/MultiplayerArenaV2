@@ -245,7 +245,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         RebuildDamageTestPlayersFromNetworkData();
         BuildMockProps();
         ApplyInitialWallDamage();
-        _tileLayerRenderer.Render(_arenaMapData);
+        RenderArenaWithCollision();
     }
 
     private void AddFloorRectangle(Rect2I rect) {
@@ -279,7 +279,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (!_arenaMapData.DamageWallTile(tilePosition, _selectedDamageType, TestBulletDamage))
             return;
 
-        _tileLayerRenderer.Render(_arenaMapData);
+        RenderArenaWithCollision();
         ReplicateWallDamage(tilePosition, _selectedDamageType, TestBulletDamage);
     }
 
@@ -294,7 +294,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (changedTiles.Count == 0 && !changedProps && !changedPlayers)
             return;
 
-        _tileLayerRenderer.Render(_arenaMapData);
+        RenderArenaWithCollision();
         ReplicateRadiusDamage(worldCenter, centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
     }
 
@@ -327,6 +327,10 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         }
 
         _props.Clear();
+    }
+
+    private void RenderArenaWithCollision() {
+        _tileLayerRenderer.Render(_arenaMapData);
     }
 
     private void SyncDamageTestPlayersWithNetworkData() {
@@ -473,7 +477,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
                 continue;
 
             var speedMultiplier = movementState.Strength == InputStrength.Full ? 1.0f : 0.5f;
-            player.Move(DirectionIndexToVector(movementState.DirectionIndex) * TestPlayerMoveSpeed * speedMultiplier * (float)delta);
+            player.MoveWithVelocity(DirectionIndexToVector(movementState.DirectionIndex) * TestPlayerMoveSpeed * speedMultiplier);
         }
     }
 
@@ -769,7 +773,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return;
 
         PrintTestNetworkLog($"RPC apply: {damageType} wall damage at ({x}, {y}) amount {damageAmount}.");
-        _tileLayerRenderer.Render(_arenaMapData);
+        RenderArenaWithCollision();
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -842,7 +846,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return;
 
         PrintTestNetworkLog($"RPC apply: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
-        _tileLayerRenderer.Render(_arenaMapData);
+        RenderArenaWithCollision();
     }
 
     private int GetPropIndexAtWorldPosition(Vector2 worldPosition) {

@@ -38,6 +38,7 @@ The LAN test scene should prove these cases next:
 - Client input is gamepad-only for this test: `LocalId 0` uses device `0`, and `LocalId 1` uses device `1`.
 - Movement state replication is blocky: generic movement vectors are quantized into 16 direction buckets and `None`/`Some`/`Full` strength states.
 - Movement and strength buckets use hysteresis, and position correction only happens when drift is over the current correction threshold.
+- Movement collision in the LAN test uses Godot physics: `CharacterBody2D` players, `StaticBody2D` props, and `WallLayer` TileMap collision projected from `ArenaMapData.WallTiles`.
 - Aim state replication is separate from movement and drives the temporary weapon child node visual. Gamepad aim uses the right stick when active, falls back to movement direction while moving, and keeps the previous valid direction when both sticks are idle.
 - Owned players display an exact local aim vector immediately. Remote players display the replicated quantized estimated aim vector.
 - Dead player bodies cannot move or act until respawn.

@@ -44,6 +44,36 @@ public partial class ArenaTileLayerRenderer : Node2D {
         FloorLayer.TileSet = GD.Load<TileSet>(FloorTileSetPath);
         WallLayer.TileSet = GD.Load<TileSet>(WallTileSetPath);
         WallDamageLayer.TileSet = GD.Load<TileSet>(WallDamageTileSetPath);
+        EnsureWallTileCollision();
+    }
+
+    private void EnsureWallTileCollision() {
+        if (WallLayer.TileSet == null)
+            return;
+
+        if (WallLayer.TileSet.GetPhysicsLayersCount() == 0) {
+            WallLayer.TileSet.AddPhysicsLayer();
+            WallLayer.TileSet.SetPhysicsLayerCollisionLayer(0, 1);
+            WallLayer.TileSet.SetPhysicsLayerCollisionMask(0, 1);
+        }
+
+        if (WallLayer.TileSet.GetSource(0) is not TileSetAtlasSource atlasSource)
+            return;
+
+        var tileData = atlasSource.GetTileData(ArenaMapData.WallAtlasCoords, 0);
+        if (tileData == null)
+            return;
+
+        tileData.SetCollisionPolygonsCount(0, 1);
+        tileData.SetCollisionPolygonPoints(
+            0,
+            0,
+            new[] {
+                new Vector2(-TileSize.X * 0.5f, -TileSize.Y * 0.5f),
+                new Vector2(TileSize.X * 0.5f, -TileSize.Y * 0.5f),
+                new Vector2(TileSize.X * 0.5f, TileSize.Y * 0.5f),
+                new Vector2(-TileSize.X * 0.5f, TileSize.Y * 0.5f),
+            });
     }
 
     private void RenderLayer(TileMapLayer tileMapLayer, Godot.Collections.Array<MapTileData> tiles, int sourceId) {

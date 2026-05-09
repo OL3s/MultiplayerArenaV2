@@ -1,11 +1,18 @@
 using Godot;
 
-public partial class LevelProp : Node2D {
+public partial class LevelProp : StaticBody2D {
     private Sprite2D _sprite;
     private CollisionShape2D _collisionShape;
     private Area2D _hitbox;
 
     public LevelPropData Data { get; private set; }
+
+    public float CollisionRadius {
+        get {
+            var size = Data?.Size ?? Vector2.Zero;
+            return Mathf.Min(size.X, size.Y) * 0.5f;
+        }
+    }
 
     public Rect2 WorldHitbox {
         get {
@@ -27,7 +34,7 @@ public partial class LevelProp : Node2D {
     }
 
     public bool ContainsWorldPosition(Vector2 worldPosition) {
-        return !IsDestroyed() && WorldHitbox.HasPoint(worldPosition);
+        return !IsDestroyed() && GlobalPosition.DistanceTo(worldPosition) <= CollisionRadius;
     }
 
     public bool IsInsideWorldRadius(Vector2 worldCenter, float radius) {
@@ -77,7 +84,7 @@ public partial class LevelProp : Node2D {
         AddChild(_hitbox);
 
         _collisionShape = new CollisionShape2D { Name = "CollisionShape2D" };
-        _hitbox.AddChild(_collisionShape);
+        AddChild(_collisionShape);
     }
 
     private void RefreshVisuals() {
@@ -93,7 +100,7 @@ public partial class LevelProp : Node2D {
                 _sprite.Scale = Data.Size / textureSize;
         }
 
-        _collisionShape.Shape = new RectangleShape2D { Size = Data.Size };
+        _collisionShape.Shape = new CircleShape2D { Radius = CollisionRadius };
     }
 
     private Color GetDamageTint() {

@@ -1,6 +1,6 @@
 using Godot;
 
-public partial class DamageTestPlayer : Node2D {
+public partial class DamageTestPlayer : CharacterBody2D {
     private static readonly Vector2 DefaultSize = new(16.0f, 16.0f);
 
     private Area2D _hitbox;
@@ -16,6 +16,8 @@ public partial class DamageTestPlayer : Node2D {
     public int GlobalId { get; private set; } = -1;
 
     public Vector2 Size { get; private set; } = DefaultSize;
+
+    public float CollisionRadius => Mathf.Min(Size.X, Size.Y) * 0.45f;
 
     public HealthContainer Health { get; private set; } = new();
 
@@ -49,7 +51,7 @@ public partial class DamageTestPlayer : Node2D {
     }
 
     public bool ContainsWorldPosition(Vector2 worldPosition) {
-        return !IsDead() && WorldHitbox.HasPoint(worldPosition);
+        return !IsDead() && GlobalPosition.DistanceTo(worldPosition) <= CollisionRadius;
     }
 
     public bool IsInsideWorldRadius(Vector2 worldCenter, float radius) {
@@ -88,7 +90,20 @@ public partial class DamageTestPlayer : Node2D {
         return true;
     }
 
+    public bool MoveWithVelocity(Vector2 velocity) {
+        if (IsDead()) {
+            Velocity = Vector2.Zero;
+            return false;
+        }
+
+        var previousPosition = GlobalPosition;
+        Velocity = velocity;
+        MoveAndSlide();
+        return previousPosition != GlobalPosition;
+    }
+
     public void SetSyncedPosition(Vector2 worldPosition) {
+        Velocity = Vector2.Zero;
         GlobalPosition = worldPosition;
     }
 
@@ -142,8 +157,8 @@ public partial class DamageTestPlayer : Node2D {
         AddChild(_hitbox);
 
         _collisionShape = new CollisionShape2D { Name = "CollisionShape2D" };
-        _collisionShape.Shape = new RectangleShape2D { Size = Size };
-        _hitbox.AddChild(_collisionShape);
+        _collisionShape.Shape = new CircleShape2D { Radius = CollisionRadius };
+        AddChild(_collisionShape);
 
         _label = new Label {
             Name = "Label",
