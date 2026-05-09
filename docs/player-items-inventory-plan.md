@@ -350,7 +350,7 @@ Recommended first slice:
 - Add armor and inventory resources that provide typed slots.
 - Add throwable, shootable, projectile, melee, instant, and objective resources.
 - Add purchase-mode validation that checks money, slot availability, and weight.
-- Add modern test items first.
+- Add every currently imaged modern test item first: all pistol, SMG, AR, rifle, launcher, and grenade tiers/variants listed in `docs/modern-item-content-plan.md`.
 - Add future non-modern test items later, after the modern item/action slice is playable, to prove the base model is theme-safe.
 
 Next-session implementation focus is tracked in `docs/focuspoints.md`. That file should be treated as the short checklist for turning this plan into working game code and a dedicated test scene.

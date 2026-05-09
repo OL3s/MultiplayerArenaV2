@@ -88,11 +88,11 @@ Launcher weapons:
 
 ## First Implementation Bias
 
-Implement the smallest playable vertical slice first, then expand across tiers.
+Implement the smallest playable vertical slice first, then expand across every currently imaged modern item. The first complete modern item pass should include all weapon tiers and grenade variants already represented by SVGs.
 
 Suggested order:
 
 - `Pistol-T1` as the first shootable weapon.
 - `NadeExplosive` as the first throwable area-damage item.
 - `Rocketlauncher` or `Grenadelauncher-T1` after projectile spawning is ready.
-- Remaining tiers after the common item, projectile, reload, cost, weight, and carry-capacity data paths exist.
+- Remaining currently imaged items after the common item, projectile, reload, cost, weight, and carry-capacity data paths exist: all pistol, SMG, AR, rifle, launcher, and grenade tiers/variants listed above.
