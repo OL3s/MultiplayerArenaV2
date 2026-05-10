@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using Godot;
 
 public partial class GenericBullet : Node2D {
+    private const float VisualTrailOverlap = 2.0f;
+
     private readonly HashSet<ulong> _hitObjectIds = new();
     private readonly HashSet<Vector2I> _hitWallTiles = new();
 
@@ -73,6 +75,7 @@ public partial class GenericBullet : Node2D {
             GlobalPosition = to;
         }
 
+        UpdateVisual(from.DistanceTo(GlobalPosition));
         _distanceTraveled += moveDistance;
         if (_distanceTraveled >= _range)
             QueueFree();
@@ -93,7 +96,7 @@ public partial class GenericBullet : Node2D {
         GlobalPosition = startPosition;
         Rotation = _direction.Angle();
         EnsureVisual();
-        UpdateVisual();
+        UpdateVisual(0.0f);
     }
 
     private bool ShouldStopAfterHit() {
@@ -124,12 +127,14 @@ public partial class GenericBullet : Node2D {
         AddChild(_line);
     }
 
-    private void UpdateVisual() {
+    private void UpdateVisual(float stepDistance) {
         if (_line == null || _projectileData == null)
             return;
 
         _line.Width = Mathf.Max(_projectileData.Width, 1.0f);
         _line.DefaultColor = _projectileData.Color;
-        _line.SetPointPosition(1, new Vector2(Mathf.Max(_projectileData.Width * 4.0f, 6.0f), 0.0f));
+        var trailLength = Mathf.Max(Mathf.Max(stepDistance + VisualTrailOverlap, _projectileData.Width * 4.0f), 6.0f);
+        _line.SetPointPosition(0, new Vector2(-trailLength, 0.0f));
+        _line.SetPointPosition(1, Vector2.Zero);
     }
 }

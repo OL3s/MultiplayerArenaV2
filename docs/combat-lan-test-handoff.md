@@ -105,7 +105,8 @@ This is now the dedicated player movement, aim, and item/action test bed.
 - Aim state changes replicate independently from movement state changes. Aiming does not force movement updates. For gamepad players with no active right-stick aim, the aim state follows movement-state direction/strength changes.
 - Local aim display is allowed to be more exact than replicated aim state. Future shoot/throw actions should send their exact aim vector at action time and can use that exact vector to update the acting object's local aim display.
 - Accepted movement-state syncs include the server position, and the host/server also broadcasts moving player positions every server physics tick while movement continues. Clients directly apply server positions with no interpolation or local prediction for now.
-- Number keys `1` through `5` currently set temporary item override strings on the local player: `Pistol-T1`, `Smg-T1`, `AR-T1`, `Rifle-T1`, and `NadeExplosive`.
+- `B` opens a temporary test item grid for equipping one of the currently loaded modern item resources on the local player. Keyboard/mouse and controller players use the same menu path instead of comma/period cycling or spacebar use testing.
+- `DamageTestPlayer` now exposes a reusable `PlayerControlState`. The item grid switches local players to `Menu` state while open, which blocks movement, aim, and item-use input so controller UI navigation does not also move the player.
 - Spawn/respawn placement is not yet overlap-safe. `MoveAndSlide()` should not be relied on to push a player out of an initial overlap; add a circular physics-space spawn query and nearby free-floor fallback before relying on respawns in real gameplay.
 
 Player item room controls:
@@ -116,11 +117,11 @@ Player item room controls:
 - Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction for controller convenience.
 - Active aiming is separate from aim direction. Keyboard/mouse uses `Ctrl` or right mouse button; controller uses active right-stick aim.
 - While actively aiming, movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier`.
-- `1`: select `Pistol-T1` override.
-- `2`: select `Smg-T1` override.
-- `3`: select `AR-T1` override.
-- `4`: select `Rifle-T1` override.
-- `5`: select `NadeExplosive` override.
+- `B`: open or close the item grid. Keyboard `B` and Xbox controller `B` both toggle it.
+- Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: select an item from the grid.
+- Opening the item grid locks local gameplay input through `PlayerControlState.Menu`; closing it restores `PlayerControlState.Gameplay`.
+- Left mouse button or Xbox right trigger: use the currently selected item.
+- Item-use replication now also drives a short action-aim visual on `DamageTestPlayer`, so the held item points toward the exact shot/throw direction for about half a second on other devices.
 
 ## Damage Test Player Runtime
 

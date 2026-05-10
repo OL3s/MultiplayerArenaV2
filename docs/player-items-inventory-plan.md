@@ -473,7 +473,7 @@ Current implementation note:
 - `AimMoveSpeedMultiplier` lives on `PlayerEquipable`; current modern tuning keeps pistols at `1.0`, SMGs near full speed, ARs slower, and rifles/launchers slowest while aiming.
 - `MinThrowRange` and `ThrowStrengthAffectsRange` live on `PlayerItemThrowable`.
 - `TestPlayerItemRoomLAN` samples straight aim lines for guns, launchers, and throwables against walls, the center prop, and other players for the first collision-aware projection pass.
-- Pressing `Space` in the test scene applies temporary accuracy pushback so the recovery/spread/crosshair loop can be tested before real firing actions exist.
+- The item room test now uses real item-use input instead of temporary spacebar pushback: left mouse for keyboard/mouse players and Xbox right trigger for controller players.
 
 Range projection helpers should be shared by crosshair display and item-use preview where possible. Do not build a separate one-off range calculation inside the renderer if gameplay will need the same prediction later.
 

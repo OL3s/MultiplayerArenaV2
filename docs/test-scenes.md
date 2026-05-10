@@ -71,17 +71,12 @@ Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
 - Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction.
 - Active aiming is separate from aim direction. Keyboard/mouse is actively aiming while `Ctrl` or right mouse button is held. Controller is actively aiming while the right stick is outside the aim deadzone.
 - The debug aim indicator only draws while actively aiming, and movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier` while actively aiming.
-- `1`: set local player item override to `Pistol-T1`.
-- `2`: set local player item override to `Smg-T1`.
-- `3`: set local player item override to `AR-T1`.
-- `4`: set local player item override to `Rifle-T1`.
-- `5`: set local player item override to `NadeExplosive`.
-- `6`: set local player item override to `Rocketlauncher`.
-- `7`: set local player item override to `Grenadelauncher-T1`.
-- `8`: set local player item override to `Grenadelauncher-T2`.
-- `,` / `.`: cycle backward/forward through all modern item resources.
+- `B`: open or close the test item grid. Keyboard `B` and Xbox controller `B` both toggle it.
+- Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: choose an item from the grid and equip it as the local player's current test item.
+- While the item grid is open, the local player's gameplay input is put in `PlayerControlState.Menu`, which stops movement, aim updates, and item use until the menu closes.
 - `F`: cycle the selected item's available fire modes.
-- `Space`: use the selected item through the selected fire mode and `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`.
+- Left mouse button or Xbox right trigger: use the selected item through the selected fire mode and `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`.
+- Item-use sync includes the exact action direction. The acting player's held item is forced toward that direction for about half a second on other peers so shots and throws read from the same aim direction that executed the action.
 - Thrown grenades now travel toward their full throw-distance target and bounce from sampled wall/prop/player collision instead of shortening the throw range to the first obstruction. The thrown visual has a ground shadow under the arc.
 - Throwables can activate when they hit the ground through `ActivateOnGroundImpact`. The explosive grenade keeps fuse-timed behavior, while incendiary and smoke grenades currently activate on ground impact.
 
