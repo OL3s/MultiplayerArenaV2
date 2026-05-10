@@ -4,48 +4,76 @@ This file tracks what to focus on in the next working session.
 
 ## Next Session Goal
 
-Create a dedicated player item/action test scene, then start the player item/action slice there.
+Continue the player equipment slice inside the dedicated player item/action LAN test scene, with the next focus on ammunition, armor, inventory providers, carried item slots, and validation.
 
-The next target is to make players use simple working items first, then grow that into inventory, armor, movement-speed, magazine, and dependency rules. Build a new focused test scene for this slice instead of continuing to overload the LAN destruction test scene. Reuse the LAN test runtime patterns where useful, but keep the item/action test bed separate before building final UI or purchase flow.
+The generic item execution path is now established enough to start simulating real player equipment instead of only test overrides. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Keep the first version test-scene driven and data/resource driven before building final buy-wheel UI or purchase flow.
 
 ## Primary Focus
 
 - Continue from `main` unless a new feature branch is created for the item slice.
 - Read `docs/player-items-inventory-plan.md` first.
-- Create a new test scene under `Scenes/Tests/` for player items/actions, with a matching script under `Scripts/Data/Map/` or `Scripts/Data/Gameplay/` depending on the final scene responsibility.
-- Use `Scenes/Tests/TestMapDestructionLogicLAN.tscn` as a reference for networking, damage targets, input ownership, and destructible wall/prop interaction, not as the primary item/action test scene.
+- Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` and `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs` as the primary player item/action test bed.
+- Keep `Scenes/Tests/TestMapDestructionLogicLAN.tscn` focused on destructible map and prop damage sync; it no longer spawns player targets for item testing.
 - Keep `DamageTestPlayer.GlobalId` as the runtime identity key and resolve ownership through `Networking.MultiplayerData.GetPlayerByGlobalId(GlobalId)`.
-- Keep item use shaped like future server-authoritative commands: local input requests an item action, host/server validates and applies it, clients display the result.
+- Treat the existing `B` item grid as a temporary equipment/debug menu, not the final purchase UI.
+- Keep item use shaped like future server-authoritative commands: local input requests an item action, host/server validates inventory/ammo/control state and applies it, clients display the result.
+- Build ammo, armor, and inventory around the model in `docs/player-items-inventory-plan.md`: one armor item, one or more inventory providers, an optional backstrap item, carried equipables, typed slots, and separate magazine reserve buckets.
+
+## Modern Items To Implement
+
+- `Pistol-T1`, `Pistol-T2`, `Pistol-T3`
+- `Smg-T1`, `Smg-T2`, `Smg-T3`
+- `AR-T1`, `AR-T2`, `AR-T3`
+- `Rifle-T1`, `Rifle-T2`, `Rifle-T3`
+- `Rocketlauncher`
+- `Grenadelauncher-T1`, `Grenadelauncher-T2`
+- `NadeExplosive`, `NadeIncendiary`, `NadeSmoke`
 
 ## Next Implementation Order
 
-1. Create the dedicated player item/action test scene and wire it into the existing networking/local test startup pattern.
-2. Bring over only the required runtime pieces from the LAN destruction test: player spawning, ownership resolution, aim/movement input, damage targets, props, and destructible wall interaction.
-3. Add the smallest useful player item/action data model: base item, equipable item, and objective/effect data.
-4. Add one simple working shootable weapon and one simple throwable grenade-style item.
-5. Route weapon/grenade damage through the existing `DamageContainer -> HealthContainer` backend.
-6. Use exact aim vectors for actual shot/throw actions, while keeping estimated aim for normal remote display.
-7. Add temporary runtime item ownership on `DamageTestPlayer` or a small player runtime data object before building full inventory.
-8. After items work, add the inventory/armor model: equipped armor, inventory providers, carried equipables, typed slots, and validation.
-9. Add movement-speed effects from armor, carried weight, or item loadout after the item/inventory state exists.
-10. Add magazine/ammo reserve dependencies after shootable weapons exist, so reload capacity is tested against real item use.
-11. Run `dotnet build MultiplayerArenaV2.csproj` and `godot --headless --path . --quit` after implementation. Run `godot --headless --path . --import` when adding or changing assets.
+1. Add or harden the runtime player equipment data object used by `DamageTestPlayer`, based on `InGamePlayerData`: equipped armor, inventory providers, backstrap item, carried equipables, selected/equipped item index, and magazine reserve state.
+2. Add typed slot validation for carried equipables. Start with base carry capacity `1`, armor-provided slots, inventory-provider slots, and `BackStrap` compatibility.
+3. Add magazine/ammo reserve buckets separate from carried item slots: `Small`, `Medium`, `Large`, and `Special`. Track current and maximum reserves.
+4. Wire shootable and launcher item use through ammo checks and consumption. Failed ammo validation should reject item use on the host/server and leave clients visually consistent.
+5. Add armor data/resource behavior to the test flow: one equipped armor item, protection through existing `ArmorResource` where useful, optional slot/magazine bonuses, weight fields, and movement penalty hooks.
+6. Update the `B` item grid or add a small test equipment menu so it can assign items into valid carried slots/backstrap and adjust magazine reserves without pretending to be the final buy wheel.
+7. Keep validation server-authoritative: clients may request equipment changes or item use, but host/server validates slots, armor, inventory providers, ammo, death state, recovery, and control state before syncing.
+8. Add focused test cases for invalid carry attempts, invalid backstrap items, ammo-empty behavior, magazine capacity limits, armor protection, and inventory removal invalidating stored items.
+9. Run `dotnet build MultiplayerArenaV2.csproj` and `godot --headless --path . --quit` after implementation. Run `godot --headless --path . --import` when adding or changing assets.
 
 ## First Test Cases
 
 - Host/local player can use a simple shootable item with keyboard/mouse aim.
 - Client gamepad players can use the same item path with their local aim/fallback aim model.
+- Local players select test items through the `B` item grid, then use the selected item with left mouse or Xbox right trigger.
+- The `B` item grid must keep local players in `PlayerControlState.Menu` while open so controller navigation cannot also move, aim, or fire the player.
+- Item actions should keep broadcasting the exact action direction long enough for remote players to see the held item point where the shot or throw was executed.
+- Generic bullet, thrown-item, and launched-projectile scenes can each be instantiated from item execution code.
+- A player with no extra equipment can only carry one normal equipable item.
+- Armor and inventory providers can add typed carried-item slots and magazine capacity without themselves occupying carried-item slots.
+- Backstrap-compatible items can be assigned to `BackStrapItem`; incompatible items are rejected.
+- Shootable and launcher items consume ammo/reserve data and cannot execute when the needed ammo bucket is empty.
+- Magazine reserve capacity is validated separately from carried item slots.
+- Armor can affect protection and future movement penalties without being treated as a carried usable item.
+- Every currently imaged modern weapon tier can be selected in `TestPlayerItemRoomLAN` and executes through the same item-use path.
+- Every currently imaged modern grenade can be selected in `TestPlayerItemRoomLAN` and executes through the same throwable path.
 - A thrown/grenade item can apply radius damage to players, props, and destructible walls through the shared damage backend.
 - The new item/action test scene can be launched directly without relying on `TestMapDestructionLogicLAN.tscn` as the active scene.
 - Item actions use exact aim at action time, not only the quantized estimated aim state.
+- Shootable weapons apply spread around exact aim using item accuracy stats, and sustained fire naturally becomes less accurate based on pushback versus recovery.
+- Shot inaccuracy recovers separately from movement inaccuracy. Movement penalty snaps worse instantly, then recovers by item-specific movement recovery when slowing down or stopping.
+- Local aiming shows an aim line and crosshair/circle derived from the same current accuracy value used for firing spread.
+- Crosshair/circle radius changes with projection distance and current accuracy, instead of using a fixed screen/world radius.
+- Gun aim indicators use item range with a readable display cap for long-range weapons that reach beyond the screen, and stop at sampled collision so hit/miss readability is clearer.
+- Throwable aim indicators use predicted collision or throw endpoint, with gamepad aim-vector strength scaling throw distance.
 - Dead players cannot use items until respawn.
 - The first item data model does not hardcode modern-only assumptions so medieval-style items can be added later.
 
 ## Keep In Mind
 
 - Do not build the full purchase menu first. Build working item actions first.
-- Keep the first item/action content pass modern-only. Use `docs/modern-item-content-plan.md` for the planned weapon, launcher, and grenade list.
-- Do not build the full inventory UI first. Add inventory validation after items exist.
+- Keep the first item/action content pass modern-only. The target is all currently imaged modern items, including each tier, before expanding into UI or future themes.
+- Do not build the full inventory UI first. Build data validation and a temporary test equipment UI first.
 - Keep magazine reserves separate from normal carried item slots.
 - Keep armor protection and inventory capacity separate: armor can provide protection, movement penalties, and slot/provider rules.
 - Spawn/respawn overlap-safe placement is still needed, but the next gameplay slice is player items/actions unless spawn blocking becomes a direct blocker.

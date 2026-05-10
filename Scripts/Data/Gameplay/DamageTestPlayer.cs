@@ -4,7 +4,6 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private static readonly Vector2 DefaultSize = new(12.0f, 12.0f);
     private const string FrontTexturePath = "res://Assets/Players/damage_test_player_front.svg";
     private const string BackTexturePath = "res://Assets/Players/damage_test_player_back.svg";
-    private const string WeaponTexturePath = "res://Assets/Items/Modern/Weapons/pistol_t1.svg";
     private const float BackFacingYThreshold = -0.5f;
 
     private Area2D _hitbox;
@@ -15,10 +14,14 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private bool _isAlive = true;
     private bool _hasLocalAimDirection;
     private bool _hasEstimatedAimDirection = true;
+    private bool _hasActionAimDirection;
     private Vector2 _localAimDirection = Vector2.Right;
     private Vector2 _estimatedAimDirection = Vector2.Right;
+    private Vector2 _actionAimDirection = Vector2.Right;
+    private float _actionAimSecondsRemaining;
     private float _bodyFacingScaleX = 1.0f;
     private bool _drawBackBody;
+    private Texture2D _heldTexture;
 
     public int GlobalId { get; private set; } = -1;
 
@@ -30,11 +33,34 @@ public partial class DamageTestPlayer : CharacterBody2D {
 
     public bool IsAlive => _isAlive;
 
+    public PlayerControlState ControlState { get; private set; } = PlayerControlState.Gameplay;
+
+    public bool CanProcessMovementInput => ControlState == PlayerControlState.Gameplay;
+
+    public bool CanProcessAimInput => ControlState == PlayerControlState.Gameplay;
+
+    public bool CanUseItems => ControlState == PlayerControlState.Gameplay;
+
+    public Vector2 DisplayAimDirection => _hasLocalAimDirection ? _localAimDirection : _estimatedAimDirection;
+
     public Rect2 WorldHitbox => new(GlobalPosition - (Size * 0.5f), Size);
 
     public override void _Ready() {
         EnsureNodes();
         UpdateLabel();
+    }
+
+    public override void _Process(double delta) {
+        if (!_hasActionAimDirection)
+            return;
+
+        _actionAimSecondsRemaining -= (float)delta;
+        if (_actionAimSecondsRemaining > 0.0f)
+            return;
+
+        _actionAimSecondsRemaining = 0.0f;
+        _hasActionAimDirection = false;
+        UpdateWeapon();
     }
 
     public override void _Draw() {
@@ -132,6 +158,30 @@ public partial class DamageTestPlayer : CharacterBody2D {
         UpdateWeapon();
     }
 
+    public void ShowActionAimDirection(Vector2 aimDirection, float seconds) {
+        if (!TryNormalizeAimDirection(aimDirection, out var normalizedAimDirection) || seconds <= 0.0f)
+            return;
+
+        _actionAimDirection = normalizedAimDirection;
+        _actionAimSecondsRemaining = seconds;
+        _hasActionAimDirection = true;
+        EnsureNodes();
+        UpdateWeapon();
+    }
+
+    public void SetHeldTexture(Texture2D heldTexture) {
+        _heldTexture = heldTexture;
+        EnsureNodes();
+        if (_weapon != null)
+            _weapon.Texture = _heldTexture;
+    }
+
+    public void SetControlState(PlayerControlState controlState) {
+        ControlState = controlState;
+        if (!CanProcessAimInput)
+            SetLocalAimDirection(Vector2.Zero, false);
+    }
+
     public void Respawn(Vector2 worldPosition) {
         Position = worldPosition;
         Health = CreateDefaultHealth();
@@ -180,7 +230,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
 
         _weapon = new Sprite2D {
             Name = "Weapon",
-            Texture = GD.Load<Texture2D>(WeaponTexturePath),
+            Texture = _heldTexture,
             ZIndex = 2,
         };
         AddChild(_weapon);
@@ -215,7 +265,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
         if (_weapon == null)
             return;
 
-        var aimDirection = _hasLocalAimDirection ? _localAimDirection : _estimatedAimDirection;
+        var aimDirection = _hasActionAimDirection ? _actionAimDirection : _hasLocalAimDirection ? _localAimDirection : _estimatedAimDirection;
         if (!TryNormalizeAimDirection(aimDirection, out aimDirection))
             aimDirection = Vector2.Right;
 

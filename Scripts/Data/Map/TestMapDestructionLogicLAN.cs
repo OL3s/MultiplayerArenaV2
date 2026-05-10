@@ -244,7 +244,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         AddFloorRectangle(new Rect2I(14, 7, 8, 3));
         AddFloorRectangle(new Rect2I(10, 12, 6, 5));
         _arenaMapData.ResetWallTiles();
-        RebuildDamageTestPlayersFromNetworkData();
+        ClearDamageTestPlayers();
         BuildMockProps();
         ApplyInitialWallDamage();
         RenderArenaWithCollision();
@@ -259,15 +259,6 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private void DamageWallUnderCursor() {
         var mousePosition = GetGlobalMousePosition();
-        var playerGlobalId = GetPlayerGlobalIdAtWorldPosition(mousePosition);
-        if (playerGlobalId >= 0) {
-            if (!DamagePlayer(playerGlobalId, _selectedDamageType, TestBulletDamage))
-                return;
-
-            ReplicatePlayerDamage(playerGlobalId, _selectedDamageType, TestBulletDamage);
-            return;
-        }
-
         var propIndex = GetPropIndexAtWorldPosition(mousePosition);
         if (propIndex >= 0) {
             if (!DamageProp(propIndex, _selectedDamageType, TestBulletDamage))
@@ -287,13 +278,12 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private void DamageWallsInExplosiveRadius() {
         var worldCenter = GetGlobalMousePosition();
-        var changedPlayers = DamagePlayersInWorldRadius(worldCenter, TestExplosiveRadius, _selectedDamageType, TestExplosiveDamage);
         var changedProps = DamagePropsInWorldRadius(worldCenter, TestExplosiveRadius, _selectedDamageType, TestExplosiveDamage);
         var centerTile = _arenaMapData.WorldToTile(worldCenter, TestTileSize);
         var tileRadius = Mathf.CeilToInt(TestExplosiveRadius / Mathf.Max(1, TestTileSize.X));
         var changedTiles = _arenaMapData.DamageWallsInRadius(centerTile, tileRadius, _selectedDamageType, TestExplosiveDamage);
 
-        if (changedTiles.Count == 0 && !changedProps && !changedPlayers)
+        if (changedTiles.Count == 0 && !changedProps)
             return;
 
         RenderArenaWithCollision();
@@ -776,7 +766,6 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     public void RpcResetMockArena() {
         PrintTestNetworkLog("RPC apply: reset mock arena.");
         BuildMockArena();
-        RespawnDamageTestPlayers();
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -968,7 +957,6 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     private void OnLobbyStateChanged() {
-        SyncDamageTestPlayersWithNetworkData();
         UpdateStatusLabel();
     }
 
@@ -985,7 +973,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return;
 
         _statusLabel.Text = CanApplyHostInput()
-            ? $"Peers connected: {GetConnectedPeerCount()}\nBiome: {GetCurrentWallBiome()}\nDamage type: {GetDamageTypeSelectionText()}\nPlayers: {GetPlayerHealthText()}"
+            ? $"Peers connected: {GetConnectedPeerCount()}\nBiome: {GetCurrentWallBiome()}\nDamage type: {GetDamageTypeSelectionText()}\nPlayers: disabled in destruction test. Use TestPlayerItemRoomLAN for player/item testing."
             : string.Empty;
     }
 

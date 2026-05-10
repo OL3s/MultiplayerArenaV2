@@ -286,6 +286,197 @@ Projectile data distinction:
 - It is the spawned projectile settings used by `PlayerItemShootable` and `PlayerItemProjectile`.
 - It should execute on collision, unlike a thrown item that may execute after a timer, when it rests, or when its thrown scene decides it has resolved.
 
+## Generic Runtime Item Scenes
+
+The first execution slice creates three reusable runtime scenes instead of one scene per item:
+
+- Generic bullet scene: used by shootable weapons such as pistols, SMGs, ARs, and rifles.
+- Generic thrown-item scene: used by hand-thrown items such as explosive, incendiary, and smoke grenades.
+- Generic launched-projectile scene: used by launcher weapons such as rocket launchers and grenade launchers.
+
+These scenes are data-driven from item/projectile resources. The carried item resource decides what scene/data to use; the runtime scene handles movement, collision, timing, and objective resolution.
+
+Current implementation notes:
+
+- `Scenes/Gameplay/Projectiles/GenericBullet.tscn` uses `GenericBullet.cs` for swept over-time bullet movement. It checks each physics segment from previous to next position, stores hit object ids and wall tile coordinates, and prevents duplicate damage when a target sits across multiple sweep segments.
+- `Scenes/Gameplay/Projectiles/GenericThrownItem.tscn` uses `GenericThrownItem.cs` for throw travel, visual up/down arc animation, a ground shadow, simple bounce handling against walls/props/players, fuse/rest execution, ground-impact activation through `PlayerItemThrowable.ActivateOnGroundImpact`, and objective resolution.
+- `Scenes/Gameplay/Projectiles/GenericLaunchedProjectile.tscn` uses `GenericLaunchedProjectile.cs` for launcher-style projectile movement and collision execution.
+- `PlayerProjectileData` now owns generic projectile profile fields such as runtime scene, texture, speed, range, width, color, lifetime, penetration, stop-on-hit behavior, damage, and collision objective.
+- Shared projectile profile resources live under `Assets/Projectiles/Data/` for the first modern bullet/projectile families.
+
+Execution rules:
+
+- Use exact aim at action time, not only quantized remote aim.
+- Apply current shot and movement inaccuracy from `PlayerItemAccuracyState` for shootable/projectile aim deviation.
+- Keep movement accuracy and shot inaccuracy readable through the existing aim indicator.
+- Route all damage through `DamageContainer -> HealthContainer` for players, props, and destructible walls.
+- Keep server-authoritative flow: clients request item use, host/server validates ownership, recovery, fire mode, ammo later, and then executes or replicates the result.
+- Keep spawned projectile/throwable visuals under `Assets/Projectiles/`, not `Assets/Items/`, when separate visuals are needed.
+
+## Weapon Accuracy And Handling Stats
+
+Shootable and projectile-launching items should own handling stats that control how closely fired projectiles follow the player's exact aim vector at action time.
+
+Implementation should treat these accuracy fields as spread/inaccuracy values: lower values are more accurate, higher values are less accurate. The item-use runtime should track separate shot and movement inaccuracy values per active/equipped item or per player-item state. Shot inaccuracy increases when the item is used and recovers by shot recovery. Movement inaccuracy snaps immediately when movement gets worse, then recovers by movement recovery when the player slows down or stops. Total current accuracy is base accuracy plus both runtime components.
+
+Planned stats:
+
+- `DefaultAccuracy`: the resting/base spread when standing still and fully recovered. Lower values mean shots come out closer to the aim direction.
+- `MovementAccuracy`: the added spread contribution from movement. It should scale from movement speed or movement strength, but not linearly across all cases.
+- `AccuracyPushback`: how much firing/using the item increases the current inaccuracy value.
+- `ShotAccuracyRecovery`: how quickly firing/use inaccuracy recovers after shot pushback.
+- `MovementAccuracyRecovery`: how quickly movement inaccuracy recovers when movement becomes less severe or stops.
+- `MaxAccuracyPushback` or `MaxInaccuracy`: optional later safety cap if a weapon needs one, but the first balancing target is self-stabilizing spread from pushback versus recovery.
+
+Movement accuracy should use the player's current movement strength/speed as an input. Walking should barely affect accuracy, while normal/full-speed movement should have a stronger effect. This should not be a simple linear multiplier from `0` to full movement. Use a curve-like response or thresholded mapping so low movement/walking remains readable and full-speed strafing becomes meaningfully less accurate.
+
+Conceptual model:
+
+```text
+movementInaccuracy = MovementAccuracy * MovementAccuracyResponse(currentMovementSpeed)
+if movementInaccuracy is worse than currentMovementInaccuracy, snap currentMovementInaccuracy up immediately
+if movementInaccuracy is better than currentMovementInaccuracy, recover down non-linearly by MovementAccuracyRecovery and slow near target
+shotInaccuracy += AccuracyPushback when firing
+shotInaccuracy recovers toward 0 by ShotAccuracyRecovery, slowing near 0
+currentInaccuracy = DefaultAccuracy + shotInaccuracy + movementInaccuracy
+shotDirection = aimDirection plus random spread inside currentInaccuracy
+```
+
+This model should balance sustained fire by itself: a weapon with high pushback and low recovery becomes inaccurate during spam, while a weapon with low pushback or fast recovery remains tighter. Burst timing matters because waiting lets the current inaccuracy recover toward the movement-adjusted base value.
+
+Shot inaccuracy and movement inaccuracy are intentionally separate. Movement inaccuracy gets worse instantly from the current movement state so high-movement weapons are punished immediately instead of slowly building up, but movement inaccuracy recovers non-linearly when going from moving to walking or standing still. Shot and movement recovery should not feel linear: the farther the runtime inaccuracy component is from its target, the faster it can recover, but it should slow as it approaches the target/resting value.
+
+Movement recovery should support fast arena pacing. Current modern tuning makes pistols recover movement penalty fastest, SMGs next, then ARs and rifles close behind, while heavier launchers recover more slowly. ARs and rifles also use higher shot recovery than the first-pass values so they can re-center quickly between controlled shots.
+
+## Use Recovery And Fire Modes
+
+All usable/equipable items should expose generic use timing and fire-mode data so shootable weapons, launchers, throwables, melee, instant-use items, and future non-modern items can share one execution model.
+
+Planned generic fields on `PlayerEquipable`:
+
+- `RecoverySeconds`: wait time before the item can be used again after a use resolves.
+- `AvailableFireModes`: Godot array of supported `PlayerItemFireMode` values for this item.
+- `BurstMaxUseCount`: maximum number of uses allowed during one burst hold, currently defaulting to `3`.
+
+Current fire modes:
+
+- `Solo`: one use per press. The player must manually press again for each shot/use.
+- `Auto`: hold to repeatedly use whenever `RecoverySeconds` allows.
+- `Burst`: modern hold-length burst. Holding can fire from `1` up to `BurstMaxUseCount` uses depending on hold duration and recovery timing, but it does not automatically force all burst shots. After the burst ends or reaches its max count, the player must release and press again to start another burst.
+
+Burst is intentionally not the old fixed three-round burst where one tap always fires three rounds. It behaves like a controlled middle ground between solo and auto: hold for up to three, release early for fewer, then re-press to start a new burst window.
+
+Current modern fire-mode tuning:
+
+- Pistols, rifles, launchers, and grenades are `Solo` only for now.
+- SMGs support `Solo` and `Auto`.
+- ARs support `Solo`, `Burst`, and `Auto`.
+
+First execution implementation should keep selected fire mode as runtime state, not resource state. The resource owns which modes are available; the player/runtime item state owns which mode is currently selected.
+
+Exact action aim still matters. The shot or throw command should send/use the exact aim vector at use time, not only the quantized estimated aim used for remote display. Accuracy spread is applied around that exact vector.
+
+First implementation notes:
+
+- Handling fields now live on `PlayerEquipable`: `DefaultAccuracy`, `MovementAccuracy`, `AccuracyPushback`, `ShotAccuracyRecovery`, `MovementAccuracyRecovery`, and `MaxInaccuracy`.
+- Runtime current accuracy is tracked by `PlayerItemAccuracyState`, separate from static item resource data.
+- `PlayerItemAccuracyState` stores `CurrentShotInaccuracy` and `CurrentMovementInaccuracy`; `CurrentAccuracy` is calculated from base accuracy plus both runtime components.
+- Modern item tuning is stored in `.tres` resources so each weapon tier can differ by pushback, shot recovery, movement recovery, base accuracy, movement accuracy, magazine size, fire rate, cost, and weight.
+- Start with weapon/projectile accuracy. Throwable grenades can use separate throw variance later if needed, but they should not block the first shootable implementation.
+- Keep stat names generic enough for non-modern weapons later. A bow, crossbow, wand, rifle, and launcher can all use the same accuracy/pushback/recovery concepts with different tuning.
+
+## Aim Line And Dynamic Crosshair
+
+Players should get a readable aim indicator while aiming. This should be driven by the same dynamic accuracy state used for item actions, not by separate UI-only math.
+
+Planned aim visuals:
+
+- A transparent line from the player in the current exact aim direction.
+- A dotted line from the player in the current exact aim direction.
+- Both line styles may be shown together if it reads best during testing.
+- A crosshair or circle at a projected point along the aim direction.
+- The circle/crosshair radius should represent the current spread at that projected distance.
+- The line and crosshair projection distance should be based on the selected item's useful range, with debug/UI caps where needed.
+
+The current accuracy value is dynamic runtime state. It should account for all relevant actions and recovery, including base/default accuracy, movement accuracy response, firing pushback, recent item use, and recovery over time. The UI should display this current value so players can see when a weapon has become inaccurate from movement or sustained fire and when it recovers.
+
+The visible radius must account for distance because angular spread gets wider farther away from the player. A close projected point should show a smaller circle for the same current accuracy than a far projected point.
+
+Conceptual crosshair model:
+
+```text
+aimDistance = GetAimProjectionDistance(currentItem, exactAimDirection, aimStrength)
+aimPoint = playerPosition + exactAimDirection * aimDistance
+spreadRadius = SpreadRadiusAtDistance(currentAccuracy, aimDistance)
+draw aim line from playerPosition toward aimPoint
+draw crosshair/circle at aimPoint with spreadRadius
+```
+
+If `currentAccuracy` is stored as an angle/spread cone, radius can be calculated from distance:
+
+```text
+spreadRadius = tan(currentAccuracyAngle) * aimDistance
+```
+
+If `currentAccuracy` is stored as an arcade spread unit instead of radians/degrees, implementation should still convert it through a single helper so gameplay spread and UI spread remain consistent. Do not duplicate separate formulas for bullet spread and crosshair radius.
+
+First implementation notes:
+
+- `PlayerItemAccuracyState` owns `CurrentAccuracy`, `CurrentShotInaccuracy`, and `CurrentMovementInaccuracy`. Static item data owns `DefaultAccuracy`, `MovementAccuracy`, `AccuracyPushback`, `ShotAccuracyRecovery`, and `MovementAccuracyRecovery`.
+- The crosshair should read `CurrentAccuracy` after all runtime changes for the current frame/tick.
+- `TestPlayerItemRoomLAN` has a first debug `PlayerAimIndicator` implementation: transparent line, dotted line, and circle for the local player using the currently selected item.
+- The local owned player uses exact local aim for the crosshair. Remote players can use replicated estimated aim if remote aim indicators are ever shown.
+- Aim projection distance is item-aware from the start. Pistols, rifles, launchers, and throwables do not all project to the same distance.
+- Keep the visual implementation independent from final HUD styling. The first goal is validating the accuracy math and player readability.
+
+## Range-Aware Aim Projection
+
+Aim indicators should use item range, but not every item should display range the same way.
+
+Gun and long-range projectile behavior:
+
+- Guns and high-range projectile weapons can have effective ranges beyond the visible screen.
+- Their aim line should still use the weapon's range for gameplay, but the visible debug/aim line should have a display cap so it remains readable.
+- The aim line should stop at the first sampled collision within the displayed range so players can tell whether the shot line intersects an object or passes around it.
+- The crosshair/circle should sit at the displayed aim projection point or first collision point, not at an unreachable off-screen point.
+- The displayed point is a UI projection point; actual projectile ray/projectile simulation can still use the full gameplay range.
+- Rifles can therefore have longer displayed lines than pistols, but both can be capped before they become useless visually.
+
+Throwable behavior:
+
+- Throwable aim lines should represent throw reach, not gun range.
+- The line should go toward the predicted collision point when the thrown object would hit a wall/prop/player before reaching full throw distance.
+- If there is no early collision, the line should extend to the throw range implied by the current throw strength.
+- The crosshair/circle should sit at the predicted landing/collision point or at the current throw-range endpoint.
+- Throwables can later use a curved/arc indicator if needed, but the first implementation can use a straight projected line while still respecting collision/range.
+
+Aim strength and throw distance:
+
+- The current input model already has aim vector strength in addition to direction.
+- For keyboard/mouse, aim strength can default to full because mouse aim is distance-independent in the current test scene.
+- For gamepad, right-stick length can drive throw strength.
+- Throwables should use aim strength to scale throw distance/speed between a minimum useful throw and maximum throw range.
+- Low aim strength should produce a shorter throw. Full aim strength should use the item's maximum throw range/speed.
+- This gives controller players a natural way to soft-throw grenades without adding a separate charge button.
+
+Planned range fields:
+
+- `Range`: gameplay reach for guns/projectiles, or maximum throw reach for throwables.
+- `AimDisplayRange`: optional display cap for long-range items. If zero, use `Range`.
+- `AimMoveSpeedMultiplier`: movement speed multiplier while actively aiming with the item.
+- `MinThrowRange`: minimum useful throwable distance when aim strength is low.
+- `ThrowStrengthAffectsRange`: whether aim strength changes throw distance for that item.
+
+Current implementation note:
+
+- `Range` and `AimDisplayRange` live on `PlayerEquipable`.
+- `AimMoveSpeedMultiplier` lives on `PlayerEquipable`; current modern tuning keeps pistols at `1.0`, SMGs near full speed, ARs slower, and rifles/launchers slowest while aiming.
+- `MinThrowRange` and `ThrowStrengthAffectsRange` live on `PlayerItemThrowable`.
+- `TestPlayerItemRoomLAN` samples straight aim lines for guns, launchers, and throwables against walls, the center prop, and other players for the first collision-aware projection pass.
+- The item room test now uses real item-use input instead of temporary spacebar pushback: left mouse for keyboard/mouse players and Xbox right trigger for controller players.
+
+Range projection helpers should be shared by crosshair display and item-use preview where possible. Do not build a separate one-off range calculation inside the renderer if gameplay will need the same prediction later.
+
 ## Theme Support
 
 The system should support multiple item themes through shared base structures, but the first playable content pass is modern-only.
@@ -350,7 +541,7 @@ Recommended first slice:
 - Add armor and inventory resources that provide typed slots.
 - Add throwable, shootable, projectile, melee, instant, and objective resources.
 - Add purchase-mode validation that checks money, slot availability, and weight.
-- Add modern test items first.
+- Add every currently imaged modern test item first: all pistol, SMG, AR, rifle, launcher, and grenade tiers/variants listed in `docs/modern-item-content-plan.md`.
 - Add future non-modern test items later, after the modern item/action slice is playable, to prove the base model is theme-safe.
 
 Next-session implementation focus is tracked in `docs/focuspoints.md`. That file should be treated as the short checklist for turning this plan into working game code and a dedicated test scene.

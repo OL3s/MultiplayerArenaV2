@@ -20,6 +20,14 @@ The carried item and the spawned projectile are separate concepts.
 - A hand grenade item belongs under `Assets/Items/Modern/Throwables/`.
 - The thrown grenade world body belongs under `Assets/Projectiles/Grenades/` if the held item visual is not reused.
 
+The next implementation slice should create shared runtime scenes for the execution side:
+
+- Generic bullet scene for pistol, SMG, AR, and rifle fire.
+- Generic thrown-item scene for hand grenades.
+- Generic launched-projectile scene for rockets and launched grenades.
+
+Modern item `.tres` resources should reference generic execution scenes or projectile data rather than each item needing its own bespoke runtime scene.
+
 ## Generated Modern SVG Assets
 
 The first SVG pass creates carried item visuals only. It does not implement item data, firing behavior, projectile scenes, damage, inventory, or purchase logic.
@@ -49,6 +57,42 @@ Throwable SVGs:
 - `Assets/Items/Modern/Throwables/nade_explosive.svg`
 - `Assets/Items/Modern/Throwables/nade_incendiary.svg`
 - `Assets/Items/Modern/Throwables/nade_smoke.svg`
+
+## Modern Item Data Resources
+
+The first item data pass stores each modern carried item as a `.tres` resource beside its held SVG visual.
+
+Weapon resources:
+
+- `Assets/Items/Modern/Weapons/pistol_t1.tres`
+- `Assets/Items/Modern/Weapons/pistol_t2.tres`
+- `Assets/Items/Modern/Weapons/pistol_t3.tres`
+- `Assets/Items/Modern/Weapons/smg_t1.tres`
+- `Assets/Items/Modern/Weapons/smg_t2.tres`
+- `Assets/Items/Modern/Weapons/smg_t3.tres`
+- `Assets/Items/Modern/Weapons/ar_t1.tres`
+- `Assets/Items/Modern/Weapons/ar_t2.tres`
+- `Assets/Items/Modern/Weapons/ar_t3.tres`
+- `Assets/Items/Modern/Weapons/rifle_t1.tres`
+- `Assets/Items/Modern/Weapons/rifle_t2.tres`
+- `Assets/Items/Modern/Weapons/rifle_t3.tres`
+- `Assets/Items/Modern/Weapons/rocketlauncher.tres`
+- `Assets/Items/Modern/Weapons/grenadelauncher_t1.tres`
+- `Assets/Items/Modern/Weapons/grenadelauncher_t2.tres`
+
+Throwable resources:
+
+- `Assets/Items/Modern/Throwables/nade_explosive.tres`
+- `Assets/Items/Modern/Throwables/nade_incendiary.tres`
+- `Assets/Items/Modern/Throwables/nade_smoke.tres`
+
+These resources currently define item id, display name, theme, cost, weight, held texture, recovery time, available fire modes, burst max use count, range/display range, aim movement multiplier, accuracy handling stats, magazine/fire-rate values for weapons/launchers, and throw range values for grenades. Projectile scene/data references and real firing/throw execution are still follow-up work.
+
+Current modern fire-mode resource tuning:
+
+- Pistols, rifles, launchers, and grenades: `Solo`.
+- SMGs: `Solo`, `Auto`.
+- ARs: `Solo`, `Burst`, `Auto`.
 
 ## Planned Modern Weapons
 
@@ -88,11 +132,15 @@ Launcher weapons:
 
 ## First Implementation Bias
 
-Implement the smallest playable vertical slice first, then expand across tiers.
+Implement the smallest playable vertical slice first, then expand across every currently imaged modern item. The first complete modern item pass should include all weapon tiers and grenade variants already represented by SVGs.
+
+The full `.tres` item set now includes the weapon handling and range fields described in `docs/player-items-inventory-plan.md`: default accuracy, movement accuracy, accuracy pushback, shot accuracy recovery, movement accuracy recovery, gameplay range, and aim display range. Those stats are required tuning data for modern shootable weapons and launchers, not a later polish pass.
+
+Throwable resources should also include throw range data. Gamepad aim-vector strength should be able to scale throw distance, while keyboard/mouse can default to full throw strength in the current test scene.
 
 Suggested order:
 
 - `Pistol-T1` as the first shootable weapon.
 - `NadeExplosive` as the first throwable area-damage item.
 - `Rocketlauncher` or `Grenadelauncher-T1` after projectile spawning is ready.
-- Remaining tiers after the common item, projectile, reload, cost, weight, and carry-capacity data paths exist.
+- Remaining currently imaged items after the common item, projectile, reload, cost, weight, and carry-capacity data paths exist: all pistol, SMG, AR, rifle, launcher, and grenade tiers/variants listed above.

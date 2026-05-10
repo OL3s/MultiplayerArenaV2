@@ -17,6 +17,8 @@ This document tracks project asset folder rules so temporary and production asse
 
 Use `Assets/Items/` for the thing a player owns, carries, equips, buys, or holds.
 
+Store carried item `.tres` data resources beside their held-item visuals when they describe that carried item directly. For example, `pistol_t1.tres` belongs beside `pistol_t1.svg` because both represent the player-owned pistol item.
+
 Use `Assets/Projectiles/` for the thing spawned into the world by using an item.
 
 Examples:
@@ -63,6 +65,8 @@ Modern throwables:
 - `Assets/Items/Modern/Throwables/nade_explosive.svg`
 - `Assets/Items/Modern/Throwables/nade_incendiary.svg`
 - `Assets/Items/Modern/Throwables/nade_smoke.svg`
+
+Modern item data resources use matching filenames beside these SVGs, such as `Assets/Items/Modern/Weapons/pistol_t1.tres` and `Assets/Items/Modern/Throwables/nade_explosive.tres`.
 
 ## Current Projectile Subfolders
 

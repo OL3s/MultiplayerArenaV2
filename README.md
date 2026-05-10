@@ -50,16 +50,22 @@ Use this as the documentation dictionary:
 | [Focus Points](docs/focuspoints.md) | Next-session implementation focus and short working checklist. |
 | [SVG Input Icon Generation](docs/svg-input-icon-generation.md) | SVG input-icon generation approach and why button labels are generated as vector geometry instead of SVG `<text>`. |
 
-## Current Test Entry Point
+## Current Test Entry Points
 
-The main active runtime test bed is `Scenes/Tests/TestMapDestructionLogicLAN.tscn`.
+Use separate scenes for destruction testing and player/item testing.
 
-Start one host and one client from the same terminal:
+Destruction LAN host/client:
 
 ```bash
 godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host & \
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700 & \
-disown
+godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+```
+
+Player/item LAN host/client:
+
+```bash
+godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role host & \
+godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role client --address 127.0.0.1 --port 7700
 ```
 
 Keep detailed test scene notes in `docs/test-scenes.md`.
@@ -109,10 +115,10 @@ Open the project in Godot:
 godot --path .
 ```
 
-Run the current LAN test scene directly:
+Run the player/item LAN test scene directly:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host
+godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role host
 ```
 
 Validate startup without opening the editor window:

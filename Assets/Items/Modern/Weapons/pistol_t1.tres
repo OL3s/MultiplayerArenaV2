@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="PlayerItemShootable" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/Gameplay/PlayerItemShootable.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/Items/Modern/Weapons/pistol_t1.svg" id="2_texture"]
+[ext_resource type="Resource" path="res://Assets/Projectiles/Data/bullet_pistol.tres" id="3_projectile"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "pistol_t1"
+DisplayName = "Pistol-T1"
+Theme = 1
+Cost = 200
+Weight = 1.1
+HeldTexture = ExtResource("2_texture")
+RecoverySeconds = 0.24
+AvailableFireModes = Array[int]([0])
+BurstMaxUseCount = 3
+Range = 520.0
+AimDisplayRange = 180.0
+AimMoveSpeedMultiplier = 1.0
+DefaultAccuracy = 0.035
+MovementAccuracy = 0.055
+AccuracyPushback = 0.018
+ShotAccuracyRecovery = 0.18
+MovementAccuracyRecovery = 0.90
+MaxInaccuracy = 0.22
+Projectile = ExtResource("3_projectile")
+MagazineSize = 12
+ShotsPerSecond = 4.2

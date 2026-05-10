@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="PlayerItemShootable" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/Gameplay/PlayerItemShootable.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/Items/Modern/Weapons/ar_t2.svg" id="2_texture"]
+[ext_resource type="Resource" path="res://Assets/Projectiles/Data/bullet_ar.tres" id="3_projectile"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "ar_t2"
+DisplayName = "AR-T2"
+Theme = 1
+Cost = 1350
+Weight = 3.4
+HeldTexture = ExtResource("2_texture")
+RecoverySeconds = 0.12
+AvailableFireModes = Array[int]([0, 1, 2])
+BurstMaxUseCount = 3
+Range = 820.0
+AimDisplayRange = 245.0
+AimMoveSpeedMultiplier = 0.88
+DefaultAccuracy = 0.028
+MovementAccuracy = 0.09
+AccuracyPushback = 0.018
+ShotAccuracyRecovery = 0.28
+MovementAccuracyRecovery = 0.68
+MaxInaccuracy = 0.24
+Projectile = ExtResource("3_projectile")
+MagazineSize = 30
+ShotsPerSecond = 8.2

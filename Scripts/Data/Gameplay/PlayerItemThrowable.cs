@@ -13,6 +13,12 @@ public partial class PlayerItemThrowable : PlayerEquipable {
     public float ThrowSpeed { get; set; } = 600.0f;
 
     [Export]
+    public float MinThrowRange { get; set; } = 48.0f;
+
+    [Export]
+    public bool ThrowStrengthAffectsRange { get; set; } = true;
+
+    [Export]
     public float FuseSeconds { get; set; } = 2.0f;
 
     [Export]
@@ -20,4 +26,7 @@ public partial class PlayerItemThrowable : PlayerEquipable {
 
     [Export]
     public bool ExecuteObjectiveOnRest { get; set; } = true;
+
+    [Export]
+    public bool ActivateOnGroundImpact { get; set; }
 }
