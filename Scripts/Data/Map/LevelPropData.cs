@@ -15,6 +15,9 @@ public partial class LevelPropData : Resource {
     public Vector2 Size { get; set; } = new(32.0f, 32.0f);
 
     [Export]
+    public int DamageStageCount { get; set; } = 3;
+
+    [Export]
     public HealthContainer Health { get; set; } = new();
 
     public void Configure(LevelPropType propType) {

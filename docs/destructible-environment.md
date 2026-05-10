@@ -71,9 +71,10 @@ private readonly Dictionary<Vector2I, WallDamageData> _hitWallTiles = new();
 - `LevelPropData` defines prop type, visual path, hitbox size, health, and armor.
 - `LevelProp` is the temporary runtime prop node used in test scenes.
 - `LevelPropType` currently supports `Barrel`, `Rock`, and `Tree`.
-- Prop SVG assets live in `Assets/Props/`.
+- Prop SVG assets live in `Assets/Props/` and are horizontal three-frame damage atlases: perfect, touched, and close-to-broken.
 - Barrel and rock are `16x16`; tree is `16x32`.
 - Props use the same `HealthContainer` and `DamageContainer` path as players and walls.
+- Prop damage stages use the same health-ratio thresholds as wall damage overlays: perfect above or at 90% health, touched below 90%, and close-to-broken below 50%.
 
 ## Rendering Structure
 

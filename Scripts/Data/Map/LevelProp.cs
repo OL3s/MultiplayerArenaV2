@@ -65,7 +65,7 @@ public partial class LevelProp : StaticBody2D {
             return true;
         }
 
-        Modulate = GetDamageTint();
+        UpdateDamageStage();
         return true;
     }
 
@@ -96,18 +96,32 @@ public partial class LevelProp : StaticBody2D {
 
         if (_sprite.Texture != null) {
             var textureSize = _sprite.Texture.GetSize();
-            if (textureSize.X > 0.0f && textureSize.Y > 0.0f)
-                _sprite.Scale = Data.Size / textureSize;
+            _sprite.Hframes = Mathf.Max(Data.DamageStageCount, 1);
+            _sprite.Vframes = 1;
+            var frameSize = new Vector2(textureSize.X / _sprite.Hframes, textureSize.Y);
+            if (frameSize.X > 0.0f && frameSize.Y > 0.0f)
+                _sprite.Scale = Data.Size / frameSize;
         }
 
+        UpdateDamageStage();
         _collisionShape.Shape = new CircleShape2D { Radius = CollisionRadius };
     }
 
-    private Color GetDamageTint() {
+    private void UpdateDamageStage() {
+        if (_sprite == null || Data?.Health == null)
+            return;
+
+        _sprite.Frame = Mathf.Clamp(GetDamageStage(), 0, Mathf.Max(_sprite.Hframes - 1, 0));
+    }
+
+    private int GetDamageStage() {
         var healthRatio = Data.Health.MaxHealth <= 0
             ? 0.0f
             : Data.Health.CurrentHealth / (float)Data.Health.MaxHealth;
 
-        return healthRatio < 0.5f ? new Color(0.75f, 0.75f, 0.75f) : Colors.White;
+        if (healthRatio < 0.5f)
+            return 2;
+
+        return healthRatio < 0.9f ? 1 : 0;
     }
 }

@@ -75,6 +75,16 @@ Modern item data resources use matching filenames beside these SVGs, such as `As
 - `Assets/Projectiles/Arrows/`: arrows, bolts, and similar physical shots.
 - `Assets/Projectiles/Grenades/`: spawned thrown grenades or grenade-like world bodies.
 
+## Prop Damage Atlases
+
+Current prop SVGs in `Assets/Props/` are horizontal three-frame damage atlases. Each atlas uses the prop's intended in-game frame size repeated three times across the width:
+
+- Frame `0`: perfect/undamaged.
+- Frame `1`: touched/damaged, used below 90% health.
+- Frame `2`: close-to-broken, used below 50% health.
+
+The runtime prop collision size still comes from `LevelPropData.Size`; visual damage frames should not change prop collision unless gameplay rules intentionally change later.
+
 ## SVG Rules
 
 - Avoid SVG `<text>` for Godot-imported visuals, especially labels and icons.

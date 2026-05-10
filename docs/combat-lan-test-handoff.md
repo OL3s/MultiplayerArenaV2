@@ -182,6 +182,8 @@ Current prop types:
 
 Props use `HealthContainer` and `ArmorResource` directly. They should follow the same combat path as players and walls.
 
+Prop visuals use three-frame horizontal damage atlases in `Assets/Props/`: perfect, touched, and close-to-broken. `LevelProp` selects the frame from current health ratio using wall-style thresholds: no damage frame above or at 90%, touched below 90%, and close-to-broken below 50%.
+
 ## Next Work: Player Items And Actions
 
 The current runtime model is ready for player item/action work in the LAN test scene.
