@@ -21,9 +21,16 @@ public abstract partial class PlayerItem : Resource {
     public Texture2D HeldTexture { get; set; }
 
     [Export]
+    public Texture2D ShowcaseTexture { get; set; }
+
+    [Export]
     public Godot.Collections.Array<PlayerItemSlotType> ContainerTypes { get; set; } = new();
 
     public bool FitsContainerType(PlayerItemSlotType slotType) {
         return slotType == PlayerItemSlotType.Generic || ContainerTypes.Contains(slotType);
+    }
+
+    public Texture2D GetShowcaseTexture() {
+        return ShowcaseTexture ?? HeldTexture;
     }
 }

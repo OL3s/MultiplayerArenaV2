@@ -23,6 +23,8 @@ On PC, supported local lobby setups should include:
 
 Local lobby slots should be stored as `LocalPlayerData` resources inside `LocalLobbyData`. This keeps local input ownership separate from online player replication and makes it possible for one peer/device to request several in-game players.
 
+In-match local player HUD should follow the same model. UI panels should be created per local player on the current device, up to 4 panels, rather than per network peer. Each panel should use `PlayerData.GlobalId` for runtime gameplay lookup and `PlayerData.LocalId` for local layout/input identity.
+
 ## Identity Rules
 
 - `LocalId` is the local player number on one device, usually matching the local lobby slot: `0`, `1`, `2`, or `3`.

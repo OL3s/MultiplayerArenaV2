@@ -9,6 +9,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private Area2D _hitbox;
     private CollisionShape2D _collisionShape;
     private Sprite2D _bodySprite;
+    private Sprite2D _armorSprite;
     private Label _label;
     private Sprite2D _weapon;
     private bool _isAlive = true;
@@ -22,6 +23,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private float _bodyFacingScaleX = 1.0f;
     private bool _drawBackBody;
     private Texture2D _heldTexture;
+    private Texture2D _armorTexture;
 
     public int GlobalId { get; private set; } = -1;
 
@@ -176,6 +178,16 @@ public partial class DamageTestPlayer : CharacterBody2D {
             _weapon.Texture = _heldTexture;
     }
 
+    public void SetArmorTexture(Texture2D armorTexture) {
+        _armorTexture = armorTexture;
+        EnsureNodes();
+        if (_armorSprite == null)
+            return;
+
+        _armorSprite.Texture = _armorTexture;
+        _armorSprite.Visible = _isAlive && _armorTexture != null;
+    }
+
     public void SetControlState(PlayerControlState controlState) {
         ControlState = controlState;
         if (!CanProcessAimInput)
@@ -218,6 +230,14 @@ public partial class DamageTestPlayer : CharacterBody2D {
             Texture = GD.Load<Texture2D>(FrontTexturePath),
         };
         AddChild(_bodySprite);
+
+        _armorSprite = new Sprite2D {
+            Name = "ArmorSprite",
+            Texture = _armorTexture,
+            ZIndex = 1,
+            Visible = _armorTexture != null,
+        };
+        AddChild(_armorSprite);
         UpdateBodySprite();
 
         _label = new Label {
@@ -259,6 +279,11 @@ public partial class DamageTestPlayer : CharacterBody2D {
             _bodySprite.Visible = true;
             _bodySprite.Modulate = alive ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
         }
+
+        if (_armorSprite != null) {
+            _armorSprite.Visible = alive && _armorTexture != null;
+            _armorSprite.Modulate = alive ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
+        }
     }
 
     private void UpdateWeapon() {
@@ -298,6 +323,8 @@ public partial class DamageTestPlayer : CharacterBody2D {
 
         _bodySprite.Texture = GD.Load<Texture2D>(_drawBackBody ? BackTexturePath : FrontTexturePath);
         _bodySprite.Scale = new Vector2(_bodyFacingScaleX, 1.0f);
+        if (_armorSprite != null)
+            _armorSprite.Scale = _bodySprite.Scale;
     }
 
     private static bool TryNormalizeAimDirection(Vector2 aimDirection, out Vector2 normalizedAimDirection) {

@@ -45,6 +45,7 @@ Use this as the documentation dictionary:
 | [Test Scenes](docs/test-scenes.md) | Current test scenes, how to launch them, controls, test-specific notes, and runtime logging conventions. |
 | [Combat LAN Test Handoff](docs/combat-lan-test-handoff.md) | Current combat/LAN handoff for the shared damage backend, LAN damage-test player runtime, and immediate player control/action context. |
 | [Player Items And Inventory Plan](docs/player-items-inventory-plan.md) | Planned player item, inventory, weight, backstrap, magazine reserve, theme, and purchase-mode model. |
+| [Player HUD UI Plan](docs/player-hud-ui-plan.md) | Planned local player stats HUD, reusable player panel scene, equipment/ammo/armor display, and split-screen UI scaling rules. |
 | [Modern Item Content Plan](docs/modern-item-content-plan.md) | First modern-only item content list, including planned weapon tiers, launchers, and grenades. |
 | [Asset Organization](docs/asset-organization.md) | Asset folder ownership rules, including item versus projectile art placement. |
 | [Focus Points](docs/focuspoints.md) | Next-session implementation focus and short working checklist. |

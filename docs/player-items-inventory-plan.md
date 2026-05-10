@@ -73,9 +73,17 @@ Names can change when implementation starts, but the system should keep item ide
 
 The current implementation keeps `PlayerItem` and `PlayerEquipable` abstract. Concrete category resources like `PlayerItemThrowable`, `PlayerItemShootable`, `PlayerItemProjectile`, `PlayerItemMelee`, `PlayerItemInstant`, `PlayerArmor`, and `PlayerInventoryBag` can be created directly as `.tres` resources.
 
+Every item resource should support separate visual roles where relevant: a showcase/presentation image for store, buy-wheel, inventory, debug menu, tooltip, and item selection UI, plus an in-use image for gameplay. In-use images are held weapon sprites, throwable hand sprites, armor overlays, visible backpack/strap attachments, or other runtime visuals. Showcase images can be larger and clearer because they are item icons rather than gameplay-scale sprites.
+
 ## Armor And Inventory Providers
 
 The player should have at most one equipped armor item. Armor is not only protection; it can also provide inventory capacity or attachment points.
+
+Armor follows the general item visual split. Its in-use visual is an overlay rendered on top of the base player body. The player body sprite stays as the root/base visual, and the equipped armor supplies an armor texture that is placed above it at the same origin so it visually overrides the body where the armor image has opaque pixels. The first implementation only needs two modern armor overlays, `light_armor.svg` and `heavy_armor.svg`, both sized to overlap the current 12x12 test player body.
+
+Armor should also expose a showcase/presentation image for store, inventory, buy-wheel, debug menu, and tooltip UI. This image can be larger and more readable than the equipped overlay because it represents the item itself, not the pixels placed on top of the player body. The first modern presentation images are `light_armor_store.svg` and `heavy_armor_store.svg`.
+
+The armor overlay should be driven by the equipped `PlayerArmor` resource rather than by hardcoded player-body variants. This keeps player identity/body art separate from equipment art, lets armor change at runtime, and avoids creating a separate full player sprite for every armor combination.
 
 Examples:
 

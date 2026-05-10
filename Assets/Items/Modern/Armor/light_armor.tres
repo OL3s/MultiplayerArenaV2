@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PlayerArmor" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Data/Gameplay/PlayerArmor.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/Items/Modern/Armor/light_armor.svg" id="2_overlay"]
+[ext_resource type="Texture2D" path="res://Assets/Items/Modern/Armor/light_armor_store.svg" id="3_showcase"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "light_armor"
+DisplayName = "Light Armor"
+Theme = 1
+Cost = 300
+Weight = 2.5
+HeldTexture = ExtResource("2_overlay")
+ShowcaseTexture = ExtResource("3_showcase")

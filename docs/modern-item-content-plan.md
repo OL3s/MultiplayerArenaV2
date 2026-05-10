@@ -30,11 +30,16 @@ Modern item `.tres` resources should reference generic execution scenes or proje
 
 ## Generated Modern SVG Assets
 
-The first SVG pass creates carried item visuals only. It does not implement item data, firing behavior, projectile scenes, damage, inventory, or purchase logic.
+The first SVG pass creates carried item in-use visuals only. It does not implement item data, firing behavior, projectile scenes, damage, inventory, or purchase logic.
 
-The SVG files use larger `viewBox` values for clean vector drawing, but their `width` and `height` are set to approximate in-game pixel sizes so Godot imports them at player-scale dimensions.
+Modern items should have two SVG visual roles:
 
-Weapon SVGs:
+- In-use visual: the gameplay-scale image used when the item is held, equipped, worn, thrown from the hand, or otherwise visible during play.
+- Showcase visual: the readable UI image used in store, buy-wheel, inventory, debug menu, tooltip, and item selection UI.
+
+The existing weapon and throwable SVG files are currently in-use visuals. Their `width` and `height` are set to approximate in-game pixel sizes so Godot imports them at player-scale dimensions. Future showcase SVGs should be added separately, preferably with a `_showcase.svg` suffix, instead of scaling these tiny held visuals up for UI. Armor already has first-pass in-use overlays plus separate store/presentation images.
+
+Weapon in-use SVGs:
 
 - `Assets/Items/Modern/Weapons/pistol_t1.svg`
 - `Assets/Items/Modern/Weapons/pistol_t2.svg`
@@ -52,7 +57,7 @@ Weapon SVGs:
 - `Assets/Items/Modern/Weapons/grenadelauncher_t1.svg`
 - `Assets/Items/Modern/Weapons/grenadelauncher_t2.svg`
 
-Throwable SVGs:
+Throwable in-use SVGs:
 
 - `Assets/Items/Modern/Throwables/nade_explosive.svg`
 - `Assets/Items/Modern/Throwables/nade_incendiary.svg`
@@ -60,7 +65,7 @@ Throwable SVGs:
 
 ## Modern Item Data Resources
 
-The first item data pass stores each modern carried item as a `.tres` resource beside its held SVG visual.
+The first item data pass stores each modern carried item as a `.tres` resource beside its item SVG visuals. Item resources should eventually reference both the in-use visual and the showcase visual where UI needs a readable item image.
 
 Weapon resources:
 
@@ -86,7 +91,7 @@ Throwable resources:
 - `Assets/Items/Modern/Throwables/nade_incendiary.tres`
 - `Assets/Items/Modern/Throwables/nade_smoke.tres`
 
-These resources currently define item id, display name, theme, cost, weight, held texture, recovery time, available fire modes, burst max use count, range/display range, aim movement multiplier, accuracy handling stats, magazine/fire-rate values for weapons/launchers, and throw range values for grenades. Projectile scene/data references and real firing/throw execution are still follow-up work.
+These resources currently define item id, display name, theme, cost, weight, held/in-use texture, recovery time, available fire modes, burst max use count, range/display range, aim movement multiplier, accuracy handling stats, magazine/fire-rate values for weapons/launchers, and throw range values for grenades. Add a showcase/presentation texture field when store, inventory, buy-wheel, debug menu, or tooltip UI needs readable item images. Projectile scene/data references and real firing/throw execution are still follow-up work.
 
 Current modern fire-mode resource tuning:
 

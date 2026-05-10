@@ -60,6 +60,9 @@ Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
 - Player movement is currently server-authoritative and intentionally simple: clients send movement input vectors when quantized movement state changes, only the host/server simulates movement, and clients directly apply server movement-state plus every-physics-tick moving-position updates without interpolation or local prediction.
 - Player visuals use temporary SVG player body sprites in `Assets/Players/` plus the `Pistol-T1` item image in `Assets/Items/Modern/Weapons/`.
 - Player held-item visuals now come from the selected modern item `.tres` resource's `HeldTexture`.
+- The temporary `B` item grid displays each item's `ShowcaseTexture` when present and falls back to `HeldTexture` for older resources.
+- The temporary `B` item grid also includes `Light Armor` and `Heavy Armor`; their buttons use store/showcase art, while selection applies the armor overlay texture on top of the player body.
+- Planned next UI slice: add reusable `Scenes/UI/PlayerStatsPanel.tscn` and `Scenes/UI/LocalPlayersHud.tscn` so the test room can display name, avatar, kills, health, selected item, ammo reserves, armor, carried slots, backstrap, and empty slots for up to 4 local players.
 - The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
 - Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 
@@ -73,6 +76,7 @@ Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
 - The debug aim indicator only draws while actively aiming, and movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier` while actively aiming.
 - `B`: open or close the test item grid. Keyboard `B` and Xbox controller `B` both toggle it.
 - Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: choose an item from the grid and equip it as the local player's current test item.
+- Choosing an armor entry from the same grid equips that armor overlay on the local player instead of changing the held item.
 - While the item grid is open, the local player's gameplay input is put in `PlayerControlState.Menu`, which stops movement, aim updates, and item use until the menu closes.
 - `F`: cycle the selected item's available fire modes.
 - Left mouse button or Xbox right trigger: use the selected item through the selected fire mode and `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`.
@@ -84,6 +88,7 @@ Current player/item test-scene follow-up:
 
 - Tune and harden the generic bullet, thrown-item, and launched-projectile execution data.
 - Keep `F` fire-mode cycling and selected item recovery behavior active while expanding item execution.
+- Add a reusable local player stats HUD scene stack and wire it to the player/item room test runtime.
 
 ## Example CLI Usage
 

@@ -26,6 +26,10 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         "nade_explosive", "nade_incendiary", "nade_smoke",
     };
 
+    private static readonly string[] ModernArmorIds = {
+        "light_armor", "heavy_armor",
+    };
+
     private static readonly Dictionary<string, string> ItemResourcePaths = new() {
         ["pistol_t1"] = "res://Assets/Items/Modern/Weapons/pistol_t1.tres",
         ["pistol_t2"] = "res://Assets/Items/Modern/Weapons/pistol_t2.tres",
@@ -45,6 +49,11 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         ["nade_explosive"] = "res://Assets/Items/Modern/Throwables/nade_explosive.tres",
         ["nade_incendiary"] = "res://Assets/Items/Modern/Throwables/nade_incendiary.tres",
         ["nade_smoke"] = "res://Assets/Items/Modern/Throwables/nade_smoke.tres",
+    };
+
+    private static readonly Dictionary<string, string> ArmorResourcePaths = new() {
+        ["light_armor"] = "res://Assets/Items/Modern/Armor/light_armor.tres",
+        ["heavy_armor"] = "res://Assets/Items/Modern/Armor/heavy_armor.tres",
     };
 
     private enum InputStrength {
@@ -101,6 +110,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private readonly Dictionary<int, bool> _lastLocalIsAimingByGlobalId = new();
     private readonly Dictionary<int, PlayerEquipable> _itemsByGlobalId = new();
     private readonly Dictionary<int, PlayerItemAccuracyState> _accuracyStatesByGlobalId = new();
+    private readonly Dictionary<int, PlayerArmor> _armorByGlobalId = new();
     private readonly Dictionary<int, float> _aimStrengthByGlobalId = new();
     private readonly Dictionary<int, PlayerItemFireMode> _selectedFireModesByGlobalId = new();
     private readonly Dictionary<int, double> _itemRecoverySecondsByGlobalId = new();
@@ -108,6 +118,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private readonly Dictionary<int, bool> _suppressUseUntilReleasedByGlobalId = new();
     private readonly Dictionary<int, int> _burstUseCountsByGlobalId = new();
     private readonly Dictionary<string, PlayerEquipable> _loadedItemsById = new();
+    private readonly Dictionary<string, PlayerArmor> _loadedArmorById = new();
     private readonly Dictionary<string, Button> _itemMenuButtonsById = new();
     private PlayerAimIndicator _aimIndicator;
     private PackedScene _genericBulletScene;
@@ -249,6 +260,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
         foreach (var itemId in ModernItemIds)
             AddItemMenuButton(itemId);
+
+        foreach (var armorId in ModernArmorIds)
+            AddArmorMenuButton(armorId);
     }
 
     private void AddItemMenuButton(string itemId) {
@@ -256,17 +270,42 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         var button = new Button {
             Name = $"ItemButton_{itemId}",
             Text = item?.DisplayName ?? itemId,
-            CustomMinimumSize = new Vector2(150.0f, 44.0f),
+            Icon = item?.GetShowcaseTexture(),
+            ExpandIcon = true,
+            CustomMinimumSize = new Vector2(150.0f, 70.0f),
             FocusMode = Control.FocusModeEnum.All,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
+        button.AddThemeConstantOverride("icon_max_width", 34);
         button.Pressed += () => SelectItemFromMenu(itemId);
         _itemMenuButtonsById[itemId] = button;
         _itemMenuGrid.AddChild(button);
     }
 
+    private void AddArmorMenuButton(string armorId) {
+        var armor = LoadArmor(armorId);
+        var button = new Button {
+            Name = $"ArmorButton_{armorId}",
+            Text = armor?.DisplayName ?? armorId,
+            Icon = armor?.GetShowcaseTexture(),
+            ExpandIcon = true,
+            CustomMinimumSize = new Vector2(150.0f, 70.0f),
+            FocusMode = Control.FocusModeEnum.All,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        button.AddThemeConstantOverride("icon_max_width", 34);
+        button.Pressed += () => SelectArmorFromMenu(armorId);
+        _itemMenuGrid.AddChild(button);
+    }
+
     private void SelectItemFromMenu(string itemId) {
         ApplyLocalItemSelection(itemId);
+        SuppressLocalItemUseUntilReleased();
+        CloseItemMenu();
+    }
+
+    private void SelectArmorFromMenu(string armorId) {
+        ApplyLocalArmorSelection(armorId);
         SuppressLocalItemUseUntilReleased();
         CloseItemMenu();
     }
@@ -474,6 +513,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             _isAimingByGlobalId.Remove(removedGlobalId);
             _lastLocalIsAimingByGlobalId.Remove(removedGlobalId);
             _itemsByGlobalId.Remove(removedGlobalId);
+            _armorByGlobalId.Remove(removedGlobalId);
             _accuracyStatesByGlobalId.Remove(removedGlobalId);
             _aimStrengthByGlobalId.Remove(removedGlobalId);
             _selectedFireModesByGlobalId.Remove(removedGlobalId);
@@ -503,6 +543,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _isAimingByGlobalId.Clear();
         _lastLocalIsAimingByGlobalId.Clear();
         _itemsByGlobalId.Clear();
+        _armorByGlobalId.Clear();
         _accuracyStatesByGlobalId.Clear();
         _aimStrengthByGlobalId.Clear();
         _selectedFireModesByGlobalId.Clear();
@@ -724,6 +765,26 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         }
     }
 
+    private void ApplyLocalArmorSelection(string armorId) {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            if (_networking.IsClient && _networking.HasActiveNetworkPeer)
+                RpcId(1, nameof(RpcRequestSetPlayerArmor), playerEntry.Key, armorId);
+            else if (CanSendHostRpc()) {
+                SetPlayerArmor(playerEntry.Key, armorId);
+                SyncPlayerArmor(playerEntry.Key, armorId);
+            }
+            else {
+                SetPlayerArmor(playerEntry.Key, armorId);
+            }
+
+            return;
+        }
+    }
+
     private void SetPlayerItem(int globalId, string itemId) {
         var item = LoadItem(itemId) ?? LoadItem(DefaultItemId);
         if (item == null)
@@ -752,6 +813,24 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             Rpc(nameof(RpcSyncPlayerItem), globalId, itemId);
     }
 
+    private void SetPlayerArmor(int globalId, string armorId) {
+        var armor = LoadArmor(armorId);
+        if (armor == null)
+            return;
+
+        _armorByGlobalId[globalId] = armor;
+        if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
+            player.SetArmorTexture(armor.HeldTexture);
+
+        PrintTestNetworkLog($"P{globalId} armor: {armor.DisplayName}.");
+        UpdateStatusLabel();
+    }
+
+    private void SyncPlayerArmor(int globalId, string armorId) {
+        if (CanSendHostRpc())
+            Rpc(nameof(RpcSyncPlayerArmor), globalId, armorId);
+    }
+
     private PlayerEquipable LoadItem(string itemId) {
         if (_loadedItemsById.TryGetValue(itemId, out var loadedItem))
             return loadedItem;
@@ -764,6 +843,20 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             _loadedItemsById[itemId] = item;
 
         return item;
+    }
+
+    private PlayerArmor LoadArmor(string armorId) {
+        if (_loadedArmorById.TryGetValue(armorId, out var loadedArmor))
+            return loadedArmor;
+
+        if (!ArmorResourcePaths.TryGetValue(armorId, out var armorPath))
+            return null;
+
+        var armor = GD.Load<PlayerArmor>(armorPath);
+        if (armor != null)
+            _loadedArmorById[armorId] = armor;
+
+        return armor;
     }
 
     private void ProcessLocalItemUse(double delta) {
@@ -1390,6 +1483,15 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestSetPlayerArmor(int globalId, string armorId) {
+        if (!IsPlayerStateRequestAllowed(globalId))
+            return;
+
+        SetPlayerArmor(globalId, armorId);
+        SyncPlayerArmor(globalId, armorId);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRequestUsePlayerItem(int globalId, float aimX, float aimY, float aimStrength) {
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
@@ -1419,6 +1521,11 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerItem(int globalId, string itemId) {
         SetPlayerItem(globalId, itemId);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncPlayerArmor(int globalId, string armorId) {
+        SetPlayerArmor(globalId, armorId);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]

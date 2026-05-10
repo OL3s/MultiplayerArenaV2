@@ -4,7 +4,7 @@ This file tracks what to focus on in the next working session.
 
 ## Next Session Goal
 
-Continue the player equipment slice inside the dedicated player item/action LAN test scene, with the next focus on ammunition, armor, inventory providers, carried item slots, and validation.
+Continue the player equipment slice inside the dedicated player item/action LAN test scene, with the next focus on ammunition, armor, inventory providers, carried item slots, validation, and a scalable local-player stats HUD.
 
 The generic item execution path is now established enough to start simulating real player equipment instead of only test overrides. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Keep the first version test-scene driven and data/resource driven before building final buy-wheel UI or purchase flow.
 
@@ -18,6 +18,11 @@ The generic item execution path is now established enough to start simulating re
 - Treat the existing `B` item grid as a temporary equipment/debug menu, not the final purchase UI.
 - Keep item use shaped like future server-authoritative commands: local input requests an item action, host/server validates inventory/ammo/control state and applies it, clients display the result.
 - Build ammo, armor, and inventory around the model in `docs/player-items-inventory-plan.md`: one armor item, one or more inventory providers, an optional backstrap item, carried equipables, typed slots, and separate magazine reserve buckets.
+- Give every item separate visual roles where relevant: a showcase/UI image for store, inventory, buy-wheel, debug menu, tooltip, and item selection, plus an in-use image for held/equipped/worn gameplay rendering.
+- Render equipped armor as an overlay above the root/base player body sprite. Start with `Assets/Items/Modern/Armor/light_armor.svg` and `Assets/Items/Modern/Armor/heavy_armor.svg` overlapping the current 12x12 test player image.
+- Give armor a separate presentation/store image for UI instead of reusing the tiny equipped overlay. Start with `Assets/Items/Modern/Armor/light_armor_store.svg` and `Assets/Items/Modern/Armor/heavy_armor_store.svg`.
+- Add player stats/equipment HUD UI as reusable scenes, not hardcoded controls inside the test room script. Start with a `PlayerStatsPanel.tscn`-style scene for one local player and a parent HUD scene/container that can lay out up to 4 local player panels at once.
+- The player stats HUD should show player name, avatar image, kills, health/status, equipped weapon, ammunition/magazine reserves, armor, carried items, backstrap item, and empty slots. Missing equipment should render as explicit empty-slot UI, not disappear.
 
 ## Modern Items To Implement
 
@@ -36,10 +41,12 @@ The generic item execution path is now established enough to start simulating re
 3. Add magazine/ammo reserve buckets separate from carried item slots: `Small`, `Medium`, `Large`, and `Special`. Track current and maximum reserves.
 4. Wire shootable and launcher item use through ammo checks and consumption. Failed ammo validation should reject item use on the host/server and leave clients visually consistent.
 5. Add armor data/resource behavior to the test flow: one equipped armor item, protection through existing `ArmorResource` where useful, optional slot/magazine bonuses, weight fields, and movement penalty hooks.
-6. Update the `B` item grid or add a small test equipment menu so it can assign items into valid carried slots/backstrap and adjust magazine reserves without pretending to be the final buy wheel.
-7. Keep validation server-authoritative: clients may request equipment changes or item use, but host/server validates slots, armor, inventory providers, ammo, death state, recovery, and control state before syncing.
-8. Add focused test cases for invalid carry attempts, invalid backstrap items, ammo-empty behavior, magazine capacity limits, armor protection, and inventory removal invalidating stored items.
-9. Run `dotnet build MultiplayerArenaV2.csproj` and `godot --headless --path . --quit` after implementation. Run `godot --headless --path . --import` when adding or changing assets.
+6. Add a reusable local player stats HUD scene stack. Use a per-player panel scene plus a parent HUD/container scene so `TestPlayerItemRoomLAN` and future game scenes can instantiate up to 4 local player panels without rebuilding UI in code.
+7. Populate the HUD from runtime player/equipment state: player name/avatar, kills, health/status, selected weapon, ammunition/magazine reserves, armor, carried slots, backstrap, and empty slot placeholders.
+8. Update the `B` item grid or add a small test equipment menu so it can assign items into valid carried slots/backstrap and adjust magazine reserves without pretending to be the final buy wheel.
+9. Keep validation server-authoritative: clients may request equipment changes or item use, but host/server validates slots, armor, inventory providers, ammo, death state, recovery, and control state before syncing.
+10. Add focused test cases for invalid carry attempts, invalid backstrap items, ammo-empty behavior, magazine capacity limits, armor protection, inventory removal invalidating stored items, and local HUD layout with 1-4 local players.
+11. Run `dotnet build MultiplayerArenaV2.csproj` and `godot --headless --path . --quit` after implementation. Run `godot --headless --path . --import` when adding or changing assets.
 
 ## First Test Cases
 
@@ -55,6 +62,9 @@ The generic item execution path is now established enough to start simulating re
 - Shootable and launcher items consume ammo/reserve data and cannot execute when the needed ammo bucket is empty.
 - Magazine reserve capacity is validated separately from carried item slots.
 - Armor can affect protection and future movement penalties without being treated as a carried usable item.
+- Player stats HUD can display 1, 2, 3, or 4 local player panels at the same time without overlapping the temporary item menu or core aiming/action UI.
+- Each local player panel shows name, avatar image, kills, current health/status, equipped weapon, ammunition reserves, armor, carried slots, backstrap slot, and explicit empty slots.
+- The player stats HUD is built from reusable `.tscn` scenes rather than constructing all controls directly inside `TestPlayerItemRoomLAN.cs`.
 - Every currently imaged modern weapon tier can be selected in `TestPlayerItemRoomLAN` and executes through the same item-use path.
 - Every currently imaged modern grenade can be selected in `TestPlayerItemRoomLAN` and executes through the same throwable path.
 - A thrown/grenade item can apply radius damage to players, props, and destructible walls through the shared damage backend.
@@ -74,6 +84,7 @@ The generic item execution path is now established enough to start simulating re
 - Do not build the full purchase menu first. Build working item actions first.
 - Keep the first item/action content pass modern-only. The target is all currently imaged modern items, including each tier, before expanding into UI or future themes.
 - Do not build the full inventory UI first. Build data validation and a temporary test equipment UI first.
+- Do build a lightweight stats/equipment HUD early enough to see whether ammo, armor, slots, and local split-screen identity are readable during play.
 - Keep magazine reserves separate from normal carried item slots.
 - Keep armor protection and inventory capacity separate: armor can provide protection, movement penalties, and slot/provider rules.
 - Spawn/respawn overlap-safe placement is still needed, but the next gameplay slice is player items/actions unless spawn blocking becomes a direct blocker.
@@ -81,6 +92,7 @@ The generic item execution path is now established enough to start simulating re
 ## Relevant Docs
 
 - `docs/player-items-inventory-plan.md`
+- `docs/player-hud-ui-plan.md`
 - `docs/modern-item-content-plan.md`
 - `docs/combat-lan-test-handoff.md`
 - `docs/test-scenes.md`
