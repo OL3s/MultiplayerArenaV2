@@ -1,6 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <rect width="16" height="16" fill="none"/>
-  <path d="M2 10.8l1.8-5 4.5-2.5 4 1.8 1.7 4.7-2.5 3.2H5.2z" fill="#7d858e" stroke="#2f3439" stroke-width="0.8"/>
-  <path d="M3.8 5.8l4 1.7 4.5-2.4M7.8 7.5l-1 5.3M7.8 7.5l3.7 5.3" fill="none" stroke="#5f6872" stroke-width="0.8"/>
-  <path d="M5 10l2.5-1M10.2 7.8l2 1.2" stroke="#a7afb7" stroke-width="0.8" opacity="0.75"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="16" viewBox="0 0 48 16">
+  <rect width="48" height="16" fill="none"/>
+  <g id="perfect">
+    <path d="M2 10.8l1.8-5 4.5-2.5 4 1.8 1.7 4.7-2.5 3.2H5.2z" fill="#7d858e" stroke="#2f3439" stroke-width="0.8"/>
+    <path d="M3.8 5.8l4 1.7 4.5-2.4M7.8 7.5l-1 5.3M7.8 7.5l3.7 5.3" fill="none" stroke="#5f6872" stroke-width="0.8"/>
+    <path d="M5 10l2.5-1M10.2 7.8l2 1.2" stroke="#a7afb7" stroke-width="0.8" opacity="0.75"/>
+  </g>
+  <g id="touched" transform="translate(16 0)">
+    <path d="M2 10.8l1.8-5 4.5-2.5 4 1.8 1.7 4.7-2.5 3.2H5.2z" fill="#717983" stroke="#2f3439" stroke-width="0.8"/>
+    <path d="M3.8 5.8l4 1.7 4.5-2.4M7.8 7.5l-1 5.3M7.8 7.5l3.7 5.3" fill="none" stroke="#535b64" stroke-width="0.8"/>
+    <path d="M5 10l2.5-1M10.2 7.8l2 1.2" stroke="#9aa3ac" stroke-width="0.8" opacity="0.65"/>
+    <path d="M4.6 7.2l2 .8-1.1 1.6 1.5 1.5" fill="none" stroke="#252a2f" stroke-width="0.7" stroke-linecap="round"/>
+    <path d="M10.5 5.9l-1.3 1.4 1.8 1.2-.6 1.7" fill="none" stroke="#252a2f" stroke-width="0.65" stroke-linecap="round"/>
+  </g>
+  <g id="near-broken" transform="translate(32 0)">
+    <path d="M2 10.8l1.8-5 4.5-2.5 4 1.8 1.7 4.7-2.5 3.2H5.2z" fill="#5f6871" stroke="#20262b" stroke-width="0.8"/>
+    <path d="M3.8 5.8l4 1.7 4.5-2.4M7.8 7.5l-1 5.3M7.8 7.5l3.7 5.3" fill="none" stroke="#454d55" stroke-width="0.8"/>
+    <path d="M5 10l2.5-1M10.2 7.8l2 1.2" stroke="#89939d" stroke-width="0.8" opacity="0.55"/>
+    <path d="M4 6.4l2.4 1.7-1.7 2 2.4 2" fill="none" stroke="#161b1f" stroke-width="0.85" stroke-linecap="round"/>
+    <path d="M11.5 5.6l-2.2 1.8 1.7 1.7-2.4 3" fill="none" stroke="#161b1f" stroke-width="0.8" stroke-linecap="round"/>
+    <path d="M6.3 4.4l1.4 2.7M12 9.4l-2.7.8" stroke="#c1c8cf" stroke-width="0.65" opacity="0.45"/>
+    <path d="M3 11.2l1.4.5M12.6 12.1l1-.8" stroke="#000" stroke-width="0.7" opacity="0.35"/>
+  </g>
 </svg>

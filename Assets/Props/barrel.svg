@@ -1,8 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <rect width="16" height="16" fill="none"/>
-  <ellipse cx="8" cy="3.5" rx="4.6" ry="1.8" fill="#9b4f24" stroke="#3c2216" stroke-width="0.8"/>
-  <path d="M3.4 3.5h9.2l-1 9.5H4.4z" fill="#b7632d" stroke="#3c2216" stroke-width="0.8"/>
-  <ellipse cx="8" cy="13" rx="3.6" ry="1.2" fill="#7e3f21" stroke="#3c2216" stroke-width="0.8"/>
-  <path d="M4 6.4h8M3.8 10.3h8.4" stroke="#2e1a12" stroke-width="1"/>
-  <path d="M6.2 4.4l-.5 7.7M9.8 4.4l.5 7.7" stroke="#d18447" stroke-width="0.8" opacity="0.75"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="16" viewBox="0 0 48 16">
+  <rect width="48" height="16" fill="none"/>
+  <g id="perfect">
+    <ellipse cx="8" cy="3.5" rx="4.6" ry="1.8" fill="#9b4f24" stroke="#3c2216" stroke-width="0.8"/>
+    <path d="M3.4 3.5h9.2l-1 9.5H4.4z" fill="#b7632d" stroke="#3c2216" stroke-width="0.8"/>
+    <ellipse cx="8" cy="13" rx="3.6" ry="1.2" fill="#7e3f21" stroke="#3c2216" stroke-width="0.8"/>
+    <path d="M4 6.4h8M3.8 10.3h8.4" stroke="#2e1a12" stroke-width="1"/>
+    <path d="M6.2 4.4l-.5 7.7M9.8 4.4l.5 7.7" stroke="#d18447" stroke-width="0.8" opacity="0.75"/>
+  </g>
+  <g id="touched" transform="translate(16 0)">
+    <ellipse cx="8" cy="3.5" rx="4.6" ry="1.8" fill="#8d4721" stroke="#3c2216" stroke-width="0.8"/>
+    <path d="M3.4 3.5h9.2l-1 9.5H4.4z" fill="#a95729" stroke="#3c2216" stroke-width="0.8"/>
+    <ellipse cx="8" cy="13" rx="3.6" ry="1.2" fill="#71381e" stroke="#3c2216" stroke-width="0.8"/>
+    <path d="M4 6.4h8M3.8 10.3h8.4" stroke="#2e1a12" stroke-width="1"/>
+    <path d="M6.2 4.4l-.5 7.7M9.8 4.4l.5 7.7" stroke="#c6793f" stroke-width="0.8" opacity="0.65"/>
+    <path d="M6.1 5.3l1.4 1.3-1 1.5 1.6 1.1" fill="none" stroke="#2a1710" stroke-width="0.7" stroke-linecap="round"/>
+    <path d="M10.8 7.4l-1.2 1.2.8 1.8" fill="none" stroke="#2a1710" stroke-width="0.65" stroke-linecap="round"/>
+    <path d="M4.5 10.7h2.2" stroke="#e2a260" stroke-width="0.7" opacity="0.55"/>
+  </g>
+  <g id="near-broken" transform="translate(32 0)">
+    <ellipse cx="8" cy="3.5" rx="4.6" ry="1.8" fill="#71401f" stroke="#2a1710" stroke-width="0.8"/>
+    <path d="M3.4 3.5h9.2l-1 9.5H4.4z" fill="#8b4625" stroke="#2a1710" stroke-width="0.8"/>
+    <ellipse cx="8" cy="13" rx="3.6" ry="1.2" fill="#59301b" stroke="#2a1710" stroke-width="0.8"/>
+    <path d="M4 6.4h8M3.8 10.3h8.4" stroke="#20100b" stroke-width="1"/>
+    <path d="M6.2 4.4l-.5 7.7M9.8 4.4l.5 7.7" stroke="#9c5c34" stroke-width="0.8" opacity="0.55"/>
+    <path d="M5.3 4.8l2.4 1.9-1.8 2 2.3 1.6-1.1 2" fill="none" stroke="#1f100b" stroke-width="0.8" stroke-linecap="round"/>
+    <path d="M10.9 5.8l-1.9 1.6 1.5 1.7-1.7 2.4" fill="none" stroke="#1f100b" stroke-width="0.75" stroke-linecap="round"/>
+    <path d="M4.4 11.4l2.2-.6 2.1.8 2.1-.7" fill="none" stroke="#f0b06a" stroke-width="0.7" opacity="0.5"/>
+    <path d="M3.8 6.9l1.5-.7M11.4 9.8l1.1.7" stroke="#000" stroke-width="0.7" opacity="0.35"/>
+  </g>
 </svg>
