@@ -1,7 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public abstract partial class PlayerEquipable : PlayerItem {
+public abstract partial class PlayerWeapon : PlayerItem, IPlayerUsable {
     [Export]
     public PlayerItemObjective UseObjective { get; set; }
 
@@ -9,10 +9,7 @@ public abstract partial class PlayerEquipable : PlayerItem {
     public float RecoverySeconds { get; set; }
 
     [Export]
-    public Godot.Collections.Array<PlayerItemFireMode> AvailableFireModes { get; set; } = new() { PlayerItemFireMode.Solo };
-
-    [Export]
-    public int BurstMaxUseCount { get; set; } = 3;
+    public bool IsFullAuto { get; set; }
 
     [Export]
     public float Range { get; set; } = 160.0f;
@@ -41,11 +38,12 @@ public abstract partial class PlayerEquipable : PlayerItem {
     [Export]
     public float MaxInaccuracy { get; set; } = 0.25f;
 
+    protected PlayerWeapon() {
+        ContainerTypes.Add(PlayerItemSlotType.Weapon);
+    }
+
     public float GetAimDisplayDistance() {
         return AimDisplayRange > 0.0f ? AimDisplayRange : Range;
     }
 
-    public bool SupportsFireMode(PlayerItemFireMode fireMode) {
-        return AvailableFireModes.Contains(fireMode);
-    }
 }

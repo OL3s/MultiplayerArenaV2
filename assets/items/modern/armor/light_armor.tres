@@ -13,3 +13,7 @@ Cost = 300
 Weight = 2.5
 HeldTexture = ExtResource("2_overlay")
 ShowcaseTexture = ExtResource("3_showcase")
+AllowsSecondWeapon = false
+GadgetSlotCount = 1
+WeaponMagazineCount = 2
+GadgetUseCount = 1

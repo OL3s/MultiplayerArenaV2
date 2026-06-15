@@ -91,13 +91,13 @@ Throwable resources:
 - `assets/items/modern/throwables/nade_incendiary.tres`
 - `assets/items/modern/throwables/nade_smoke.tres`
 
-These resources currently define item id, display name, theme, cost, weight, held/in-use texture, recovery time, available fire modes, burst max use count, range/display range, aim movement multiplier, accuracy handling stats, magazine/fire-rate values for weapons/launchers, and throw range values for grenades. Add a showcase/presentation texture field when store, inventory, buy-wheel, debug menu, or tooltip UI needs readable item images. Projectile scene/data references and real firing/throw execution are still follow-up work.
+These resources currently define item id, display name, theme, cost, weight, held/in-use texture, recovery time, range/display range, aim movement multiplier, accuracy handling stats, magazine/fire-rate values for weapons/launchers, and throw range values for grenades. Weapon/gadget capacity and ammo/use reset values come from equipped armor, not separate inventory providers or magazine reserve buckets. Add a showcase/presentation texture field when store, inventory, buy-wheel, debug menu, or tooltip UI needs readable item images.
 
-Current modern fire-mode resource tuning:
+Current fixed firing behavior:
 
-- Pistols, rifles, launchers, and grenades: `Solo`.
-- SMGs: `Solo`, `Auto`.
-- ARs: `Solo`, `Burst`, `Auto`.
+- SMGs and ARs are full-auto.
+- Pistols, rifles, launchers, and grenades are single-use per press.
+- There is no runtime fire-mode toggle.
 
 ## Planned Modern Weapons
 

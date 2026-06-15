@@ -93,7 +93,7 @@ Showcase visuals are for store, buy-wheel, inventory, debug menu, tooltip, and i
 
 In-use visuals are for runtime gameplay. They should fit the player scale, hand position, armor overlay, thrown object start visual, or other active world/equipment usage. They should prioritize correct scale, origin, readability in motion, and compatibility with player/item rendering.
 
-For carried weapons and throwables, the in-use image is the held/equipped image. For armor, the in-use image is the body overlay. For inventory providers, the in-use image can later be a backpack, holster, pouch, or strap attachment drawn on the player if that equipment is visible during play.
+For carried weapons and throwables, the in-use image is the held/equipped image. For armor, the in-use image is the body overlay. Armor is also the current loadout-capacity provider, so standalone backpack, holster, pouch, ammo-rig, and strap visuals are not part of the active simplified model.
 
 Use `_showcase.svg` for new showcase images and the base filename for the in-use visual unless a specific category needs clearer naming. Examples: `pistol_t1.svg` for held gameplay use and `pistol_t1_showcase.svg` for store UI; `light_armor.svg` for equipped overlay and `light_armor_store.svg` for the existing first-pass armor UI image.
 

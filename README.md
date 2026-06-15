@@ -2,7 +2,7 @@
 
 MultiplayerArenaV2 is an early-stage Godot/C# project for a fast, easy-to-pick-up top-down 2D arena shooter with local/LAN multiplayer and destructible arenas.
 
-The project is in the early gameplay and systems phase. Destructible map logic, local/LAN networking flow, lobby setup, damage-test player controls, temporary weapon visuals, generic projectile/throwable execution, and game-mode configuration have partial working implementations. Full gameplay, production networking, complete weapons, finalized arenas, inventory validation, HUD polish, and complete game modes are still in progress.
+The project is in the early gameplay and systems phase. Destructible map logic, local/LAN networking flow, lobby setup, damage-test player controls, temporary weapon visuals, generic projectile/throwable execution, simplified armor-driven loadouts, and game-mode configuration have partial working implementations. Full gameplay, production networking, complete weapons, finalized arenas, HUD polish, and complete game modes are still in progress.
 
 ## Core Concept
 
@@ -47,7 +47,7 @@ Use this as the documentation dictionary:
 | [Multiplayer And Networking](docs/multiplayer-networking.md) | Local/online multiplayer model, split-screen identity rules, lobby/setup config, network modes, transport direction, debug overlay, settings, and RPC state sync. |
 | [Test Scenes](docs/test-scenes.md) | Current test scenes, how to launch them, controls, test-specific notes, and runtime logging conventions. |
 | [Combat LAN Test Handoff](docs/combat-lan-test-handoff.md) | Current combat/LAN handoff for the shared damage backend, LAN damage-test player runtime, and immediate player control/action context. |
-| [Player Items And Inventory Plan](docs/player-items-inventory-plan.md) | Planned player item, inventory, weight, backstrap, magazine reserve, theme, and purchase-mode model. |
+| [Player Items And Loadout Plan](docs/player-items-inventory-plan.md) | Simplified player item model: armor-driven weapon/gadget capacity, ammo/use reset rules, theme, and purchase-mode direction. |
 | [Player HUD UI Plan](docs/player-hud-ui-plan.md) | Planned local player stats HUD, reusable player panel scene, equipment/ammo/armor display, and split-screen UI scaling rules. |
 | [Modern Item Content Plan](docs/modern-item-content-plan.md) | First modern-only item content list, including planned weapon tiers, launchers, and grenades. |
 | [Asset Organization](docs/asset-organization.md) | Asset folder ownership rules, including item versus projectile art placement. |

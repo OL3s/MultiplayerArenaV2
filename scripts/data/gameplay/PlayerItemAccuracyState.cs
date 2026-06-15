@@ -4,7 +4,7 @@ public sealed class PlayerItemAccuracyState {
     private const float NearBaseRecoveryMultiplier = 0.08f;
     private const float RecoverySnapThreshold = 0.0005f;
 
-    public PlayerEquipable Item { get; private set; }
+    public IPlayerUsable Item { get; private set; }
 
     public float CurrentAccuracy => Item == null
         ? 0.0f
@@ -18,7 +18,7 @@ public sealed class PlayerItemAccuracyState {
 
     public float CurrentMovementInaccuracy { get; private set; }
 
-    public void SetItem(PlayerEquipable item) {
+    public void SetItem(IPlayerUsable item) {
         if (Item == item)
             return;
 

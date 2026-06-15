@@ -4,7 +4,7 @@ This document tracks the planned in-match player stats and equipment HUD.
 
 ## Goal
 
-Add a reusable player HUD that shows local player identity, combat stats, equipment, ammunition, armor, and empty capacity while supporting up to 4 local players on one device.
+Add a reusable player HUD that shows local player identity, combat stats, armor, weapon slots, gadget slots, remaining uses, and empty capacity while supporting up to 4 local players on one device.
 
 The first implementation should be test-scene friendly and reusable. Build it as `.tscn` scenes instead of constructing the whole HUD directly inside `TestPlayerItemRoomLAN.cs`.
 
@@ -28,10 +28,10 @@ Each player panel should show:
 - Kills.
 - Health/status, including dead/recovering states when available.
 - Current equipped/selected weapon or active item.
-- Ammunition and magazine reserve counts.
+- Remaining weapon uses/ammo.
 - Equipped armor and armor status.
-- Carried item slots.
-- Backstrap item slot.
+- Weapon slots.
+- Gadget slots.
 - Empty slot placeholders for available but unfilled item capacity.
 
 Empty slots should be visible as intentional placeholders. Do not hide empty capacity, because the player needs to understand what they can still buy, carry, or assign.
@@ -62,8 +62,7 @@ Initial data can come from the player/item LAN test runtime:
 
 - `Networking.MultiplayerData.GetPlayerByGlobalId(GlobalId)` for name, local id, peer id, and local ownership.
 - `DamageTestPlayer.Health` for health/status.
-- Runtime equipment data for selected weapon, armor, carried slots, backstrap, and empty slots.
-- Magazine/ammo reserve state once implemented.
+- Runtime equipment data for selected item, armor, weapon slots, gadget slots, remaining uses, and empty slots.
 - Match scoring state for kills once available.
 
 The HUD should tolerate missing data while the item system is still being built. Unknown values should show placeholders like empty slots, `0`, or `--` instead of crashing or hiding entire sections.
@@ -75,7 +74,7 @@ First integration target:
 - Scene: `scenes/tests/test_player_item_room_lan.tscn`
 - Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 
-The test room should instantiate `local_players_hud.tscn` or include it under its `CanvasLayer`. Runtime code should update the HUD when players spawn/despawn, item selection changes, armor changes, health changes, ammo changes, or scoring changes.
+The test room should instantiate `local_players_hud.tscn` or include it under its `CanvasLayer`. Runtime code should update the HUD when players spawn/despawn, item selection changes, armor changes, health changes, item uses change, or scoring changes.
 
 The temporary `B` item grid remains a debug/equipment menu, not the final buy wheel. The new HUD is a passive status display that should remain useful while the menu is closed and should not consume gameplay input.
 
@@ -83,7 +82,7 @@ The temporary `B` item grid remains a debug/equipment menu, not the final buy wh
 
 - HUD uses `.tscn` scenes for reusable UI structure.
 - HUD displays up to 4 local player panels at once.
-- Each panel shows name, avatar placeholder, kills placeholder, health, selected item, armor, ammo/reserve placeholders, carried slot placeholders, backstrap placeholder, and empty slots.
+- Each panel shows name, avatar placeholder, kills placeholder, health, selected item, armor, weapon slots, gadget slots, remaining uses, and empty slots.
 - HUD updates when selecting weapons or armor in `TestPlayerItemRoomLAN`.
 - HUD does not break LAN host/client testing or local-only scene startup.
 - HUD remains readable at desktop resolution and does not overlap the active aim indicator in the center of the screen.

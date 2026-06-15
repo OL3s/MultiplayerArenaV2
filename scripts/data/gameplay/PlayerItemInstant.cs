@@ -1,11 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerItemInstant : PlayerEquipable {
-    public PlayerItemInstant() {
-        ContainerTypes.Add(PlayerItemSlotType.SmallGadget);
-    }
-
+public partial class PlayerItemInstant : PlayerGadget {
     [Export]
     public bool ConsumeOnUse { get; set; } = true;
 

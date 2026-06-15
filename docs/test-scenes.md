@@ -62,7 +62,9 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Player held-item visuals now come from the selected modern item `.tres` resource's `HeldTexture`.
 - The temporary `B` item grid displays each item's `ShowcaseTexture` when present and falls back to `HeldTexture` for older resources.
 - The temporary `B` item grid also includes `Light Armor` and `Heavy Armor`; their buttons use store/showcase art, while selection applies the armor overlay texture on top of the player body.
-- Planned next UI slice: add reusable `scenes/ui/player_stats_panel.tscn` and `scenes/ui/local_players_hud.tscn` so the test room can display name, avatar, kills, health, selected item, ammo reserves, armor, carried slots, backstrap, and empty slots for up to 4 local players.
+- Planned next UI slice: add reusable `scenes/ui/player_stats_panel.tscn` and `scenes/ui/local_players_hud.tscn` so the test room can display name, avatar, kills, health, selected item, armor, weapon slots, gadget slots, remaining uses, and empty slots for up to 4 local players.
+- The item room uses a simplified armor-driven loadout model. Armor decides whether a second weapon is available, how many gadget slots are available, how many weapon magazines are granted, and how many uses each gadget gets.
+- The old backstrap, inventory-provider, ammo-rig, and separate magazine-bucket model is intentionally not used.
 - The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
 - Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 
@@ -78,8 +80,7 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: choose an item from the grid and equip it as the local player's current test item.
 - Choosing an armor entry from the same grid equips that armor overlay on the local player instead of changing the held item.
 - While the item grid is open, the local player's gameplay input is put in `PlayerControlState.Menu`, which stops movement, aim updates, and item use until the menu closes.
-- `F`: cycle the selected item's available fire modes.
-- Left mouse button or Xbox right trigger: use the selected item through the selected fire mode and `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`.
+- Left mouse button or Xbox right trigger: use the selected item. Single-fire weapons and gadgets use once per press; full-auto weapons repeat while held after `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`. Weapon/gadget uses are consumed before execution and empty items are rejected by the host/server.
 - Item-use sync includes the exact action direction. The acting player's held item is forced toward that direction for about half a second on other peers so shots and throws read from the same aim direction that executed the action.
 - Thrown grenades now travel toward their full throw-distance target and bounce from sampled wall/prop/player collision instead of shortening the throw range to the first obstruction. The thrown visual has a ground shadow under the arc.
 - Throwables can activate when they hit the ground through `ActivateOnGroundImpact`. The explosive grenade keeps fuse-timed behavior, while incendiary and smoke grenades currently activate on ground impact.
@@ -89,6 +90,7 @@ Current player/item test-scene follow-up:
 - Tune and harden the generic bullet, thrown-item, and launched-projectile execution data.
 - Keep `F` fire-mode cycling and selected item recovery behavior active while expanding item execution.
 - Add a reusable local player stats HUD scene stack and wire it to the player/item room test runtime.
+- Improve the temporary equipment menu so weapon/gadget slot assignment is clearer.
 
 ## Example CLI Usage
 

@@ -1,11 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerItemProjectile : PlayerEquipable {
-    public PlayerItemProjectile() {
-        ContainerTypes.Add(PlayerItemSlotType.LargeItem);
-    }
-
+public partial class PlayerItemProjectile : PlayerWeapon {
     [Export]
     public PlayerProjectileData Projectile { get; set; }
 
@@ -15,6 +11,4 @@ public partial class PlayerItemProjectile : PlayerEquipable {
     [Export]
     public float ShotsPerSecond { get; set; } = 1.0f;
 
-    [Export]
-    public bool UsesSpecialMagazineReserve { get; set; } = true;
 }

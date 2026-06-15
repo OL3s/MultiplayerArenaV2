@@ -108,16 +108,14 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private readonly Dictionary<int, QuantizedInputState> _lastLocalAimStatesByGlobalId = new();
     private readonly Dictionary<int, bool> _isAimingByGlobalId = new();
     private readonly Dictionary<int, bool> _lastLocalIsAimingByGlobalId = new();
-    private readonly Dictionary<int, PlayerEquipable> _itemsByGlobalId = new();
+    private readonly Dictionary<int, PlayerItem> _itemsByGlobalId = new();
     private readonly Dictionary<int, PlayerItemAccuracyState> _accuracyStatesByGlobalId = new();
-    private readonly Dictionary<int, PlayerArmor> _armorByGlobalId = new();
+    private readonly Dictionary<int, PlayerLoadoutState> _loadoutsByGlobalId = new();
     private readonly Dictionary<int, float> _aimStrengthByGlobalId = new();
-    private readonly Dictionary<int, PlayerItemFireMode> _selectedFireModesByGlobalId = new();
     private readonly Dictionary<int, double> _itemRecoverySecondsByGlobalId = new();
     private readonly Dictionary<int, bool> _wasUseHeldByGlobalId = new();
     private readonly Dictionary<int, bool> _suppressUseUntilReleasedByGlobalId = new();
-    private readonly Dictionary<int, int> _burstUseCountsByGlobalId = new();
-    private readonly Dictionary<string, PlayerEquipable> _loadedItemsById = new();
+    private readonly Dictionary<string, PlayerItem> _loadedItemsById = new();
     private readonly Dictionary<string, PlayerArmor> _loadedArmorById = new();
     private readonly Dictionary<string, Button> _itemMenuButtonsById = new();
     private PlayerAimIndicator _aimIndicator;
@@ -194,11 +192,6 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             return;
         }
 
-        if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
-            return;
-
-        if (keyEvent.PhysicalKeycode == Key.F)
-            CycleLocalFireMode();
     }
 
     private bool IsItemMenuToggleEvent(InputEvent @event) {
@@ -513,14 +506,12 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             _isAimingByGlobalId.Remove(removedGlobalId);
             _lastLocalIsAimingByGlobalId.Remove(removedGlobalId);
             _itemsByGlobalId.Remove(removedGlobalId);
-            _armorByGlobalId.Remove(removedGlobalId);
+            _loadoutsByGlobalId.Remove(removedGlobalId);
             _accuracyStatesByGlobalId.Remove(removedGlobalId);
             _aimStrengthByGlobalId.Remove(removedGlobalId);
-            _selectedFireModesByGlobalId.Remove(removedGlobalId);
             _itemRecoverySecondsByGlobalId.Remove(removedGlobalId);
             _wasUseHeldByGlobalId.Remove(removedGlobalId);
             _suppressUseUntilReleasedByGlobalId.Remove(removedGlobalId);
-            _burstUseCountsByGlobalId.Remove(removedGlobalId);
         }
     }
 
@@ -543,14 +534,12 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _isAimingByGlobalId.Clear();
         _lastLocalIsAimingByGlobalId.Clear();
         _itemsByGlobalId.Clear();
-        _armorByGlobalId.Clear();
+        _loadoutsByGlobalId.Clear();
         _accuracyStatesByGlobalId.Clear();
         _aimStrengthByGlobalId.Clear();
-        _selectedFireModesByGlobalId.Clear();
         _itemRecoverySecondsByGlobalId.Clear();
         _wasUseHeldByGlobalId.Clear();
         _suppressUseUntilReleasedByGlobalId.Clear();
-        _burstUseCountsByGlobalId.Clear();
     }
 
     private void AddPlayer(int globalId, Vector2I tilePosition) {
@@ -565,8 +554,8 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _itemRecoverySecondsByGlobalId[globalId] = 0.0;
         _wasUseHeldByGlobalId[globalId] = false;
         _suppressUseUntilReleasedByGlobalId[globalId] = false;
-        _burstUseCountsByGlobalId[globalId] = 0;
         _accuracyStatesByGlobalId[globalId] = new PlayerItemAccuracyState();
+        _loadoutsByGlobalId[globalId] = new PlayerLoadoutState();
         SetPlayerItem(globalId, DefaultItemId);
         player.SetEstimatedAimDirection(DirectionIndexToVector(0), true);
     }
@@ -683,8 +672,8 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     private float GetAimMoveSpeedMultiplier(int globalId) {
-        return _itemsByGlobalId.TryGetValue(globalId, out var item) && item != null
-            ? item.AimMoveSpeedMultiplier
+        return _itemsByGlobalId.TryGetValue(globalId, out var item) && item is IPlayerUsable usable
+            ? usable.AimMoveSpeedMultiplier
             : 0.9f;
     }
 
@@ -790,21 +779,26 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (item == null)
             return;
 
+        var loadout = GetOrCreateLoadout(globalId);
+        if (!loadout.EquipItem(item)) {
+            PrintTestNetworkLog($"P{globalId} cannot equip {item.DisplayName}; no armor capacity for that item type.");
+            return;
+        }
+
         _itemsByGlobalId[globalId] = item;
         if (!_accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState)) {
             accuracyState = new PlayerItemAccuracyState();
             _accuracyStatesByGlobalId[globalId] = accuracyState;
         }
 
-        accuracyState.SetItem(item);
-        EnsureSelectedFireMode(globalId, item);
+        if (item is IPlayerUsable usable)
+            accuracyState.SetItem(usable);
         _itemRecoverySecondsByGlobalId[globalId] = 0.0;
-        _burstUseCountsByGlobalId[globalId] = 0;
         _wasUseHeldByGlobalId[globalId] = false;
         if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
             player.SetHeldTexture(item.HeldTexture);
 
-        PrintTestNetworkLog($"P{globalId} item: {item.DisplayName}.");
+        PrintTestNetworkLog($"P{globalId} item: {item.DisplayName}. {loadout.GetLoadoutText()}.");
         UpdateStatusLabel();
     }
 
@@ -818,12 +812,36 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (armor == null)
             return;
 
-        _armorByGlobalId[globalId] = armor;
+        var loadout = GetOrCreateLoadout(globalId);
+        loadout.EquipArmor(armor);
+        var selectedItem = loadout.SelectedItem ?? LoadItem(DefaultItemId);
+        if (selectedItem != null) {
+            _itemsByGlobalId[globalId] = selectedItem;
+            if (_accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState) && selectedItem is IPlayerUsable selectedUsable)
+                accuracyState.SetItem(selectedUsable);
+            if (_playersByGlobalId.TryGetValue(globalId, out var existingPlayer) && IsInstanceValid(existingPlayer))
+                existingPlayer.SetHeldTexture(selectedItem.HeldTexture);
+        }
+
         if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
             player.SetArmorTexture(armor.HeldTexture);
 
-        PrintTestNetworkLog($"P{globalId} armor: {armor.DisplayName}.");
+        PrintTestNetworkLog($"P{globalId} armor: {armor.DisplayName}. Ammo reset. {loadout.GetLoadoutText()}.");
         UpdateStatusLabel();
+    }
+
+    private void ResetPlayerUsesToMax(int globalId) {
+        GetOrCreateLoadout(globalId).ResetUsesToMax();
+        UpdateStatusLabel();
+    }
+
+    private PlayerLoadoutState GetOrCreateLoadout(int globalId) {
+        if (!_loadoutsByGlobalId.TryGetValue(globalId, out var loadout)) {
+            loadout = new PlayerLoadoutState();
+            _loadoutsByGlobalId[globalId] = loadout;
+        }
+
+        return loadout;
     }
 
     private void SyncPlayerArmor(int globalId, string armorId) {
@@ -831,14 +849,14 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             Rpc(nameof(RpcSyncPlayerArmor), globalId, armorId);
     }
 
-    private PlayerEquipable LoadItem(string itemId) {
+    private PlayerItem LoadItem(string itemId) {
         if (_loadedItemsById.TryGetValue(itemId, out var loadedItem))
             return loadedItem;
 
         if (!ItemResourcePaths.TryGetValue(itemId, out var itemPath))
             return null;
 
-        var item = GD.Load<PlayerEquipable>(itemPath);
+        var item = GD.Load<PlayerItem>(itemPath);
         if (item != null)
             _loadedItemsById[itemId] = item;
 
@@ -878,7 +896,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     private void ProcessLocalPlayerItemUse(int globalId) {
-        if (!_itemsByGlobalId.TryGetValue(globalId, out var item) || item == null)
+        if (!_itemsByGlobalId.TryGetValue(globalId, out var item) || item is not IPlayerUsable usable)
             return;
 
         var isUseHeld = IsLocalItemUseHeld(globalId);
@@ -886,26 +904,20 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _wasUseHeldByGlobalId[globalId] = isUseHeld;
 
         if (!isUseHeld) {
-            _burstUseCountsByGlobalId[globalId] = 0;
             return;
         }
 
         if (_itemRecoverySecondsByGlobalId[globalId] > 0.0)
             return;
 
-        var selectedFireMode = GetSelectedFireMode(globalId, item);
-        if (selectedFireMode == PlayerItemFireMode.Solo && wasUseHeld)
+        if (wasUseHeld && !IsHeldUseAllowed(item))
             return;
 
-        if (selectedFireMode == PlayerItemFireMode.Burst) {
-            var burstUseCount = _burstUseCountsByGlobalId.TryGetValue(globalId, out var currentBurstUseCount) ? currentBurstUseCount : 0;
-            if (burstUseCount >= Mathf.Max(item.BurstMaxUseCount, 1))
-                return;
-
-            _burstUseCountsByGlobalId[globalId] = burstUseCount + 1;
-        }
-
         RequestLocalItemUse(globalId, item);
+    }
+
+    private static bool IsHeldUseAllowed(PlayerItem item) {
+        return item is PlayerWeapon { IsFullAuto: true };
     }
 
     private bool IsLocalItemUseHeld(int globalId) {
@@ -935,9 +947,15 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         return false;
     }
 
-    private void RequestLocalItemUse(int globalId, PlayerEquipable item) {
+    private void RequestLocalItemUse(int globalId, PlayerItem item) {
         if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || player.IsDead())
             return;
+
+        var loadout = GetOrCreateLoadout(globalId);
+        if (loadout.GetMaxUses(item) > 0 && loadout.GetCurrentUses(item) <= 0) {
+            UpdateStatusLabel();
+            return;
+        }
 
         var aimDirection = player.DisplayAimDirection;
         if (aimDirection.LengthSquared() <= 0.0001f)
@@ -956,15 +974,18 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         }
     }
 
-    private void ApplyItemUsePushbackAndRecovery(int globalId, PlayerEquipable item) {
+    private void ApplyItemUsePushbackAndRecovery(int globalId, PlayerItem item) {
+        if (item is not IPlayerUsable usable)
+            return;
+
         if (_accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState))
             accuracyState.ApplyUsePushback();
 
-        _itemRecoverySecondsByGlobalId[globalId] = Mathf.Max(item.RecoverySeconds, 0.0f);
+        _itemRecoverySecondsByGlobalId[globalId] = Mathf.Max(usable.RecoverySeconds, 0.0f);
     }
 
     private void ExecuteValidatedItemUse(int globalId, Vector2 aimDirection, float aimStrength, bool syncToPeers) {
-        if (!_itemsByGlobalId.TryGetValue(globalId, out var item) || item == null)
+        if (!_itemsByGlobalId.TryGetValue(globalId, out var item) || item is not IPlayerUsable usable)
             return;
 
         if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || player.IsDead())
@@ -978,6 +999,13 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         var normalizedAim = aimDirection.Normalized();
         var startPosition = player.GlobalPosition + (normalizedAim * 10.0f);
         player.ShowActionAimDirection(normalizedAim, ActionAimDisplaySeconds);
+        var loadout = GetOrCreateLoadout(globalId);
+        if (!loadout.TryConsumeUse(item)) {
+            PrintTestNetworkLog($"P{globalId} item use rejected: {item.DisplayName} is empty.");
+            UpdateStatusLabel();
+            return;
+        }
+
         ApplyItemUsePushbackAndRecovery(globalId, item);
 
         if (item is PlayerItemThrowable throwable)
@@ -1055,8 +1083,8 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             SyncItemUse(globalId, item.ItemId, startPosition, direction, startPosition.DistanceTo(targetPosition), targetPosition);
     }
 
-    private Vector2 GetThrowableTargetPosition(PlayerEquipable item, Vector2 startPosition, Vector2 direction, float aimStrength) {
-        var distance = item.Range;
+    private Vector2 GetThrowableTargetPosition(PlayerItem item, Vector2 startPosition, Vector2 direction, float aimStrength) {
+        var distance = item is IPlayerUsable usable ? usable.Range : 0.0f;
         if (item is PlayerItemThrowable throwable) {
             var throwStrength = throwable.ThrowStrengthAffectsRange ? Mathf.Clamp(aimStrength, 0.0f, 1.0f) : 1.0f;
             distance = Mathf.Lerp(throwable.MinThrowRange, throwable.Range, throwStrength);
@@ -1065,26 +1093,26 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         return startPosition + (direction * distance);
     }
 
-    private PlayerProjectileData EnsureProjectileData(PlayerProjectileData projectileData, PlayerEquipable item, bool bullet) {
+    private PlayerProjectileData EnsureProjectileData(PlayerProjectileData projectileData, PlayerItem item, bool bullet) {
         projectileData ??= new PlayerProjectileData();
         projectileData.ProjectileScene ??= bullet ? _genericBulletScene : _genericLaunchedProjectileScene;
-        if (projectileData.Range <= 0.0f)
-            projectileData.Range = item.Range;
+        if (projectileData.Range <= 0.0f && item is IPlayerUsable usable)
+            projectileData.Range = usable.Range;
         if (projectileData.Damage == null || projectileData.Damage.DamageValues.Count == 0)
             projectileData.Damage = CreateDefaultDamageResource(item, bullet);
         return projectileData;
     }
 
-    private DamageResource CreateDefaultDamageResource(PlayerEquipable item, bool bullet) {
+    private DamageResource CreateDefaultDamageResource(PlayerItem item, bool bullet) {
         var damage = new DamageResource();
         var value = bullet ? GetDefaultBulletDamage(item) : 90.0f;
         damage.AddDamageValue(bullet ? DamageType.Crush : DamageType.Explosive, value);
         return damage;
     }
 
-    private PlayerItemObjective GetObjectiveForItem(PlayerEquipable item, PlayerItemObjective fallbackObjective) {
-        if (item.UseObjective != null)
-            return item.UseObjective;
+    private PlayerItemObjective GetObjectiveForItem(PlayerItem item, PlayerItemObjective fallbackObjective) {
+        if (item is IPlayerUsable usable && usable.UseObjective != null)
+            return usable.UseObjective;
 
         if (fallbackObjective != null)
             return fallbackObjective;
@@ -1113,7 +1141,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         };
     }
 
-    private static float GetDefaultBulletDamage(PlayerEquipable item) {
+    private static float GetDefaultBulletDamage(PlayerItem item) {
         if (item.ItemId.StartsWith("rifle"))
             return 42.0f;
         if (item.ItemId.StartsWith("ar"))
@@ -1154,47 +1182,6 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             range,
             targetPosition.X,
             targetPosition.Y);
-    }
-
-    private void CycleLocalFireMode() {
-        foreach (var playerEntry in _playersByGlobalId) {
-            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
-            if (playerData == null || !playerData.IsLocalPlayer)
-                continue;
-
-            if (!_itemsByGlobalId.TryGetValue(playerEntry.Key, out var item) || item == null)
-                return;
-
-            var selectedFireMode = GetSelectedFireMode(playerEntry.Key, item);
-            var currentIndex = item.AvailableFireModes.IndexOf(selectedFireMode);
-            if (currentIndex < 0)
-                currentIndex = 0;
-
-            var nextIndex = Mathf.PosMod(currentIndex + 1, item.AvailableFireModes.Count);
-            _selectedFireModesByGlobalId[playerEntry.Key] = item.AvailableFireModes[nextIndex];
-            _burstUseCountsByGlobalId[playerEntry.Key] = 0;
-            PrintTestNetworkLog($"P{playerEntry.Key} fire mode: {_selectedFireModesByGlobalId[playerEntry.Key]}.");
-            UpdateStatusLabel();
-
-            return;
-        }
-    }
-
-    private PlayerItemFireMode GetSelectedFireMode(int globalId, PlayerEquipable item) {
-        EnsureSelectedFireMode(globalId, item);
-        return _selectedFireModesByGlobalId[globalId];
-    }
-
-    private void EnsureSelectedFireMode(int globalId, PlayerEquipable item) {
-        if (item.AvailableFireModes.Count == 0) {
-            _selectedFireModesByGlobalId[globalId] = PlayerItemFireMode.Solo;
-            return;
-        }
-
-        if (_selectedFireModesByGlobalId.TryGetValue(globalId, out var selectedFireMode) && item.SupportsFireMode(selectedFireMode))
-            return;
-
-        _selectedFireModesByGlobalId[globalId] = item.AvailableFireModes[0];
     }
 
     private LocalPlayerData GetLocalPlayerData(int localId) {
@@ -1375,7 +1362,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             var aimDirectionNormalized = aimDirection.Normalized();
             var aimDistance = GetAimProjectionDistance(playerEntry.Key, item, player.GlobalPosition, aimDirectionNormalized, aimStrength);
             var aimEnd = player.GlobalPosition + (aimDirectionNormalized * aimDistance);
-            var spreadAccuracy = _accuracyStatesByGlobalId.TryGetValue(playerEntry.Key, out var accuracyState) ? accuracyState.CurrentSpreadAccuracy : item.DefaultAccuracy;
+            var spreadAccuracy = _accuracyStatesByGlobalId.TryGetValue(playerEntry.Key, out var accuracyState)
+                ? accuracyState.CurrentSpreadAccuracy
+                : item is IPlayerUsable usable ? usable.DefaultAccuracy : 0.0f;
             var spreadRadius = PlayerItemAccuracyState.GetSpreadRadiusAtDistance(spreadAccuracy, aimDistance);
             _aimIndicator.SetAim(player.GlobalPosition, aimEnd, spreadRadius, true);
             return;
@@ -1384,11 +1373,13 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _aimIndicator.SetAim(Vector2.Zero, Vector2.Zero, 0.0f, false);
     }
 
-    private float GetAimProjectionDistance(int globalId, PlayerEquipable item, Vector2 start, Vector2 direction, float aimStrength) {
+    private float GetAimProjectionDistance(int globalId, PlayerItem item, Vector2 start, Vector2 direction, float aimStrength) {
         if (item is PlayerItemThrowable throwable)
             return GetThrowableProjectionDistance(globalId, throwable, start, direction, aimStrength);
 
-        return GetCollisionAwareProjectionDistance(globalId, start, direction, Mathf.Max(item.GetAimDisplayDistance(), 0.0f));
+        return item is IPlayerUsable usable
+            ? GetCollisionAwareProjectionDistance(globalId, start, direction, Mathf.Max(usable.GetAimDisplayDistance(), 0.0f))
+            : 0.0f;
     }
 
     private float GetThrowableProjectionDistance(int globalId, PlayerItemThrowable throwable, Vector2 start, Vector2 direction, float aimStrength) {
@@ -1543,6 +1534,8 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (item == null)
             return;
 
+        GetOrCreateLoadout(globalId).TryConsumeUse(item);
+
         var startPosition = new Vector2(startX, startY);
         var direction = new Vector2(directionX, directionY);
         if (direction.LengthSquared() <= 0.0001f)
@@ -1649,7 +1642,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (_networking == null)
             return;
 
-        _statusLabel.Text = $"Player Item Test Room\nPeers connected: {GetConnectedPeerCount()}\nControls: B item menu | arrows/d-pad + Enter/A select | F fire mode | left mouse / Xbox RT use\nPlayers: {GetPlayerText()}";
+        _statusLabel.Text = $"Player Item Test Room\nPeers connected: {GetConnectedPeerCount()}\nControls: B item menu | arrows/d-pad + Enter/A select | left mouse / Xbox RT use\nPlayers: {GetPlayerText()}";
     }
 
     private string GetPlayerText() {
@@ -1659,9 +1652,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             var ownerText = playerData == null ? "peer ?" : $"peer {playerData.PeerId}:local {playerData.LocalId}";
             var inputText = GetPlayerInputText(playerEntry.Key);
             var itemText = _itemsByGlobalId.TryGetValue(playerEntry.Key, out var item) ? item.DisplayName : "none";
-            var fireModeText = item != null ? $" {GetSelectedFireMode(playerEntry.Key, item)}" : string.Empty;
             var accuracyText = _accuracyStatesByGlobalId.TryGetValue(playerEntry.Key, out var accuracyState) ? $" acc {accuracyState.CurrentAccuracy:0.000}" : string.Empty;
-            playerTexts.Add($"P{playerEntry.Key} {ownerText} {inputText} item {itemText}{fireModeText}{accuracyText}");
+            var loadoutText = _loadoutsByGlobalId.TryGetValue(playerEntry.Key, out var loadout) ? $" {loadout.GetLoadoutText()}" : string.Empty;
+            playerTexts.Add($"P{playerEntry.Key} {ownerText} {inputText} item {itemText}{accuracyText}{loadoutText}");
         }
 
         return playerTexts.Count == 0 ? "waiting" : string.Join(", ", playerTexts);

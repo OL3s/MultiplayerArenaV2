@@ -1,11 +1,7 @@
 using Godot;
 
 [GlobalClass]
-public partial class PlayerItemThrowable : PlayerEquipable {
-    public PlayerItemThrowable() {
-        ContainerTypes.Add(PlayerItemSlotType.SmallGadget);
-    }
-
+public partial class PlayerItemThrowable : PlayerGadget {
     [Export]
     public PackedScene ThrowableScene { get; set; }
 
