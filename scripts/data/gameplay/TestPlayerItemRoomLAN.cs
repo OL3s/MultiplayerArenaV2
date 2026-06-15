@@ -16,6 +16,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private const float TeamObjectiveRadius = 12.0f;
     private const float RespawnDelaySeconds = 1.0f;
     private const float SpawnImmobilizeSeconds = 1.0f;
+    private const int DefaultTestMapSeed = 12000;
     private const int ItemMenuColumns = 3;
     private const int DirectionBucketCount = 16;
     private const string DefaultItemId = "pistol_t1";
@@ -24,6 +25,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private const string GenericLaunchedProjectileScenePath = "res://scenes/gameplay/projectiles/generic_launched_projectile.tscn";
     private const string NeutralObjectiveScenePath = "res://scenes/gameplay/objectives/neutral_objective.tscn";
     private const string TeamSpawnBaseMarkerScenePath = "res://scenes/gameplay/objectives/team_spawn_base_marker.tscn";
+    private const string LocalPlayersHudScenePath = "res://scenes/ui/hud/local_players_hud.tscn";
 
     private static readonly string[] ModernItemIds = {
         "pistol_t1", "pistol_t2", "pistol_t3",
@@ -102,10 +104,12 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     private ArenaMapData _arenaMapData;
     private StructureGenerationData _structureGenerationData;
+    private MapGeneratorController _mapGeneratorController = new();
     private ArenaTileLayerRenderer _tileLayerRenderer;
     private Camera2D _camera;
     private CanvasLayer _canvasLayer;
     private Label _statusLabel;
+    private LocalPlayersHud _localPlayersHud;
     private PanelContainer _itemMenuPanel;
     private GridContainer _itemMenuGrid;
     private Networking _networking;
@@ -144,6 +148,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private PackedScene _genericLaunchedProjectileScene;
     private PackedScene _neutralObjectiveScene;
     private PackedScene _teamSpawnBaseMarkerScene;
+    private PackedScene _localPlayersHudScene;
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -153,6 +158,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     [Export]
     public GameModeConfig.GameModeType GameModeOverride { get; set; } = GameModeConfig.GameModeType.Deathmatch;
+
+    [Export]
+    public int MapSeedOverride { get; set; } = DefaultTestMapSeed;
 
     public event Action<int> TeamWiped;
 
@@ -170,13 +178,16 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _genericLaunchedProjectileScene = GD.Load<PackedScene>(GenericLaunchedProjectileScenePath);
         _neutralObjectiveScene = GD.Load<PackedScene>(NeutralObjectiveScenePath);
         _teamSpawnBaseMarkerScene = GD.Load<PackedScene>(TeamSpawnBaseMarkerScenePath);
+        _localPlayersHudScene = GD.Load<PackedScene>(LocalPlayersHudScenePath);
 
         ApplyCommandLineOverrides();
         EnsureDefaultNetworkMode();
         EnsureTestLocalLobbyPlayer();
+        ApplyTestSetupOverrides();
 
         _networking.ConnectionStateChanged += OnConnectionStateChanged;
         _networking.LobbyStateChanged += OnLobbyStateChanged;
+        BuildLocalPlayersHud();
         BuildItemMenu();
         UpdateStatusLabel();
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "SceneReady", $"clientTarget={ClientAddress}:{ClientPort}");
@@ -235,12 +246,12 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private void TryStartHost() {
         var started = _networking.BeginHostingSession();
         if (started)
-            ApplyTestGameModeOverride();
+            ApplyTestSetupOverrides();
 
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "HostStartResult", $"started={started} port={_networking.CurrentServerPort}");
     }
 
-    private void ApplyTestGameModeOverride() {
+    private void ApplyTestSetupOverrides() {
         if (_networking?.MultiplayerData?.SetupConfig == null)
             return;
 
@@ -252,7 +263,11 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             IsEnabled = true,
         });
         setupConfig.GameModeId = GetGameModeId(GameModeOverride);
-        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "TestGameModeOverrideApplied", $"mode={GameModeOverride} id={setupConfig.GameModeId}");
+        setupConfig.MapConfig.SelectedSeedMode = MapGenerationConfig.SeedMode.FixedSeed;
+        setupConfig.MapConfig.FixedSeed = MapSeedOverride;
+        setupConfig.MapConfig.EnabledStructureTypes.Clear();
+        setupConfig.MapConfig.EnabledStructureTypes.Add(MapGenerationConfig.StructureType.Square);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "TestSetupOverridesApplied", $"mode={GameModeOverride} id={setupConfig.GameModeId} structure=Square seed={MapSeedOverride}");
     }
 
     private static string GetGameModeDisplayName(GameModeConfig.GameModeType modeType) {
@@ -325,6 +340,15 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
         foreach (var armorId in ModernArmorIds)
             AddArmorMenuButton(armorId);
+    }
+
+    private void BuildLocalPlayersHud() {
+        if (_localPlayersHud != null && IsInstanceValid(_localPlayersHud))
+            return;
+
+        _localPlayersHud = _localPlayersHudScene?.Instantiate<LocalPlayersHud>() ?? new LocalPlayersHud();
+        _localPlayersHud.Name = "LocalPlayersHud";
+        _canvasLayer.AddChild(_localPlayersHud);
     }
 
     private void AddItemMenuButton(string itemId) {
@@ -528,12 +552,24 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     private void GenerateStructureLayout() {
         _spawnManager.Clear();
-        _structureGenerationData = new StructureGenerationData();
-        _structureGenerationData.Generate(GetSelectedStructureType());
+        _mapGeneratorController ??= new MapGeneratorController();
+        _structureGenerationData = _mapGeneratorController.GenerateStructure(
+            GetTestMapGenerationConfig(),
+            MapGenerationConfig.StructureType.Square);
         _structureGenerationData.ApplyToArenaMap(_arenaMapData);
 
         ApplyGeneratedTeamSpawns();
         _spawnManager.SetItemSpawnTiles(ToArray(_structureGenerationData.GetSpawnTiles(StructureGenerationData.SpawnPointType.ItemSpawn)));
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "StructureGenerated", $"structure={GetSelectedStructureType()} seed={_structureGenerationData.Seed}");
+    }
+
+    private MapGenerationConfig GetTestMapGenerationConfig() {
+        var mapConfig = _networking?.MultiplayerData?.SetupConfig?.MapConfig?.Clone() ?? new MapGenerationConfig();
+        mapConfig.EnabledStructureTypes.Clear();
+        mapConfig.EnabledStructureTypes.Add(MapGenerationConfig.StructureType.Square);
+        mapConfig.SelectedSeedMode = MapGenerationConfig.SeedMode.FixedSeed;
+        mapConfig.FixedSeed = MapSeedOverride;
+        return mapConfig;
     }
 
     private MapGenerationConfig.StructureType GetSelectedStructureType() {
@@ -2158,6 +2194,72 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             return;
 
         _statusLabel.Text = $"Player Item Test Room\nPeers connected: {GetConnectedPeerCount()}\nControls: B item menu | arrows/d-pad + Enter/A select | left mouse / Xbox RT use\nObjective: {GetObjectiveText()}\nPlayers: {GetPlayerText()}";
+        UpdateLocalPlayersHud();
+    }
+
+    private void UpdateLocalPlayersHud() {
+        if (_localPlayersHud == null || !IsInstanceValid(_localPlayersHud) || _networking?.MultiplayerData == null)
+            return;
+
+        _localPlayersHud.BeginRefresh(_networking.CurrentMode != Networking.NetworkMode.Local);
+        foreach (var playerEntry in _playersByGlobalId) {
+            var globalId = playerEntry.Key;
+            var player = playerEntry.Value;
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+            if (playerData == null || !playerData.IsLocalPlayer || !IsInstanceValid(player))
+                continue;
+
+            var backendTeamId = _networking.MultiplayerData.GetTeam(playerData);
+            var teamColor = backendTeamId == MultiplayerData.DefaultTeamId
+                ? new Color(0.42f, 0.46f, 0.52f)
+                : TeamVisuals.GetTeamColor(GetPaletteTeamId(Mathf.Clamp(backendTeamId, MultiplayerData.MinTeamId, MultiplayerData.MaxTeamId)));
+            var loadout = GetOrCreateLoadout(globalId);
+            var selectedItem = loadout.SelectedItem;
+            var maxUses = loadout.GetMaxUses(selectedItem);
+            var currentUses = maxUses > 0 ? loadout.GetCurrentUses(selectedItem) : 0;
+
+            _localPlayersHud.SetPlayerState(
+                globalId,
+                playerData.LocalId,
+                backendTeamId,
+                GetPaletteTeamId(Mathf.Clamp(backendTeamId, MultiplayerData.MinTeamId, MultiplayerData.MaxTeamId)),
+                playerData.DisplayName,
+                GetPlayerHudStatus(player),
+                player.Health?.CurrentHealth ?? 0,
+                player.Health?.MaxHealth ?? 0,
+                selectedItem?.GetShowcaseTexture(),
+                currentUses,
+                maxUses,
+                selectedItem?.AmmoCaliber ?? PlayerItem.AmmoCaliberType.Standard,
+                GetGadgetHudText(loadout),
+                teamColor);
+        }
+
+        _localPlayersHud.EndRefresh();
+    }
+
+    private static string GetPlayerHudStatus(DamageTestPlayer player) {
+        if (player == null || player.IsDead())
+            return "DEAD";
+
+        return player.ControlState == PlayerControlState.Spawning ? "SPAWN" : "ALIVE";
+    }
+
+    private string GetGadgetHudText(PlayerLoadoutState loadout) {
+        if (loadout == null)
+            return "G --";
+
+        foreach (var gadget in loadout.Gadgets) {
+            if (gadget == null)
+                continue;
+
+            var maxUses = loadout.GetMaxUses(gadget);
+            return maxUses > 0
+                ? $"G {loadout.GetCurrentUses(gadget)}/{maxUses}"
+                : $"G {gadget.DisplayName}";
+        }
+
+        return "G empty";
     }
 
     private string GetObjectiveText() {

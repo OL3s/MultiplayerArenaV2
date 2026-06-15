@@ -387,6 +387,7 @@ public partial class Networking : Node {
         ClearMultiplayerDataLocal();
         SyncCachedSetupConfig();
         MultiplayerData.SetupConfig.EnsureDefaultSelections();
+        PrepareAuthoritativeMapSeed(MultiplayerData.SetupConfig);
         SyncCachedSetupConfig();
 
         if (IsLocal) {
@@ -742,6 +743,7 @@ public partial class Networking : Node {
         if (setupConfig == null)
             return;
 
+        PrepareAuthoritativeMapSeed(setupConfig);
         PrintMultiplayerLog(GameLogType.Sync, "SyncAuthoritativeSetupConfig", $"gameMode={setupConfig.GameModeId} maxPlayers={setupConfig.MaxPlayers}");
         MultiplayerData.SetupConfig.CopyFrom(setupConfig);
         SyncCachedSetupConfig();
@@ -765,6 +767,14 @@ public partial class Networking : Node {
         }
 
         EmitConfigApplyStateChanged();
+    }
+
+    private void PrepareAuthoritativeMapSeed(SetupConfig setupConfig) {
+        if (setupConfig?.MapConfig == null || setupConfig.MapConfig.SelectedSeedMode != MapGenerationConfig.SeedMode.AlwaysRandom)
+            return;
+
+        setupConfig.MapConfig.FixedSeed = Mathf.Abs((int)Time.GetUnixTimeFromSystem());
+        PrintMultiplayerLog(GameLogType.StateChange, "AuthoritativeMapSeedResolved", $"seed={setupConfig.MapConfig.FixedSeed}");
     }
 
     public void UpdatePlayer(

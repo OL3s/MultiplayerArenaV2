@@ -85,6 +85,7 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Player death currently runs through a first respawn flow: 1-second dead timer, reset health/ammo/recovery, teleport to team spawn, 1-second immobilized invulnerable spawn state, then normal gameplay.
 - The room detects team wipes through a first `TeamWiped` event/log hook. Actual game-mode-specific wipe behavior is still deferred.
 - Players controlled by the local process show a yellow SVG arrow marker above the body and an `L#` label, where `#` displays the backend local player id `0-3` as `1-4`.
+- Player/item LAN tests instantiate `scenes/ui/hud/local_players_hud.tscn` in the bottom-left corner. It shows up to four local player pill cards left to right with local id, status, health, selected item ammo pips, and gadget summary. Networked tests wrap the local cards in a team-colored container with the display team id on the right.
 - The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
 - Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 

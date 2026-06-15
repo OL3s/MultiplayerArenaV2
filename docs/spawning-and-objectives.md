@@ -17,7 +17,7 @@ Biomes are visual/content theme choices. They should not decide where players, f
 Current structures:
 
 - `Arena`: fixed non-random plus-shape layout for debug/known-map gameplay.
-- `Plains`: generated wider open layout.
+- `Plains`: temporarily generates the same layout as `Square` until its open-field generator is rebuilt.
 - `Square`: simple square-room layout for mode/test iteration, with opposing left/right team bases for the current two-player item LAN test.
 
 Current biomes:
@@ -27,7 +27,15 @@ Current biomes:
 
 ## Structure Generation API
 
-Structure generation starts in `StructureGenerationData`.
+Structure generation starts through `MapGeneratorController`, which accepts `MapGenerationConfig`, resolves a seed from the configured seed mode, and creates `StructureGenerationData`.
+
+Current seed behavior:
+
+- `FixedSeed`: uses `MapGenerationConfig.FixedSeed`.
+- `SeedPool`: uses the first seed in `SeedPool` for now.
+- `AlwaysRandom`: the authoritative host stamps one random value into `MapGenerationConfig.FixedSeed`; generation then uses that synced fixed value on every peer.
+
+Current layouts are still mostly deterministic; the seed path exists so future map generators can add randomness without changing call sites. `StructureGenerationData.Seed` stores the resolved seed for logging/replay.
 
 The resource owns:
 

@@ -2,6 +2,12 @@ using Godot;
 
 [GlobalClass]
 public abstract partial class PlayerItem : Resource {
+    public enum AmmoCaliberType {
+        Standard,
+        Heavy,
+        Shell,
+    }
+
     [Export]
     public string ItemId { get; set; } = string.Empty;
 
@@ -22,6 +28,9 @@ public abstract partial class PlayerItem : Resource {
 
     [Export]
     public Texture2D ShowcaseTexture { get; set; }
+
+    [Export]
+    public AmmoCaliberType AmmoCaliber { get; set; } = AmmoCaliberType.Standard;
 
     [Export]
     public Godot.Collections.Array<PlayerItemSlotType> ContainerTypes { get; set; } = new();

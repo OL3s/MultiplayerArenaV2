@@ -15,6 +15,15 @@ Planned reusable scene split:
 - `scenes/ui/player_stats_panel.tscn`: one local player's stats/equipment panel.
 - `scenes/ui/local_players_hud.tscn`: parent HUD/container that owns and lays out 1-4 `PlayerStatsPanel` instances.
 
+Current first-pass implementation:
+
+- `scenes/ui/hud/player_hud_card.tscn`: one compact pill-style local player card.
+- `scenes/ui/hud/local_players_hud.tscn`: bottom-left `HBoxContainer` that lays out up to 4 local cards left to right.
+- `scripts/ui/PlayerHudCard.cs`: card display API for identity, status, health, selected item/ammo, and gadget summary.
+- `scripts/ui/LocalPlayersHud.cs`: card creation/removal and refresh API keyed by `GlobalId`.
+
+In networked modes, local player cards are wrapped in a shared team pill container. The team wrapper uses the team color as its background tint and shows the display team id (`T1-T4`) on the right of the cards. In local-only mode, cards stay unwrapped so local split-screen/FFA setups remain visually independent.
+
 `PlayerStatsPanel` should expose a script API that accepts simple runtime data or direct setters for the current display state. The game/test scene should not need to know internal label/icon node names.
 
 `LocalPlayersHud` should be responsible for arranging panels for the current local players. It should support 1, 2, 3, and 4 local panels without overlapping core gameplay readability or the temporary item/equipment menu.
@@ -75,15 +84,16 @@ First integration target:
 - Scene: `scenes/tests/test_player_item_room_lan.tscn`
 - Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 
-The test room should instantiate `local_players_hud.tscn` or include it under its `CanvasLayer`. Runtime code should update the HUD when players spawn/despawn, item selection changes, armor changes, health changes, item uses change, or scoring changes.
+The test room instantiates `scenes/ui/hud/local_players_hud.tscn` under its `CanvasLayer`. Runtime code updates the HUD when player status text updates, which covers player spawn/despawn, item selection, armor changes, health changes, item uses, dead state, and spawning state in the current test scenes.
 
 The temporary `B` item grid remains a debug/equipment menu, not the final buy wheel. The new HUD is a passive status display that should remain useful while the menu is closed and should not consume gameplay input.
 
 ## First Pass Acceptance
 
 - HUD uses `.tscn` scenes for reusable UI structure.
-- HUD displays up to 4 local player panels at once.
-- Each panel shows name, avatar placeholder, kills placeholder, health, selected item, armor, weapon slots, gadget slots, loaded ammo, reload/refresh cooldown state, and empty slots.
+- HUD displays up to 4 local player panels at once in a bottom-left horizontal row.
+- Each first-pass card shows local id, display name, alive/dead/spawning state, health, selected item icon, selected item ammo/use pips, and first gadget uses/empty state.
+- Ammo display uses repeated vertical caliber SVG pips instead of numbers. Available rounds use the caliber's normal color; spent rounds are blacked out. Current calibers are `Standard`, `Heavy`, and `Shell`, with item data defaulting to `Standard` until specific items are categorized.
 - HUD updates when selecting weapons or armor in `TestPlayerItemRoomLAN`.
 - HUD does not break LAN host/client testing or local-only scene startup.
 - HUD remains readable at desktop resolution and does not overlap the active aim indicator in the center of the screen.

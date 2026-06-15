@@ -29,14 +29,17 @@ public partial class StructureGenerationData : Resource {
         EnabledSpawnTypes.Clear();
     }
 
-    public void Generate(MapGenerationConfig.StructureType structureType) {
+    public int Seed { get; private set; }
+
+    public void Generate(MapGenerationConfig.StructureType structureType, int seed = 0) {
         Clear();
+        Seed = seed;
         switch (structureType) {
             case MapGenerationConfig.StructureType.Square:
                 GenerateSquareArena();
                 break;
             case MapGenerationConfig.StructureType.Plains:
-                GenerateOpenField();
+                GenerateSquareArena();
                 break;
             case MapGenerationConfig.StructureType.Arena:
             default:
@@ -100,16 +103,6 @@ public partial class StructureGenerationData : Resource {
         AddTeamBase(3, new Vector2I(14, 13), 1);
         AddSpawnType(SpawnPointType.NeutralObjective, new Vector2I(14, 10));
         AddSpawnType(SpawnPointType.ItemSpawn, new Vector2I(10, 10), new Vector2I(18, 10), new Vector2I(14, 8), new Vector2I(14, 12));
-    }
-
-    private void GenerateOpenField() {
-        AddFloorRectangle(new Rect2I(4, 4, 22, 14));
-        AddTeamBase(0, new Vector2I(7, 10), 2);
-        AddTeamBase(1, new Vector2I(22, 10), 2);
-        AddTeamBase(2, new Vector2I(15, 6), 2);
-        AddTeamBase(3, new Vector2I(15, 15), 2);
-        AddSpawnType(SpawnPointType.NeutralObjective, new Vector2I(15, 10));
-        AddSpawnType(SpawnPointType.ItemSpawn, new Vector2I(11, 8), new Vector2I(18, 8), new Vector2I(11, 13), new Vector2I(18, 13));
     }
 
     private void GenerateSquareArena() {
