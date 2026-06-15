@@ -92,6 +92,36 @@ Current player/item test-scene follow-up:
 
 ## Example CLI Usage
 
+Linux/Bash helper scripts live in `tools/testing/`. They are the preferred way to launch multiple local Godot instances during LAN testing.
+
+Player/item room with one host/server and two clients:
+
+```bash
+./tools/testing/launch-player-item-room-lan.sh
+```
+
+Destruction room with one host/server and two clients:
+
+```bash
+./tools/testing/launch-destruction-lan.sh
+```
+
+Script defaults:
+
+- `GODOT_BIN=godot`
+- `ADDRESS=127.0.0.1`
+- `PORT=7700`
+- `CLIENTS=2`
+- `START_DELAY=2`
+
+Override any default inline:
+
+```bash
+CLIENTS=3 PORT=7800 START_DELAY=3 ./tools/testing/launch-player-item-room-lan.sh
+```
+
+The scripts write logs to `.tmp/test-logs/` and keep the terminal attached. Press `Ctrl+C` in that terminal to stop all spawned instances.
+
 Host:
 
 ```bash

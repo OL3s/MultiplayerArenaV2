@@ -1,8 +1,8 @@
 # MultiplayerArenaV2
 
-MultiplayerArenaV2 is an early-stage Godot project for a fast, easy-to-pick-up top-down 2D arena shooter.
+MultiplayerArenaV2 is an early-stage Godot/C# project for a fast, easy-to-pick-up top-down 2D arena shooter with local/LAN multiplayer and destructible arenas.
 
-The project is in the early gameplay and systems phase. Destructible map logic, local/LAN networking flow, lobby setup, damage-test player controls, temporary weapon visuals, and game-mode configuration have partial working implementations, while full gameplay, production networking, complete weapons, finalized arenas, and complete game modes are still in progress.
+The project is in the early gameplay and systems phase. Destructible map logic, local/LAN networking flow, lobby setup, damage-test player controls, temporary weapon visuals, generic projectile/throwable execution, and game-mode configuration have partial working implementations. Full gameplay, production networking, complete weapons, finalized arenas, inventory validation, HUD polish, and complete game modes are still in progress.
 
 ## Core Concept
 
@@ -34,10 +34,13 @@ godot --headless --path . --quit
 
 AI assistants working on this project should keep this index and the referenced docs updated as work progresses. Store relevant decisions, current implementation notes, deferred follow-ups, test scene notes, and future-reference context in the appropriate doc instead of leaving that knowledge only in chat history.
 
+Start with [Docs Index](docs/index.md) for the full documentation map.
+
 Use this as the documentation dictionary:
 
 | Doc | Use For |
 | --- | --- |
+| [Docs Index](docs/index.md) | Starting point for documentation navigation, implementation docs, plans, and maintenance rules. |
 | [Development Reference](docs/development-reference.md) | CLI commands, C# style rules, tech stack, target platforms, project status, and broad development goals. |
 | [Game Concept](docs/game-concept.md) | High-level game concept, planned game modes, and core design direction. |
 | [Destructible Environment](docs/destructible-environment.md) | Destructible map data model, wall damage rules, tile rendering, debug tile assets, props, and destruction authority rules. |
@@ -54,6 +57,21 @@ Use this as the documentation dictionary:
 ## Current Test Entry Points
 
 Use separate scenes for destruction testing and player/item testing.
+
+On Linux/Bash, use the helper scripts for multi-instance LAN testing. Each script starts one host/server instance and two client instances by default:
+
+```bash
+./tools/testing/launch-player-item-room-lan.sh
+./tools/testing/launch-destruction-lan.sh
+```
+
+Override defaults with environment variables:
+
+```bash
+CLIENTS=3 PORT=7800 GODOT_BIN=godot ./tools/testing/launch-player-item-room-lan.sh
+```
+
+Logs are written to `.tmp/test-logs/`. Press `Ctrl+C` in the script terminal to stop all spawned instances.
 
 Destruction LAN host/client:
 
