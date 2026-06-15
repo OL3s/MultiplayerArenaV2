@@ -162,6 +162,7 @@ public partial class MatchLobby : Control {
             playerDataByTeam[teamId].Add(playerData);
         }
 
+        var teamContainers = new List<LobbyTeamContainer>();
         foreach (var teamPlayers in playerDataByTeam) {
             var teamSection = _lobbyTeamContainerScene.Instantiate<LobbyTeamContainer>();
             teamSection.Configure(
@@ -172,7 +173,34 @@ public partial class MatchLobby : Control {
                 GetNetworking().HasSelectedMode && !GetNetworking().IsLocal);
             teamSection.TeamSelected += OnTeamHeaderPressed;
             teamSections.AddChild(teamSection);
+            teamContainers.Add(teamSection);
         }
+
+        ConfigureAssignButtonFocusGrid(teamContainers);
+    }
+
+    private void ConfigureAssignButtonFocusGrid(IReadOnlyList<LobbyTeamContainer> teamContainers) {
+        if (teamContainers.Count < 4)
+            return;
+
+        LinkAssignButtonFocus(teamContainers[0].AssignButton, right: teamContainers[1].AssignButton, bottom: teamContainers[2].AssignButton);
+        LinkAssignButtonFocus(teamContainers[1].AssignButton, left: teamContainers[0].AssignButton, bottom: teamContainers[3].AssignButton);
+        LinkAssignButtonFocus(teamContainers[2].AssignButton, top: teamContainers[0].AssignButton, right: teamContainers[3].AssignButton);
+        LinkAssignButtonFocus(teamContainers[3].AssignButton, top: teamContainers[1].AssignButton, left: teamContainers[2].AssignButton);
+    }
+
+    private static void LinkAssignButtonFocus(Button button, Button left = null, Button top = null, Button right = null, Button bottom = null) {
+        if (button == null)
+            return;
+
+        if (left != null)
+            button.FocusNeighborLeft = button.GetPathTo(left);
+        if (top != null)
+            button.FocusNeighborTop = button.GetPathTo(top);
+        if (right != null)
+            button.FocusNeighborRight = button.GetPathTo(right);
+        if (bottom != null)
+            button.FocusNeighborBottom = button.GetPathTo(bottom);
     }
 
     private static IEnumerable<int> GetVisibleTeamIds(SetupConfig setupConfig) {
@@ -418,10 +446,18 @@ public partial class MatchLobby : Control {
         if (overlay == null)
             return;
 
+        var overlayRoot = new Control {
+            MouseFilter = MouseFilterEnum.Stop,
+        };
+        overlayRoot.SetAnchorsPreset(LayoutPreset.FullRect);
+
+        var centerContainer = new CenterContainer();
+        centerContainer.SetAnchorsPreset(LayoutPreset.FullRect);
+        overlayRoot.AddChild(centerContainer);
+
         var panel = new PanelContainer {
             CustomMinimumSize = new Vector2(420, 200),
         };
-        panel.SetAnchorsPreset(LayoutPreset.Center);
 
         var margin = new MarginContainer();
         margin.AddThemeConstantOverride("margin_left", 18);
@@ -448,14 +484,15 @@ public partial class MatchLobby : Control {
             Text = "Close",
             CustomMinimumSize = new Vector2(140, 42),
         };
-        closeButton.Pressed += panel.QueueFree;
+        closeButton.Pressed += overlayRoot.QueueFree;
 
         content.AddChild(titleLabel);
         content.AddChild(messageLabel);
         content.AddChild(closeButton);
         margin.AddChild(content);
         panel.AddChild(margin);
-        overlay.AddOverlay(panel, true);
+        centerContainer.AddChild(panel);
+        overlay.AddOverlay(overlayRoot, true);
     }
 
     private static string DescribeBiomes(BiomeConfig biomeConfig) {

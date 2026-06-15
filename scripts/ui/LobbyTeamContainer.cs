@@ -9,8 +9,10 @@ public partial class LobbyTeamContainer : PanelContainer {
 
     private int _teamId;
 
+    public Button AssignButton => GetNode<Button>("Content/TeamMeta/AssignButton");
+
     public override void _Ready() {
-        GetNode<Button>("Content/TeamMeta/AssignButton").Pressed += OnAssignPressed;
+        AssignButton.Pressed += OnAssignPressed;
     }
 
     public void Configure(
@@ -23,7 +25,7 @@ public partial class LobbyTeamContainer : PanelContainer {
         AddThemeStyleboxOverride("panel", TeamVisuals.GetTeamPanelStyle(teamId));
         GetNode<Label>("Content/TeamMeta/TeamLabel").Text = $"Team {teamId}";
 
-        var assignButton = GetNode<Button>("Content/TeamMeta/AssignButton");
+        var assignButton = AssignButton;
         assignButton.Visible = canAssign;
         assignButton.Disabled = !canAssign;
         assignButton.Modulate = canAssign ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
