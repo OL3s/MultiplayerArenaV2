@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/GameModePlaylistOverlay.cs" id="1_playlist"]
 [ext_resource type="Texture2D" path="res://assets/ui/reset_revert.svg" id="2_reset_revert"]
 [ext_resource type="Texture2D" path="res://assets/ui/back_arrow.svg" id="3_back_arrow"]
+[ext_resource type="Texture2D" path="res://assets/ui/config_game.svg" id="4_config_game"]
 [ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_back_button.tres" id="4_back_style"]
 [ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_revert_button.tres" id="5_clear_style"]
 [ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_apply_button.tres" id="6_apply_style"]
@@ -24,34 +25,39 @@ script = ExtResource("1_playlist")
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="Content"]
+[node name="ListPanel" type="VBoxContainer" parent="Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Content/ListPanel"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Game Order"
 horizontal_alignment = 1
 
-[node name="DescriptionLabel" type="Label" parent="Content"]
+[node name="DescriptionLabel" type="Label" parent="Content/ListPanel"]
 layout_mode = 2
 text = "Add modes to the list and move them into the order they should appear."
 autowrap_mode = 3
 horizontal_alignment = 1
 
-[node name="Scroll" type="ScrollContainer" parent="Content"]
+[node name="Scroll" type="ScrollContainer" parent="Content/ListPanel"]
 custom_minimum_size = Vector2(0, 260)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="List" type="VBoxContainer" parent="Content/Scroll"]
+[node name="List" type="VBoxContainer" parent="Content/ListPanel/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="Footer" type="HBoxContainer" parent="Content"]
+[node name="Footer" type="HBoxContainer" parent="Content/ListPanel"]
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="CloseButton" type="Button" parent="Content/Footer"]
+[node name="CloseButton" type="Button" parent="Content/ListPanel/Footer"]
 custom_minimum_size = Vector2(110, 40)
 layout_mode = 2
 text = "Back"
@@ -62,7 +68,7 @@ theme_override_styles/normal = ExtResource("6_apply_style")
 theme_override_styles/hover = ExtResource("6_apply_style")
 theme_override_styles/pressed = ExtResource("6_apply_style")
 
-[node name="ClearButton" type="Button" parent="Content/Footer"]
+[node name="ClearButton" type="Button" parent="Content/ListPanel/Footer"]
 custom_minimum_size = Vector2(110, 40)
 layout_mode = 2
 text = "Clear"
@@ -73,12 +79,52 @@ theme_override_styles/normal = ExtResource("5_clear_style")
 theme_override_styles/hover = ExtResource("5_clear_style")
 theme_override_styles/pressed = ExtResource("5_clear_style")
 
-[node name="AddDeathmatchButton" type="Button" parent="Content/Footer"]
-custom_minimum_size = Vector2(120, 40)
+[node name="AddButton" type="Button" parent="Content/ListPanel/Footer"]
+custom_minimum_size = Vector2(130, 40)
 layout_mode = 2
-text = "Add Deathmatch"
+text = "Add +"
+icon = ExtResource("4_config_game")
+icon_max_width = 18
+expand_icon = true
 
-[node name="AddCaptureTheFlagButton" type="Button" parent="Content/Footer"]
-custom_minimum_size = Vector2(120, 40)
+[node name="CatalogPanel" type="VBoxContainer" parent="Content"]
+visible = false
 layout_mode = 2
-text = "Add CTF"
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Content/CatalogPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Add Game Mode"
+horizontal_alignment = 1
+
+[node name="DescriptionLabel" type="Label" parent="Content/CatalogPanel"]
+layout_mode = 2
+text = "Pick a mode to add it to the game order."
+autowrap_mode = 3
+horizontal_alignment = 1
+
+[node name="CatalogGrid" type="GridContainer" parent="Content/CatalogPanel"]
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="CatalogFooter" type="HBoxContainer" parent="Content/CatalogPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="CatalogBackButton" type="Button" parent="Content/CatalogPanel/CatalogFooter"]
+custom_minimum_size = Vector2(130, 40)
+layout_mode = 2
+text = "Back"
+icon = ExtResource("3_back_arrow")
+icon_max_width = 18
+expand_icon = true
+theme_override_styles/normal = ExtResource("6_apply_style")
+theme_override_styles/hover = ExtResource("6_apply_style")
+theme_override_styles/pressed = ExtResource("6_apply_style")

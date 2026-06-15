@@ -2,7 +2,7 @@ using Godot;
 
 public static class UiFocusHelper {
     public static bool FocusFirstAvailable(Control root, params NodePath[] preferredPaths) {
-        if (root == null)
+        if (root == null || !root.IsInsideTree())
             return false;
 
         foreach (var preferredPath in preferredPaths) {
@@ -15,7 +15,7 @@ public static class UiFocusHelper {
     }
 
     public static bool EnsureFocusWithin(Control root, params NodePath[] preferredPaths) {
-        if (root == null)
+        if (root == null || !root.IsInsideTree())
             return false;
 
         var focusOwner = root.GetViewport()?.GuiGetFocusOwner();
@@ -34,7 +34,7 @@ public static class UiFocusHelper {
     }
 
     private static Control FindFirstFocusableControl(Control root) {
-        if (root == null)
+        if (root == null || !root.IsInsideTree())
             return null;
 
         if (IsFocusable(root))
@@ -53,7 +53,7 @@ public static class UiFocusHelper {
     }
 
     private static bool IsFocusable(Control control) {
-        if (control == null || !control.IsVisibleInTree())
+        if (control == null || !control.IsInsideTree() || !control.IsVisibleInTree())
             return false;
 
         if (control is BaseButton button && button.Disabled)

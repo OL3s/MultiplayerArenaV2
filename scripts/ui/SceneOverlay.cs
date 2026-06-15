@@ -18,6 +18,9 @@ public partial class SceneOverlay : CanvasLayer {
     }
 
     public override void _Process(double delta) {
+        if (!IsInsideTree())
+            return;
+
         EnsureTopOverlayOwnsFocus();
     }
 
@@ -131,6 +134,9 @@ public partial class SceneOverlay : CanvasLayer {
     }
 
     private void FocusTopOverlay() {
+        if (!IsInsideTree())
+            return;
+
         var topOverlay = GetTopOverlay();
         if (topOverlay == null)
             return;
@@ -149,6 +155,9 @@ public partial class SceneOverlay : CanvasLayer {
     }
 
     private void RefreshFocusAfterOverlay() {
+        if (!IsInsideTree())
+            return;
+
         var topOverlay = GetTopOverlay();
         if (topOverlay != null) {
             var overlayFocusTarget = FindFirstFocusableControl(topOverlay);
@@ -156,13 +165,16 @@ public partial class SceneOverlay : CanvasLayer {
             return;
         }
 
-        if (GodotObject.IsInstanceValid(_pendingRestoreFocus))
+        if (GodotObject.IsInstanceValid(_pendingRestoreFocus) && _pendingRestoreFocus.IsInsideTree())
             _pendingRestoreFocus.GrabFocus();
 
         _pendingRestoreFocus = null;
     }
 
     private void EnsureTopOverlayOwnsFocus() {
+        if (!IsInsideTree())
+            return;
+
         var topOverlay = GetTopOverlay();
         if (topOverlay == null)
             return;
@@ -189,7 +201,7 @@ public partial class SceneOverlay : CanvasLayer {
     }
 
     private static Control FindFirstFocusableControl(Control root) {
-        if (root == null)
+        if (root == null || !root.IsInsideTree())
             return null;
 
         if (IsFocusable(root))
@@ -208,6 +220,9 @@ public partial class SceneOverlay : CanvasLayer {
     }
 
     private static bool IsFocusable(Control control) {
+        if (control == null || !control.IsInsideTree())
+            return false;
+
         if (control is BaseButton button && button.Disabled)
             return false;
 

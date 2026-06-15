@@ -518,8 +518,11 @@ public partial class MainMenu : Control {
     }
 
     private void RefreshDefaultFocus() {
+        if (!IsInsideTree())
+            return;
+
         var focusOwner = GetViewport().GuiGetFocusOwner();
-        if (focusOwner != null && focusOwner.IsVisibleInTree())
+        if (focusOwner != null && focusOwner.IsInsideTree() && focusOwner.IsVisibleInTree())
             return;
 
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").GrabFocus();

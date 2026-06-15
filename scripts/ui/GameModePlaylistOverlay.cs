@@ -2,17 +2,30 @@ using System;
 using Godot;
 
 public partial class GameModePlaylistOverlay : PanelContainer {
+    private const string ConfigGameIconPath = "res://assets/ui/config_game.svg";
+    private const string DeathmatchIconPath = "res://assets/ui/game_mode_deathmatch.svg";
+    private const string CaptureTheFlagIconPath = "res://assets/ui/game_mode_capture_the_flag.svg";
+    private const string GameModeCatalogTileScenePath = "res://scenes/ui/overlays/game_mode_catalog_tile.tscn";
+
+    private static readonly GameModeConfig.GameModeType[] AvailableGameModes = {
+        GameModeConfig.GameModeType.Deathmatch,
+        GameModeConfig.GameModeType.CaptureTheFlag,
+    };
+
     private Action<GameModeConfig.GameModeType> _onAdd;
     private Action<int> _onMoveUp;
     private Action<int> _onMoveDown;
     private Action<int> _onRemove;
     private Action _onClear;
+    private PackedScene _catalogTileScene;
 
     public override void _Ready() {
-        GetNode<Button>("Content/Footer/AddDeathmatchButton").Pressed += () => _onAdd?.Invoke(GameModeConfig.GameModeType.Deathmatch);
-        GetNode<Button>("Content/Footer/AddCaptureTheFlagButton").Pressed += () => _onAdd?.Invoke(GameModeConfig.GameModeType.CaptureTheFlag);
-        GetNode<Button>("Content/Footer/ClearButton").Pressed += () => _onClear?.Invoke();
-        GetNode<Button>("Content/Footer/CloseButton").Pressed += QueueFree;
+        _catalogTileScene = GD.Load<PackedScene>(GameModeCatalogTileScenePath);
+        GetNode<Button>("Content/ListPanel/Footer/AddButton").Pressed += ShowCatalogPanel;
+        GetNode<Button>("Content/ListPanel/Footer/ClearButton").Pressed += () => _onClear?.Invoke();
+        GetNode<Button>("Content/ListPanel/Footer/CloseButton").Pressed += QueueFree;
+        GetNode<Button>("Content/CatalogPanel/CatalogFooter/CatalogBackButton").Pressed += ShowListPanel;
+        BuildCatalogGrid();
     }
 
     public void Configure(
@@ -29,10 +42,9 @@ public partial class GameModePlaylistOverlay : PanelContainer {
     }
 
     public void RefreshList(SetupConfig setupConfig) {
-        var list = GetNode<VBoxContainer>("Content/Scroll/List");
+        var list = GetNode<VBoxContainer>("Content/ListPanel/Scroll/List");
         var hasGameModes = setupConfig != null && setupConfig.GameModes.Count > 0;
-        GetNode<Button>("Content/Footer/ClearButton").Disabled = !hasGameModes;
-        GetNode<Button>("Content/Footer/CloseButton").Disabled = !hasGameModes;
+        GetNode<Button>("Content/ListPanel/Footer/ClearButton").Disabled = !hasGameModes;
 
         foreach (var child in list.GetChildren()) {
             list.RemoveChild(child);
@@ -87,12 +99,63 @@ public partial class GameModePlaylistOverlay : PanelContainer {
         }
     }
 
+    private void BuildCatalogGrid() {
+        if (_catalogTileScene == null) {
+            GameLog.Error(GameLogScope.UI, "GameModeCatalogTileSceneLoadFailed", $"path={GameModeCatalogTileScenePath}");
+            return;
+        }
+
+        var grid = GetNode<GridContainer>("Content/CatalogPanel/CatalogGrid");
+        foreach (var child in grid.GetChildren()) {
+            grid.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        foreach (var gameMode in AvailableGameModes) {
+            var tile = _catalogTileScene.Instantiate<GameModeCatalogTile>();
+            tile.Configure(gameMode, GetGameModeDisplayName(gameMode), GetGameModeIconPath(gameMode));
+            tile.ModeSelected += selectedMode => {
+                _onAdd?.Invoke(selectedMode);
+                ShowListPanel();
+            };
+            grid.AddChild(tile);
+        }
+    }
+
+    private void ShowCatalogPanel() {
+        GetNode<Control>("Content/ListPanel").Visible = false;
+        GetNode<Control>("Content/CatalogPanel").Visible = true;
+        UiFocusHelper.FocusFirstAvailable(GetNode<Control>("Content/CatalogPanel"));
+    }
+
+    private void ShowListPanel() {
+        GetNode<Control>("Content/CatalogPanel").Visible = false;
+        GetNode<Control>("Content/ListPanel").Visible = true;
+        GetNode<Button>("Content/ListPanel/Footer/AddButton").GrabFocus();
+    }
+
     private static string GetGameModeDisplayName(GameModeConfig gameMode) {
         if (gameMode == null)
             return "Unknown";
 
         return string.IsNullOrWhiteSpace(gameMode.DisplayName)
-            ? gameMode.ModeType.ToString()
+            ? GetGameModeDisplayName(gameMode.ModeType)
             : gameMode.DisplayName;
+    }
+
+    private static string GetGameModeDisplayName(GameModeConfig.GameModeType modeType) {
+        return modeType switch {
+            GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
+            GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
+            _ => modeType.ToString(),
+        };
+    }
+
+    private static string GetGameModeIconPath(GameModeConfig.GameModeType modeType) {
+        return modeType switch {
+            GameModeConfig.GameModeType.Deathmatch => DeathmatchIconPath,
+            GameModeConfig.GameModeType.CaptureTheFlag => CaptureTheFlagIconPath,
+            _ => ConfigGameIconPath,
+        };
     }
 }

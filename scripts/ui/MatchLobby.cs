@@ -674,6 +674,9 @@ public partial class MatchLobby : Control {
             ShowMessageOverlay("Cannot Start Match", startBlockReason);
             return;
         }
+
+        GameLog.Warn(GameLogScope.MatchSetup, "StartMatchNotImplemented", "reason=matchSceneFlowMissing");
+        ShowMessageOverlay("Start Match", "Starting the actual match scene is not implemented yet.");
     }
 
     private static bool CanStartMatchNow(Networking networking, SetupConfig setupConfig) {
