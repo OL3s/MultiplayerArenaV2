@@ -24,6 +24,7 @@ public partial class LobbyTeamContainer : PanelContainer {
         GetNode<Label>("Content/TeamMeta/TeamLabel").Text = $"Team {teamId}";
 
         var assignButton = GetNode<Button>("Content/TeamMeta/AssignButton");
+        assignButton.Visible = canAssign;
         assignButton.Disabled = !canAssign;
         assignButton.Modulate = canAssign ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
 

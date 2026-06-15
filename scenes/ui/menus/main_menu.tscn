@@ -1,8 +1,9 @@
-[gd_scene load_steps=9 format=3 uid="uid://cqb3ugv7ettpp"]
+[gd_scene load_steps=10 format=3 uid="uid://cqb3ugv7ettpp"]
 
 [ext_resource type="Script" uid="uid://btib1l2dguqjn" path="res://scripts/ui/MainMenu.cs" id="1_mainmenu"]
 [ext_resource type="Texture2D" uid="uid://boqnysulqxwin" path="res://assets/network/networkmodes/network_lan.svg" id="4_network_lan"]
 [ext_resource type="Texture2D" uid="uid://bnkssvlrb0114" path="res://assets/network/networkmodes/network_client.svg" id="5_network_client"]
+[ext_resource type="Texture2D" path="res://assets/ui/test_scenes.svg" id="6_test_scenes"]
 [ext_resource type="Texture2D" path="res://assets/ui/settings_cog.svg" id="6_settings_cog"]
 [ext_resource type="Texture2D" path="res://assets/ui/exit_power.svg" id="7_exit_power"]
 [ext_resource type="Texture2D" path="res://assets/ui/reset_revert.svg" id="8_reset_revert"]
@@ -206,11 +207,25 @@ grow_horizontal = 0
 theme_override_constants/separation = 8
 alignment = 2
 
+[node name="TestScenesButton" type="Button" parent="TopRightButtons"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+focus_neighbor_right = NodePath("../SettingsButton")
+focus_neighbor_bottom = NodePath("../../MainLayout/ActionButtons/HostGameButton")
+icon = ExtResource("6_test_scenes")
+icon_max_width = 22
+expand_icon = true
+
 [node name="SettingsButton" type="Button" parent="TopRightButtons" unique_id=650086488]
 custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
+focus_neighbor_left = NodePath("../TestScenesButton")
+focus_neighbor_right = NodePath("../ExitGameButton")
+focus_neighbor_bottom = NodePath("../../MainLayout/ActionButtons/HostGameButton")
 icon = ExtResource("6_settings_cog")
 icon_max_width = 22
 expand_icon = true

@@ -18,6 +18,10 @@ public partial class MultiplayerData : Resource {
         if (playerData == null)
             return DefaultTeamId;
 
+        var playerTeamId = NormalizeTeamId(playerData.TeamId);
+        if (playerTeamId != DefaultTeamId)
+            return playerTeamId;
+
         var peerData = GetPeer(playerData.PeerId);
         return NormalizeTeamId(peerData?.TeamId ?? DefaultTeamId);
     }

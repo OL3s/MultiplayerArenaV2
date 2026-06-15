@@ -6,30 +6,37 @@ public partial class MainMenu : Control {
     private const string JoinGameMenuScenePath = "res://scenes/ui/menus/join_game_menu.tscn";
     private const string SettingsMenuScenePath = "res://scenes/ui/menus/settings_menu.tscn";
     private const string ConfirmationOverlayScenePath = "res://scenes/ui/overlays/confirmation_overlay.tscn";
+    private const string TestScenesOverlayScenePath = "res://scenes/ui/overlays/test_scenes_overlay.tscn";
     private const string XboxButtonXIconPath = "res://assets/inputicons/xbox/button_x.svg";
-    private const string KeyboardEnterIconPath = "res://assets/inputicons/keyboard/enter.svg";
+    private const string KeyboardJoinIconPath = "res://assets/inputicons/keyboard/key_c.svg";
     private const string DeviceKeyboardMouseIconPath = "res://assets/inputicons/device_keyboard_mouse.svg";
     private const string DeviceGamepadIconPath = "res://assets/inputicons/device_gamepad.svg";
+    private const string DeviceTouchIconPath = "res://assets/inputicons/device_touch.svg";
     private const string NetworkIconLanPath = "res://assets/network/networkmodes/network_lan.svg";
     private const string NetworkIconClientPath = "res://assets/network/networkmodes/network_client.svg";
+    private const string TestScenesIconPath = "res://assets/ui/test_scenes.svg";
     private const string SettingsIconPath = "res://assets/ui/settings_cog.svg";
     private const string ExitIconPath = "res://assets/ui/exit_power.svg";
     private const string ResetIconPath = "res://assets/ui/reset_revert.svg";
 
     private PackedScene _confirmationOverlayScene;
+    private PackedScene _testScenesOverlayScene;
     private double _joinPromptIconElapsed;
-    private bool _showKeyboardJoinPrompt = true;
+    private int _joinPromptIconIndex;
 
     private LocalLobbyData LocalLobbyData => GetNetworking().LocalLobbyData;
 
     public override void _Ready() {
         UiInputActions.EnsureConfigured();
         _confirmationOverlayScene = GD.Load<PackedScene>(ConfirmationOverlayScenePath);
+        _testScenesOverlayScene = GD.Load<PackedScene>(TestScenesOverlayScenePath);
+        GetNode<Button>("TopRightButtons/TestScenesButton").Pressed += OnTestScenesPressed;
         GetNode<Button>("TopRightButtons/SettingsButton").Pressed += OnSettingsPressed;
         GetNode<Button>("TopRightButtons/ExitGameButton").Pressed += OnExitGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Pressed += OnHostGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Pressed += OnJoinGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/ResetPlayersButton").Pressed += OnResetPlayersPressed;
+        ConnectPlayerCardInput();
         ApplyButtonIcons();
         EnsureDefaultLocalLobby();
         RefreshLocalLobbySlots();
@@ -39,7 +46,7 @@ public partial class MainMenu : Control {
 
     public override void _Input(InputEvent inputEvent) {
         if (inputEvent is InputEventKey { Pressed: true, Echo: false } keyEvent
-            && (keyEvent.Keycode == Key.Enter || keyEvent.Keycode == Key.KpEnter)) {
+            && keyEvent.Keycode == Key.C) {
             if (TryJoinKeyboardPlayer())
                 GetViewport().SetInputAsHandled();
 
@@ -55,34 +62,55 @@ public partial class MainMenu : Control {
     }
 
     public override void _Process(double delta) {
-        if (HasKeyboardPlayer())
+        var optionCount = GetJoinPromptOptionCount(HasKeyboardPlayer(), HasTouchPlayer());
+        if (optionCount <= 1)
             return;
 
         _joinPromptIconElapsed += delta;
-        if (_joinPromptIconElapsed < 1.0)
+        if (_joinPromptIconElapsed < 2.0)
             return;
 
         _joinPromptIconElapsed = 0.0;
-        _showKeyboardJoinPrompt = !_showKeyboardJoinPrompt;
+        _joinPromptIconIndex = (_joinPromptIconIndex + 1) % optionCount;
         RefreshLocalLobbySlots();
     }
 
-    public void ConfigureKeyboardPlayer(int slotIndex) {
-        ConfigureLocalPlayer(slotIndex, LocalPlayerData.LocalInputType.KeyboardMouse, -1);
+    public bool ConfigureKeyboardPlayer(int slotIndex) {
+        return ConfigureLocalPlayer(slotIndex, LocalPlayerData.LocalInputType.KeyboardMouse, -1);
     }
 
-    public void ConfigureGamepadPlayer(int slotIndex, int deviceId) {
-        ConfigureLocalPlayer(slotIndex, LocalPlayerData.LocalInputType.Gamepad, deviceId);
+    public bool ConfigureGamepadPlayer(int slotIndex, int deviceId) {
+        return ConfigureLocalPlayer(slotIndex, LocalPlayerData.LocalInputType.Gamepad, deviceId);
     }
 
-    private void ConfigureLocalPlayer(int slotIndex, LocalPlayerData.LocalInputType inputType, int deviceId) {
+    public bool ConfigureTouchPlayer(int slotIndex) {
+        return ConfigureLocalPlayer(slotIndex, LocalPlayerData.LocalInputType.Touch, -1);
+    }
+
+    private bool ConfigureLocalPlayer(int slotIndex, LocalPlayerData.LocalInputType inputType, int deviceId) {
+        if (slotIndex < 0 || slotIndex >= LocalLobbySlotCount)
+            return false;
+
+        if (inputType == LocalPlayerData.LocalInputType.KeyboardMouse && HasKeyboardPlayer())
+            return false;
+
+        if (inputType == LocalPlayerData.LocalInputType.Touch && HasTouchPlayer())
+            return false;
+
+        if (inputType == LocalPlayerData.LocalInputType.Gamepad && HasGamepadPlayer(deviceId))
+            return false;
+
         var localPlayer = GetLocalPlayer(slotIndex);
+        if (localPlayer.IsActive)
+            return false;
+
         localPlayer.IsActive = true;
         localPlayer.InputType = inputType;
         localPlayer.DeviceId = deviceId;
         localPlayer.DisplayName = $"Player {slotIndex + 1}";
         RefreshLocalLobbySlots();
         RefreshActionButtonsVisibility();
+        return true;
     }
 
     private void EnsureDefaultLocalLobby() {
@@ -102,8 +130,7 @@ public partial class MainMenu : Control {
         if (slotIndex == -1)
             return false;
 
-        ConfigureKeyboardPlayer(slotIndex);
-        return true;
+        return ConfigureKeyboardPlayer(slotIndex);
     }
 
     private bool TryJoinGamepadPlayer(int deviceId) {
@@ -114,8 +141,21 @@ public partial class MainMenu : Control {
         if (slotIndex == -1)
             return false;
 
-        ConfigureGamepadPlayer(slotIndex, deviceId);
-        return true;
+        return ConfigureGamepadPlayer(slotIndex, deviceId);
+    }
+
+    private bool TryJoinTouchPlayer(int slotIndex) {
+        if (HasTouchPlayer())
+            return false;
+
+        if (slotIndex < 0 || slotIndex >= LocalLobbySlotCount)
+            return false;
+
+        var localPlayer = GetLocalPlayer(slotIndex);
+        if (localPlayer.IsActive)
+            return false;
+
+        return ConfigureTouchPlayer(slotIndex);
     }
 
     private int GetFirstOpenSlotIndex() {
@@ -144,6 +184,15 @@ public partial class MainMenu : Control {
         return GetGamepadPlayerSlotIndex(deviceId) != -1;
     }
 
+    private bool HasTouchPlayer() {
+        foreach (var localPlayer in LocalLobbyData.LocalPlayers) {
+            if (localPlayer.IsActive && localPlayer.InputType == LocalPlayerData.LocalInputType.Touch)
+                return true;
+        }
+
+        return false;
+    }
+
     private int GetGamepadPlayerSlotIndex(int deviceId) {
         foreach (var localPlayer in LocalLobbyData.LocalPlayers) {
             if (localPlayer.IsActive
@@ -169,6 +218,7 @@ public partial class MainMenu : Control {
 
     private void RefreshLocalLobbySlots() {
         var hasKeyboardPlayer = HasKeyboardPlayer();
+        var hasTouchPlayer = HasTouchPlayer();
         var nextOpenSlotIndex = GetFirstOpenSlotIndex();
 
         for (var slotIndex = 0; slotIndex < LocalLobbySlotCount; slotIndex++) {
@@ -178,11 +228,11 @@ public partial class MainMenu : Control {
             var isNextOpenSlot = slotIndex == nextOpenSlotIndex;
             slot.Visible = localPlayer.IsActive || isNextOpenSlot;
 
-            ReplaceSlotContent(slot, slotPanel, CreateSlotContent(localPlayer, hasKeyboardPlayer, isNextOpenSlot), GetSlotBadgeText(localPlayer, isNextOpenSlot));
+            ReplaceSlotContent(slot, slotPanel, CreateSlotContent(localPlayer, hasKeyboardPlayer, hasTouchPlayer, isNextOpenSlot), GetSlotBadgeText(localPlayer, isNextOpenSlot));
         }
     }
 
-    private Control CreateSlotContent(LocalPlayerData localPlayer, bool hasKeyboardPlayer, bool isNextOpenSlot) {
+    private Control CreateSlotContent(LocalPlayerData localPlayer, bool hasKeyboardPlayer, bool hasTouchPlayer, bool isNextOpenSlot) {
         var content = new VBoxContainer {
             Alignment = BoxContainer.AlignmentMode.Center,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -197,7 +247,7 @@ public partial class MainMenu : Control {
                 return content;
             }
 
-            content.AddChild(CreateJoinPrompt(GetJoinPromptIconPath(hasKeyboardPlayer)));
+            content.AddChild(CreateJoinPrompt(GetJoinPromptIconPath(hasKeyboardPlayer, hasTouchPlayer), GetJoinPromptActionText(hasKeyboardPlayer, hasTouchPlayer)));
             content.AddChild(CreateCenteredLabel("Empty", 16));
             return content;
         }
@@ -212,6 +262,7 @@ public partial class MainMenu : Control {
         return localPlayer.InputType switch {
             LocalPlayerData.LocalInputType.KeyboardMouse => "Keyboard + Mouse",
             LocalPlayerData.LocalInputType.Gamepad => $"Gamepad {localPlayer.DeviceId}",
+            LocalPlayerData.LocalInputType.Touch => "Touch Screen",
             _ => "No Input",
         };
     }
@@ -220,15 +271,37 @@ public partial class MainMenu : Control {
         return localPlayer.InputType switch {
             LocalPlayerData.LocalInputType.KeyboardMouse => DeviceKeyboardMouseIconPath,
             LocalPlayerData.LocalInputType.Gamepad => DeviceGamepadIconPath,
+            LocalPlayerData.LocalInputType.Touch => DeviceTouchIconPath,
             _ => string.Empty,
         };
     }
 
-    private string GetJoinPromptIconPath(bool hasKeyboardPlayer) {
-        if (hasKeyboardPlayer)
+    private string GetJoinPromptIconPath(bool hasKeyboardPlayer, bool hasTouchPlayer) {
+        var optionIndex = Mathf.PosMod(_joinPromptIconIndex, GetJoinPromptOptionCount(hasKeyboardPlayer, hasTouchPlayer));
+        if (!hasKeyboardPlayer) {
+            if (optionIndex == 0)
+                return KeyboardJoinIconPath;
+
+            optionIndex--;
+        }
+
+        if (optionIndex == 0)
             return XboxButtonXIconPath;
 
-        return _showKeyboardJoinPrompt ? KeyboardEnterIconPath : XboxButtonXIconPath;
+        return DeviceTouchIconPath;
+    }
+
+    private string GetJoinPromptActionText(bool hasKeyboardPlayer, bool hasTouchPlayer) {
+        return GetJoinPromptIconPath(hasKeyboardPlayer, hasTouchPlayer) == DeviceTouchIconPath ? "Tap" : "Press";
+    }
+
+    private static int GetJoinPromptOptionCount(bool hasKeyboardPlayer, bool hasTouchPlayer) {
+        var count = 1;
+        if (!hasKeyboardPlayer)
+            count++;
+        if (!hasTouchPlayer)
+            count++;
+        return count;
     }
 
     private static string GetSlotBadgeText(LocalPlayerData localPlayer, bool isNextOpenSlot) {
@@ -276,13 +349,13 @@ public partial class MainMenu : Control {
         return badge;
     }
 
-    private static VBoxContainer CreateJoinPrompt(string iconPath) {
+    private static VBoxContainer CreateJoinPrompt(string iconPath, string actionText) {
         var prompt = new VBoxContainer {
             Alignment = BoxContainer.AlignmentMode.Center,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         prompt.AddThemeConstantOverride("separation", 3);
-        prompt.AddChild(CreateCenteredLabel("Press", 15));
+        prompt.AddChild(CreateCenteredLabel(actionText, 15));
         prompt.AddChild(CreatePromptIcon(iconPath, 18.0f));
         return prompt;
     }
@@ -336,6 +409,19 @@ public partial class MainMenu : Control {
             () => GetTree().Quit());
     }
 
+    private void OnTestScenesPressed() {
+        if (_testScenesOverlayScene == null) {
+            GD.PushError($"Failed to load test scenes overlay scene at '{TestScenesOverlayScenePath}'.");
+            return;
+        }
+
+        var sceneOverlay = SceneOverlay.GetOrCreate(this);
+        if (sceneOverlay == null)
+            return;
+
+        sceneOverlay.AddOverlay(_testScenesOverlayScene.Instantiate<Control>(), true);
+    }
+
     private void OnSettingsPressed() {
         GetTree().ChangeSceneToFile(SettingsMenuScenePath);
     }
@@ -374,11 +460,34 @@ public partial class MainMenu : Control {
     }
 
     private void ApplyButtonIcons() {
+        GetNode<Button>("TopRightButtons/TestScenesButton").Icon = GD.Load<Texture2D>(TestScenesIconPath);
         GetNode<Button>("TopRightButtons/SettingsButton").Icon = GD.Load<Texture2D>(SettingsIconPath);
         GetNode<Button>("TopRightButtons/ExitGameButton").Icon = GD.Load<Texture2D>(ExitIconPath);
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Icon = GD.Load<Texture2D>(NetworkIconLanPath);
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
         GetNode<Button>("MainLayout/ActionButtons/ResetPlayersButton").Icon = GD.Load<Texture2D>(ResetIconPath);
+    }
+
+    private void ConnectPlayerCardInput() {
+        for (var slotIndex = 0; slotIndex < LocalLobbySlotCount; slotIndex++) {
+            var capturedSlotIndex = slotIndex;
+            var slot = GetNode<Control>($"MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot{slotIndex + 1}");
+            var slotPanel = slot.GetNode<PanelContainer>("CardPanel");
+            slot.MouseFilter = MouseFilterEnum.Stop;
+            slotPanel.MouseFilter = MouseFilterEnum.Stop;
+            slot.GuiInput += inputEvent => OnPlayerCardInput(capturedSlotIndex, inputEvent);
+            slotPanel.GuiInput += inputEvent => OnPlayerCardInput(capturedSlotIndex, inputEvent);
+        }
+    }
+
+    private void OnPlayerCardInput(int slotIndex, InputEvent inputEvent) {
+        var shouldJoin = inputEvent is InputEventScreenTouch { Pressed: true }
+            || inputEvent is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left };
+        if (!shouldJoin)
+            return;
+
+        if (TryJoinTouchPlayer(slotIndex))
+            GetViewport().SetInputAsHandled();
     }
 
     private void RefreshDefaultFocus() {

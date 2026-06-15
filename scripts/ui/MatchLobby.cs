@@ -57,6 +57,8 @@ public partial class MatchLobby : Control {
         GetNetworking().ConfigApplyStateChanged += OnConfigApplyStateChanged;
         GetNode<Button>("MainLayout/Actions/StartButton").Pressed += OnStartPressed;
         GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutoAssignButton").Pressed += OnAutoAssignPressed;
+        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions/FfaButton").Pressed += OnLocalFfaPressed;
+        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions/TeamButton").Pressed += OnLocalTeamPressed;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/ApplyConfigButton").Pressed += OnApplyConfigPressed;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/RevertConfigButton").Pressed += OnRevertConfigPressed;
         GetNode<Button>("MainLayout/Actions/BackButton").Pressed += OnBackPressed;
@@ -88,9 +90,19 @@ public partial class MatchLobby : Control {
         RefreshConfigControls(GetEditableSetupConfig());
         RefreshPlayerSections(networking.MultiplayerData);
 
+        var connectionSection = GetNode<Control>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConnectionSection");
+        connectionSection.Visible = !networking.IsLocal;
+
         var autoAssignButton = GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutoAssignButton");
-        autoAssignButton.Disabled = !networking.HasSelectedMode || networking.MultiplayerData.Players.Count == 0;
+        autoAssignButton.Visible = !networking.IsLocal;
+        autoAssignButton.Disabled = !autoAssignButton.Visible || !networking.HasSelectedMode || networking.MultiplayerData.Players.Count == 0;
         autoAssignButton.Modulate = autoAssignButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
+
+        var localTeamModeActions = GetNode<Control>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions");
+        localTeamModeActions.Visible = networking.IsLocal;
+        var localTeamButtonsDisabled = !networking.IsLocal || networking.MultiplayerData.Players.Count == 0;
+        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions/FfaButton").Disabled = localTeamButtonsDisabled;
+        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions/TeamButton").Disabled = localTeamButtonsDisabled;
 
         var startButton = GetNode<Button>("MainLayout/Actions/StartButton");
         startButton.Visible = networking.IsServer || networking.IsLocal;
@@ -146,7 +158,7 @@ public partial class MatchLobby : Control {
                 teamPlayers.Value,
                 _lobbyPlayerCardScene,
                 _lobbyEmptyPlayerSlotScene,
-                GetNetworking().HasSelectedMode);
+                GetNetworking().HasSelectedMode && !GetNetworking().IsLocal);
             teamSection.TeamSelected += OnTeamHeaderPressed;
             teamSections.AddChild(teamSection);
         }
@@ -177,6 +189,16 @@ public partial class MatchLobby : Control {
 
     private void OnAutoAssignPressed() {
         GetNetworking().SetLocalPeerTeam(global::MultiplayerData.DefaultTeamId);
+        RefreshLobbyState();
+    }
+
+    private void OnLocalFfaPressed() {
+        GetNetworking().SetLocalPlayersFreeForAllTeams();
+        RefreshLobbyState();
+    }
+
+    private void OnLocalTeamPressed() {
+        GetNetworking().SetLocalPlayersTwoTeams();
         RefreshLobbyState();
     }
 

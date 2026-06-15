@@ -22,6 +22,9 @@ On PC, supported local lobby setups should include:
 
 - 1 keyboard/mouse player and up to 3 gamepad players.
 - Up to 4 gamepad players.
+- 1 touchscreen player by touching/clicking the visible empty player card in the main menu.
+
+Main menu local-player configuration guards enforce at most one keyboard/mouse player and at most one touchscreen player per device. Gamepad uniqueness is still per gamepad device id.
 
 Local lobby slots should be stored as `LocalPlayerData` resources inside `LocalLobbyData`. This keeps local input ownership separate from online player replication and makes it possible for one peer/device to request several in-game players.
 
@@ -72,6 +75,8 @@ The host menu should expose `Local`, `Lan`, and `Online`. A separate dedicated-s
 Current mode distinction:
 
 - `Local` means the match is contained inside this one running process. It is not LAN and should not create a network peer or open a port.
+- The Local lobby hides connection settings but keeps map/game Match Config available. It uses local-only team mode buttons instead of peer/team assignment: `FFA` assigns each local player to their own team, while `TEAM` assigns local player slots 1 and 3 to Team 1 and slots 2 and 4 to Team 2.
+- Entering a Local lobby applies `FFA` immediately so local players do not initially appear stacked on Team 1.
 - `Lan` and `Online` are both real network modes. For now they use the same direct host/client transport behavior.
 - `Lan` is the default private/direct mode.
 - `Online` is reserved for public/internet-facing host flow.

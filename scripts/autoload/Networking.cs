@@ -372,8 +372,13 @@ public partial class Networking : Node {
         if (IsLocal) {
             CloseNetworkPeer();
             StopDiscoveryServer();
+            MultiplayerData.SetupConfig.ServerAddress = string.Empty;
+            MultiplayerData.SetupConfig.ServerPort = 0;
+            MultiplayerData.SetupConfig.OnlineEnabled = false;
+            SyncCachedSetupConfig();
             ConnectionStatusText = "Status: Local game ready.";
             RegisterLocalLobbyPlayers();
+            SetLocalPlayersFreeForAllTeams();
             EmitConnectionStateChanged();
             return true;
         }
@@ -553,6 +558,26 @@ public partial class Networking : Node {
         }
 
         SetPeerTeam(peerId, teamId);
+    }
+
+    public void SetLocalPlayersFreeForAllTeams() {
+        if (!IsLocal)
+            return;
+
+        foreach (var playerData in MultiplayerData.Players)
+            playerData.TeamId = global::MultiplayerData.NormalizeTeamId(playerData.LocalId + 1);
+
+        EmitLobbyStateChanged();
+    }
+
+    public void SetLocalPlayersTwoTeams() {
+        if (!IsLocal)
+            return;
+
+        foreach (var playerData in MultiplayerData.Players)
+            playerData.TeamId = playerData.LocalId % 2 == 0 ? 1 : 2;
+
+        EmitLobbyStateChanged();
     }
 
     public void SetPeerTeam(int peerId, int teamId) {

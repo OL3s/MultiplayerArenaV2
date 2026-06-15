@@ -2,6 +2,16 @@
 
 This document tracks current test scenes, test controls, launch commands, and runtime logging notes. Update this file when test scenes change.
 
+## Main Menu Test Scene Launcher
+
+- The main menu has a top-right test-scenes icon button to the left of Settings.
+- The button opens `scenes/ui/overlays/test_scenes_overlay.tscn`.
+- `TestScenesOverlay` scans `res://scenes/tests` recursively at runtime and creates one launch button for each `.tscn` file it finds, so the launcher updates automatically when test scenes are added or removed. Button labels use the raw `.tscn` filename because this is a developer launcher.
+- Main-menu keyboard player join uses the `C` key and `assets/inputicons/keyboard/key_c.svg` instead of Enter, leaving Enter/Space free for standard UI button activation and arrow-key navigation.
+- Empty-card join prompts rotate every 2 seconds across currently available join inputs: keyboard `C`, gamepad `X`, and touch.
+- Touching or clicking the visible empty player card in the main menu joins one local touchscreen player using `LocalPlayerData.LocalInputType.Touch` and `assets/inputicons/device_touch.svg`. Main menu lobby API guards allow at most one keyboard/mouse player and at most one touch player.
+- Local-only match lobby mode does not open a network peer or bind a server port. Its lobby UI hides connection settings, keeps map/game Match Config editable, and exposes `FFA`/`TEAM` local player team assignment buttons.
+
 ## Destruction Logic Test
 
 Scene: `scenes/tests/test_map_destruction_logic.tscn`

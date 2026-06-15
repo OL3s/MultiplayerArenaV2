@@ -6,6 +6,7 @@ public partial class LocalPlayerData : Resource {
         None,
         KeyboardMouse,
         Gamepad,
+        Touch,
     }
 
     [Export]

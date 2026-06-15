@@ -68,6 +68,22 @@ custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Auto-assign My Device"
 
+[node name="LocalTeamModeActions" type="HBoxContainer" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="FfaButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions"]
+custom_minimum_size = Vector2(220, 36)
+layout_mode = 2
+text = "FFA"
+
+[node name="TeamButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions"]
+custom_minimum_size = Vector2(220, 36)
+layout_mode = 2
+text = "TEAM"
+
 [node name="TeamSections" type="GridContainer" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout" unique_id=53389463]
 layout_mode = 2
 size_flags_vertical = 3

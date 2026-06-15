@@ -12,6 +12,9 @@ public partial class PlayerData : Resource {
     public int PeerId { get; set; } = -1;
 
     [Export]
+    public int TeamId { get; set; } = MultiplayerData.DefaultTeamId;
+
+    [Export]
     public string DisplayName { get; set; } = "Player";
 
     public bool IsLocalPlayer { get; set; }
