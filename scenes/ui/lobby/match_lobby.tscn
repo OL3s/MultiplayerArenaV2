@@ -63,10 +63,25 @@ theme_override_font_sizes/font_size = 22
 text = "Players"
 horizontal_alignment = 1
 
-[node name="AutoAssignButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout"]
-custom_minimum_size = Vector2(0, 36)
+[node name="AutofillTeamActions" type="HBoxContainer" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout"]
 layout_mode = 2
-text = "Auto-assign My Device"
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Autofill2TeamsButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions"]
+custom_minimum_size = Vector2(170, 36)
+layout_mode = 2
+text = "Autofill 2 Teams"
+
+[node name="Autofill3TeamsButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions"]
+custom_minimum_size = Vector2(170, 36)
+layout_mode = 2
+text = "Autofill 3 Teams"
+
+[node name="Autofill4TeamsButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions"]
+custom_minimum_size = Vector2(170, 36)
+layout_mode = 2
+text = "Autofill 4 Teams"
 
 [node name="LocalTeamModeActions" type="HBoxContainer" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout"]
 visible = false

@@ -49,14 +49,13 @@ public partial class MatchLobby : Control {
         _lobbyTeamContainerScene = GD.Load<PackedScene>(LobbyTeamContainerScenePath);
         _lobbyPlayerCardScene = GD.Load<PackedScene>(LobbyPlayerCardScenePath);
         _lobbyEmptyPlayerSlotScene = GD.Load<PackedScene>(LobbyEmptyPlayerSlotScenePath);
-        _configSelectionOverlayScene = GD.Load<PackedScene>(ConfigSelectionOverlayScenePath);
-        _gameModePlaylistOverlayScene = GD.Load<PackedScene>(GameModePlaylistOverlayScenePath);
-        _confirmationOverlayScene = GD.Load<PackedScene>(ConfirmationOverlayScenePath);
         GetNetworking().LobbyStateChanged += RefreshLobbyState;
         GetNetworking().ConnectionStateChanged += RefreshLobbyState;
         GetNetworking().ConfigApplyStateChanged += OnConfigApplyStateChanged;
         GetNode<Button>("MainLayout/Actions/StartButton").Pressed += OnStartPressed;
-        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutoAssignButton").Pressed += OnAutoAssignPressed;
+        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions/Autofill2TeamsButton").Pressed += () => OnAutofillTeamsPressed(2);
+        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions/Autofill3TeamsButton").Pressed += () => OnAutofillTeamsPressed(3);
+        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions/Autofill4TeamsButton").Pressed += () => OnAutofillTeamsPressed(4);
         GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions/FfaButton").Pressed += OnLocalFfaPressed;
         GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions/TeamButton").Pressed += OnLocalTeamPressed;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/ApplyConfigButton").Pressed += OnApplyConfigPressed;
@@ -93,10 +92,12 @@ public partial class MatchLobby : Control {
         var connectionSection = GetNode<Control>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConnectionSection");
         connectionSection.Visible = !networking.IsLocal;
 
-        var autoAssignButton = GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutoAssignButton");
-        autoAssignButton.Visible = !networking.IsLocal;
-        autoAssignButton.Disabled = !autoAssignButton.Visible || !networking.HasSelectedMode || networking.MultiplayerData.Players.Count == 0;
-        autoAssignButton.Modulate = autoAssignButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
+        var autofillTeamActions = GetNode<Control>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions");
+        autofillTeamActions.Visible = !networking.IsLocal;
+        var autofillButtonsDisabled = networking.IsLocal || !networking.IsServer || !networking.HasSelectedMode || networking.MultiplayerData.Players.Count == 0;
+        SetAutofillButtonState("Autofill2TeamsButton", autofillButtonsDisabled);
+        SetAutofillButtonState("Autofill3TeamsButton", autofillButtonsDisabled);
+        SetAutofillButtonState("Autofill4TeamsButton", autofillButtonsDisabled);
 
         var localTeamModeActions = GetNode<Control>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions");
         localTeamModeActions.Visible = networking.IsLocal;
@@ -187,9 +188,15 @@ public partial class MatchLobby : Control {
         RefreshLobbyState();
     }
 
-    private void OnAutoAssignPressed() {
-        GetNetworking().SetLocalPeerTeam(global::MultiplayerData.DefaultTeamId);
+    private void OnAutofillTeamsPressed(int teamCount) {
+        GetNetworking().AutoAssignPeerTeams(teamCount);
         RefreshLobbyState();
+    }
+
+    private void SetAutofillButtonState(string buttonName, bool disabled) {
+        var button = GetNode<Button>($"MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions/{buttonName}");
+        button.Disabled = disabled;
+        button.Modulate = disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
     }
 
     private void OnLocalFfaPressed() {
@@ -244,7 +251,7 @@ public partial class MatchLobby : Control {
         GetNode<Button>(buttonPath).Text = string.Empty;
         GetNode<Label>($"{buttonPath}/Content/TitleLabel").Text = title;
         GetNode<Label>($"{buttonPath}/Content/ValueLabel").Text = value;
-        GetNode<TextureRect>($"{buttonPath}/Content/Icon").Texture = GD.Load<Texture2D>(iconPath);
+        GetNode<TextureRect>($"{buttonPath}/Content/Icon").Texture = UiResourceLoader.LoadIconTexture(iconPath);
     }
 
     private static string GetBiomeButtonIconPath(BiomeConfig biomeConfig) {
@@ -362,6 +369,7 @@ public partial class MatchLobby : Control {
 
     private void OnGameModePressed() {
         var overlay = SceneOverlay.GetOrCreate(this);
+        _gameModePlaylistOverlayScene ??= LoadPackedScene(GameModePlaylistOverlayScenePath);
         if (overlay == null || _gameModePlaylistOverlayScene == null)
             return;
 
@@ -386,9 +394,13 @@ public partial class MatchLobby : Control {
 
     private void ShowSelectionOverlay(string title, string[] options, string[] optionIconPaths, Func<int, bool> isSelected, Action<int, bool> onToggled) {
         var overlay = SceneOverlay.GetOrCreate(this);
+        _configSelectionOverlayScene ??= LoadPackedScene(ConfigSelectionOverlayScenePath);
+        if (overlay == null || _configSelectionOverlayScene == null)
+            return;
+
         var selectionOverlay = _configSelectionOverlayScene.Instantiate<ConfigSelectionOverlay>();
         selectionOverlay.Configure(title, options, optionIconPaths, isSelected, onToggled);
-        overlay?.AddOverlay(selectionOverlay, true);
+        overlay.AddOverlay(selectionOverlay, true);
     }
 
     private void ShowMessageOverlay(string title, string message) {
@@ -684,6 +696,7 @@ public partial class MatchLobby : Control {
     }
 
     private void ShowConfirmationOverlay(string title, string message, string confirmText, string cancelText, Action onConfirmed) {
+        _confirmationOverlayScene ??= LoadPackedScene(ConfirmationOverlayScenePath);
         if (_confirmationOverlayScene == null) {
             GD.PushError($"Failed to load confirmation overlay scene at '{ConfirmationOverlayScenePath}'.");
             return;
@@ -696,5 +709,14 @@ public partial class MatchLobby : Control {
         var confirmationOverlay = _confirmationOverlayScene.Instantiate<ConfirmationOverlay>();
         confirmationOverlay.Configure(title, message, confirmText, cancelText, onConfirmed);
         overlay.AddOverlay(confirmationOverlay, true);
+    }
+
+    private static PackedScene LoadPackedScene(string scenePath) {
+        var scene = ResourceLoader.Load<PackedScene>(scenePath);
+        if (scene != null)
+            return scene;
+
+        GameLog.Error(GameLogScope.UI, "PackedSceneLoadFailed", $"path={scenePath}");
+        return null;
     }
 }

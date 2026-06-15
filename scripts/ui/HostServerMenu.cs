@@ -83,10 +83,10 @@ public partial class HostServerMenu : Control {
     }
 
     private void ApplyButtonIcons() {
-        GetNode<Button>("MainLayout/Actions/LocalButton").Icon = GD.Load<Texture2D>(NetworkIconLocalPath);
-        GetNode<Button>("MainLayout/Actions/LanButton").Icon = GD.Load<Texture2D>(NetworkIconLanPath);
-        GetNode<Button>("MainLayout/Actions/OnlineButton").Icon = GD.Load<Texture2D>(NetworkIconOnlinePath);
-        GetNode<Button>("MainLayout/BackButton").Icon = GD.Load<Texture2D>(BackIconPath);
+        GetNode<Button>("MainLayout/Actions/LocalButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconLocalPath);
+        GetNode<Button>("MainLayout/Actions/LanButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconLanPath);
+        GetNode<Button>("MainLayout/Actions/OnlineButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconOnlinePath);
+        GetNode<Button>("MainLayout/BackButton").Icon = UiResourceLoader.LoadIconTexture(BackIconPath);
     }
 
     private Networking GetNetworking() {

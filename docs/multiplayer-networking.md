@@ -30,6 +30,16 @@ Local lobby slots should be stored as `LocalPlayerData` resources inside `LocalL
 
 In-match local player HUD should follow the same model. UI panels should be created per local player on the current device, up to 4 panels, rather than per network peer. Each panel should use `PlayerData.GlobalId` for runtime gameplay lookup and `PlayerData.LocalId` for local layout/input identity.
 
+## Team Autofill
+
+Non-local host lobbies expose autofill actions for 2, 3, and 4 teams. Autofill assignment is server-authoritative: clients may request autofill through RPC, but only the authoritative server applies the assignment and syncs the resulting peer team updates back to peers.
+
+Autofill assigns whole peer/device groups, not individual players, so all split-screen players from the same peer stay on the same team.
+
+The current autofill algorithm groups players by `PeerId`, sorts larger peer groups first, then places each group onto the team with the lowest assigned player count. Ties prefer the team with fewer peer groups, then the lowest team id. This keeps team sizes as balanced as possible while preserving peer grouping.
+
+Local-only lobbies keep their separate `FFA` and `TEAM` buttons because local-only can intentionally split players from the same process across teams without network peer ownership concerns.
+
 ## Identity Rules
 
 - `LocalId` is the local player number on one device, usually matching the local lobby slot: `0`, `1`, `2`, or `3`.
@@ -149,7 +159,7 @@ Team visuals are centralized in `scripts/ui/TeamVisuals.cs`. The first shared te
 - Team 3: green, `Color(0.22, 0.78, 0.38)`.
 - Team 4: amber, `Color(1.00, 0.72, 0.18)`.
 
-Auto-assign is not rendered as a team container. It is a separate lobby action that requests the default team behavior (`Team 0`) for the local device/peer.
+Autofill is not rendered as a team container. It is a separate host lobby action with 2-team, 3-team, and 4-team options. Manual team assignment still uses team container assign buttons for a peer/device.
 
 ## LAN Host Port Behavior
 

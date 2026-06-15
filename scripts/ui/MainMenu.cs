@@ -88,26 +88,37 @@ public partial class MainMenu : Control {
     }
 
     private bool ConfigureLocalPlayer(int slotIndex, LocalPlayerData.LocalInputType inputType, int deviceId) {
-        if (slotIndex < 0 || slotIndex >= LocalLobbySlotCount)
+        if (slotIndex < 0 || slotIndex >= LocalLobbySlotCount) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "LocalPlayerJoinRejected", $"slot={slotIndex} input={inputType} device={deviceId} reason=invalidSlot");
             return false;
+        }
 
-        if (inputType == LocalPlayerData.LocalInputType.KeyboardMouse && HasKeyboardPlayer())
+        if (inputType == LocalPlayerData.LocalInputType.KeyboardMouse && HasKeyboardPlayer()) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "LocalPlayerJoinRejected", $"slot={slotIndex} input={inputType} device={deviceId} reason=keyboardAlreadyJoined");
             return false;
+        }
 
-        if (inputType == LocalPlayerData.LocalInputType.Touch && HasTouchPlayer())
+        if (inputType == LocalPlayerData.LocalInputType.Touch && HasTouchPlayer()) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "LocalPlayerJoinRejected", $"slot={slotIndex} input={inputType} device={deviceId} reason=touchAlreadyJoined");
             return false;
+        }
 
-        if (inputType == LocalPlayerData.LocalInputType.Gamepad && HasGamepadPlayer(deviceId))
+        if (inputType == LocalPlayerData.LocalInputType.Gamepad && HasGamepadPlayer(deviceId)) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "LocalPlayerJoinRejected", $"slot={slotIndex} input={inputType} device={deviceId} reason=gamepadAlreadyJoined");
             return false;
+        }
 
         var localPlayer = GetLocalPlayer(slotIndex);
-        if (localPlayer.IsActive)
+        if (localPlayer.IsActive) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "LocalPlayerJoinRejected", $"slot={slotIndex} input={inputType} device={deviceId} reason=slotActive");
             return false;
+        }
 
         localPlayer.IsActive = true;
         localPlayer.InputType = inputType;
         localPlayer.DeviceId = deviceId;
         localPlayer.DisplayName = $"Player {slotIndex + 1}";
+        GameLog.Print(GameLogScope.UI, GameLogType.StateChange, "LocalPlayerJoined", $"slot={slotIndex} localId={localPlayer.LocalId} input={inputType} device={deviceId} activePlayers={GetActiveLocalPlayerCount()}");
         RefreshLocalLobbySlots();
         RefreshActionButtonsVisibility();
         return true;
@@ -123,37 +134,51 @@ public partial class MainMenu : Control {
     }
 
     private bool TryJoinKeyboardPlayer() {
-        if (HasKeyboardPlayer())
+        if (HasKeyboardPlayer()) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "KeyboardJoinRejected", "reason=keyboardAlreadyJoined");
             return false;
+        }
 
         var slotIndex = GetFirstOpenSlotIndex();
-        if (slotIndex == -1)
+        if (slotIndex == -1) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "KeyboardJoinRejected", "reason=noOpenSlot");
             return false;
+        }
 
         return ConfigureKeyboardPlayer(slotIndex);
     }
 
     private bool TryJoinGamepadPlayer(int deviceId) {
-        if (HasGamepadPlayer(deviceId))
+        if (HasGamepadPlayer(deviceId)) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "GamepadJoinRejected", $"device={deviceId} reason=gamepadAlreadyJoined");
             return false;
+        }
 
         var slotIndex = GetFirstOpenSlotIndex();
-        if (slotIndex == -1)
+        if (slotIndex == -1) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "GamepadJoinRejected", $"device={deviceId} reason=noOpenSlot");
             return false;
+        }
 
         return ConfigureGamepadPlayer(slotIndex, deviceId);
     }
 
     private bool TryJoinTouchPlayer(int slotIndex) {
-        if (HasTouchPlayer())
+        if (HasTouchPlayer()) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "TouchJoinRejected", $"slot={slotIndex} reason=touchAlreadyJoined");
             return false;
+        }
 
-        if (slotIndex < 0 || slotIndex >= LocalLobbySlotCount)
+        if (slotIndex < 0 || slotIndex >= LocalLobbySlotCount) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "TouchJoinRejected", $"slot={slotIndex} reason=invalidSlot");
             return false;
+        }
 
         var localPlayer = GetLocalPlayer(slotIndex);
-        if (localPlayer.IsActive)
+        if (localPlayer.IsActive) {
+            GameLog.Print(GameLogScope.UI, GameLogType.Validation, "TouchJoinRejected", $"slot={slotIndex} reason=slotActive");
             return false;
+        }
 
         return ConfigureTouchPlayer(slotIndex);
     }
@@ -362,7 +387,7 @@ public partial class MainMenu : Control {
 
     private static TextureRect CreatePromptIcon(string iconPath, float size = 30.0f) {
         return new TextureRect {
-            Texture = GD.Load<Texture2D>(iconPath),
+            Texture = UiResourceLoader.LoadIconTexture(iconPath),
             CustomMinimumSize = new Vector2(size, size),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -371,7 +396,7 @@ public partial class MainMenu : Control {
 
     private static TextureRect CreateDeviceIcon(string iconPath) {
         return new TextureRect {
-            Texture = string.IsNullOrWhiteSpace(iconPath) ? null : GD.Load<Texture2D>(iconPath),
+            Texture = UiResourceLoader.LoadIconTexture(iconPath),
             CustomMinimumSize = new Vector2(54.0f, 38.0f),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -438,12 +463,14 @@ public partial class MainMenu : Control {
     }
 
     private void OnResetPlayersPressed() {
+        var activePlayersBeforeReset = GetActiveLocalPlayerCount();
         foreach (var localPlayer in LocalLobbyData.LocalPlayers) {
             localPlayer.IsActive = false;
             localPlayer.InputType = LocalPlayerData.LocalInputType.None;
             localPlayer.DeviceId = -1;
         }
 
+        GameLog.Print(GameLogScope.UI, GameLogType.StateChange, "LocalPlayersReset", $"clearedPlayers={activePlayersBeforeReset}");
         RefreshLocalLobbySlots();
         RefreshActionButtonsVisibility();
     }
@@ -460,12 +487,12 @@ public partial class MainMenu : Control {
     }
 
     private void ApplyButtonIcons() {
-        GetNode<Button>("TopRightButtons/TestScenesButton").Icon = GD.Load<Texture2D>(TestScenesIconPath);
-        GetNode<Button>("TopRightButtons/SettingsButton").Icon = GD.Load<Texture2D>(SettingsIconPath);
-        GetNode<Button>("TopRightButtons/ExitGameButton").Icon = GD.Load<Texture2D>(ExitIconPath);
-        GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Icon = GD.Load<Texture2D>(NetworkIconLanPath);
-        GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
-        GetNode<Button>("MainLayout/ActionButtons/ResetPlayersButton").Icon = GD.Load<Texture2D>(ResetIconPath);
+        GetNode<Button>("TopRightButtons/TestScenesButton").Icon = UiResourceLoader.LoadIconTexture(TestScenesIconPath);
+        GetNode<Button>("TopRightButtons/SettingsButton").Icon = UiResourceLoader.LoadIconTexture(SettingsIconPath);
+        GetNode<Button>("TopRightButtons/ExitGameButton").Icon = UiResourceLoader.LoadIconTexture(ExitIconPath);
+        GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconLanPath);
+        GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconClientPath);
+        GetNode<Button>("MainLayout/ActionButtons/ResetPlayersButton").Icon = UiResourceLoader.LoadIconTexture(ResetIconPath);
     }
 
     private void ConnectPlayerCardInput() {
@@ -499,12 +526,17 @@ public partial class MainMenu : Control {
     }
 
     private bool HasActiveLocalPlayer() {
+        return GetActiveLocalPlayerCount() > 0;
+    }
+
+    private int GetActiveLocalPlayerCount() {
+        var count = 0;
         foreach (var localPlayer in LocalLobbyData.LocalPlayers) {
             if (localPlayer.IsActive)
-                return true;
+                count++;
         }
 
-        return false;
+        return count;
     }
 
     private Networking GetNetworking() {

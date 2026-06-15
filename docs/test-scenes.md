@@ -11,6 +11,7 @@ This document tracks current test scenes, test controls, launch commands, and ru
 - Empty-card join prompts rotate every 2 seconds across currently available join inputs: keyboard `C`, gamepad `X`, and touch.
 - Touching or clicking the visible empty player card in the main menu joins one local touchscreen player using `LocalPlayerData.LocalInputType.Touch` and `assets/inputicons/device_touch.svg`. Main menu lobby API guards allow at most one keyboard/mouse player and at most one touch player.
 - Local-only match lobby mode does not open a network peer or bind a server port. Its lobby UI hides connection settings, keeps map/game Match Config editable, and exposes `FFA`/`TEAM` local player team assignment buttons.
+- Non-local host lobby mode exposes `Autofill 2 Teams`, `Autofill 3 Teams`, and `Autofill 4 Teams` actions. Autofill keeps all players from the same network peer/device together on one team.
 
 ## Destruction Logic Test
 
@@ -134,6 +135,12 @@ CLIENTS=3 PORT=7800 START_DELAY=3 ./tools/testing/launch-player-item-room-lan.sh
 
 The scripts write logs to `.tmp/test-logs/` and keep the terminal attached. Press `Ctrl+C` in that terminal to stop all spawned instances.
 
+Add `--simple` after Godot's user-argument separator when launching manually to shorten `GameLog` lines:
+
+```bash
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host --simple
+```
+
 Use the general tools for import and startup verification:
 
 ```bash
@@ -173,9 +180,9 @@ Supported shared role values are `local`, `lan`, `host`, `server`, `server-local
 
 ## Runtime Logging Standards
 
-- Multiplayer runtime prints should use a clear bracket prefix so multi-instance terminal output stays searchable.
-- General networking logs use `[Multiplayer][Mode=<NetworkMode>] ...` and should include the current `NetworkMode` enum value.
-- Scene-specific LAN destruction logs use `[LANDestructionTest][Mode=<NetworkMode>] ...`.
-- Scene-specific player item room logs use `[PlayerItemRoomTest][Mode=<NetworkMode>] ...`.
+- Runtime logs should use the shared `GameLog` API and the format documented in `docs/game-logging.md`.
+- Logs include sequence, timestamp, process id, role, network mode, peer id, scope, type, and event name so host/client output remains readable when multiple Godot instances write into the same terminal.
+- Scene-specific LAN destruction logs use `GameLogScope.DestructibleMap` for the existing destruction test events.
+- Scene-specific player item room logs use `GameLogScope.PlayerItemRoom` for room lifecycle, player spawn/remove, input state changes, item/armor equip, item use, and projectile spawn events.
 - Keep live gameplay prints short and event-based: host/client start, connect/fail/disconnect, peer count changes, and RPC send/apply events.
 - Do not print every frame or every `_Process()` tick.

@@ -18,6 +18,7 @@ The root `README.md` should stay concise and newcomer-friendly. Detailed technic
 | Area | Doc |
 | --- | --- |
 | Multiplayer, local lobby, network modes, setup sync, overlays | [Multiplayer And Networking](multiplayer-networking.md) |
+| Shared runtime logging format and `GameLog` usage | [Game Logging](game-logging.md) |
 | Destructible walls, props, tile rendering, combat damage model | [Destructible Environment](destructible-environment.md) |
 | Current combat and LAN player/item handoff | [Combat LAN Test Handoff](combat-lan-test-handoff.md) |
 | Asset folder ownership and visual role rules | [Asset Organization](asset-organization.md) |
@@ -44,6 +45,7 @@ The root `README.md` should stay concise and newcomer-friendly. Detailed technic
 - Update [Focus Points](focuspoints.md) when the next-session priority changes.
 - Update [Test Scenes](test-scenes.md) when controls, launch commands, or test-scene responsibilities change.
 - Update [Multiplayer And Networking](multiplayer-networking.md) when lobby, setup sync, network mode, identity, or RPC behavior changes.
+- Update [Game Logging](game-logging.md) when log format, scopes, types, or logging policy changes.
 - Update [Destructible Environment](destructible-environment.md) when wall, prop, combat, tile, or destruction-authority behavior changes.
 - Update [Asset Organization](asset-organization.md) when adding new asset families or changing folder ownership rules.
 - Keep plans as plans, and move implemented behavior into the relevant implementation doc once it becomes real.

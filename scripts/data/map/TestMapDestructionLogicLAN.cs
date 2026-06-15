@@ -92,7 +92,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         _networking.ConnectionStateChanged += OnConnectionStateChanged;
         _networking.LobbyStateChanged += OnLobbyStateChanged;
         UpdateStatusLabel();
-        PrintTestNetworkLog("Scene ready.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.Lifecycle, "SceneReady");
 
         if (_networking.IsServer && !_networking.HasActiveNetworkPeer)
             TryStartHost();
@@ -154,12 +154,12 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private void TryStartHost() {
         var started = _networking.BeginHostingSession();
-        PrintTestNetworkLog($"Host start result: {started}. Port: {_networking.CurrentServerPort}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.Lifecycle, "HostStartResult", $"started={started} port={_networking.CurrentServerPort}");
     }
 
     private void TryStartClient() {
         var started = _networking.BeginDirectClientConnection(ClientAddress, ClientPort);
-        PrintTestNetworkLog($"Client connect start result: {started}. Target: {ClientAddress}:{ClientPort}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.Lifecycle, "ClientConnectStartResult", $"started={started} target={ClientAddress}:{ClientPort}");
     }
 
     private void ApplyCommandLineOverrides() {
@@ -189,7 +189,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     private void EnsureDefaultNetworkMode() {
         if (!_networking.HasSelectedMode) {
             _networking.SetLan();
-            PrintTestNetworkLog("No network role selected. Defaulting test scene to Lan.");
+            GameLog.Print(GameLogScope.DestructibleMap, GameLogType.StateChange, "DefaultNetworkModeSelected", "mode=Lan");
         }
     }
 
@@ -693,7 +693,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (!CanSendHostRpc())
             return;
 
-        PrintTestNetworkLog("RPC send: reset mock arena.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcSend, "RpcResetMockArena");
         Rpc(nameof(RpcResetMockArena));
     }
 
@@ -701,7 +701,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (!CanSendHostRpc())
             return;
 
-        PrintTestNetworkLog($"RPC send: {damageType} wall damage at {tilePosition} amount {damageAmount}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcSend, "RpcDamageWallTile", $"tile={tilePosition} type={damageType} damage={damageAmount}");
         Rpc(nameof(RpcDamageWallTile), tilePosition.X, tilePosition.Y, (int)damageType, damageAmount);
     }
 
@@ -709,7 +709,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (!CanSendHostRpc())
             return;
 
-        PrintTestNetworkLog($"RPC send: {damageType} prop damage at index {propIndex} amount {damageAmount}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcSend, "RpcDamageProp", $"propIndex={propIndex} type={damageType} damage={damageAmount}");
         Rpc(nameof(RpcDamageProp), propIndex, (int)damageType, damageAmount);
     }
 
@@ -717,7 +717,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (!CanSendHostRpc())
             return;
 
-        PrintTestNetworkLog($"RPC send: {damageType} player damage for global id {globalId} amount {damageAmount}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcSend, "RpcDamagePlayer", $"global={globalId} type={damageType} damage={damageAmount}");
         Rpc(nameof(RpcDamagePlayer), globalId, (int)damageType, damageAmount);
     }
 
@@ -725,7 +725,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (!CanSendHostRpc())
             return;
 
-        PrintTestNetworkLog($"RPC send: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcSend, "RpcDamageInRadius", $"center={centerTile} radius={radius} type={damageType} damage={damageAmount}");
         Rpc(nameof(RpcDamageInRadius), worldCenter.X, worldCenter.Y, centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
     }
 
@@ -749,7 +749,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
             return false;
 
         _selectedDamageType = damageType;
-        PrintTestNetworkLog($"Selected damage type: {_selectedDamageType}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.StateChange, "DamageTypeSelected", $"type={_selectedDamageType}");
         UpdateStatusLabel();
         return true;
     }
@@ -764,7 +764,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcResetMockArena() {
-        PrintTestNetworkLog("RPC apply: reset mock arena.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcReceive, "RpcResetMockArena");
         BuildMockArena();
     }
 
@@ -774,7 +774,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (_arenaMapData == null || !_arenaMapData.DamageWallTile(new Vector2I(x, y), damageType, damageAmount))
             return;
 
-        PrintTestNetworkLog($"RPC apply: {damageType} wall damage at ({x}, {y}) amount {damageAmount}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcReceive, "RpcDamageWallTile", $"tile=({x},{y}) type={damageType} damage={damageAmount}");
         RenderArenaWithCollision();
     }
 
@@ -784,7 +784,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (!DamageProp(propIndex, damageType, damageAmount))
             return;
 
-        PrintTestNetworkLog($"RPC apply: {damageType} prop damage at index {propIndex} amount {damageAmount}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcReceive, "RpcDamageProp", $"propIndex={propIndex} type={damageType} damage={damageAmount}");
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -793,7 +793,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (!DamagePlayer(globalId, damageType, damageAmount))
             return;
 
-        PrintTestNetworkLog($"RPC apply: {damageType} player damage for global id {globalId} amount {damageAmount}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcReceive, "RpcDamagePlayer", $"global={globalId} type={damageType} damage={damageAmount}");
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -853,7 +853,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
         if (changedTiles.Count == 0 && !changedProps && !changedPlayers)
             return;
 
-        PrintTestNetworkLog($"RPC apply: {damageType} radius damage at {centerTile} radius {radius} amount {damageAmount}.");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.RpcReceive, "RpcDamageInRadius", $"center={centerTile} radius={radius} type={damageType} damage={damageAmount}");
         RenderArenaWithCollision();
     }
 
@@ -952,7 +952,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     }
 
     private void OnConnectionStateChanged() {
-        PrintTestNetworkLog($"Connection state changed. {GetNetworkDebugText()}");
+        GameLog.Print(GameLogScope.DestructibleMap, GameLogType.StateChange, "ConnectionStateChanged", GetNetworkDebugText());
         UpdateStatusLabel();
     }
 
@@ -962,10 +962,6 @@ public partial class TestMapDestructionLogicLAN : Node2D {
 
     private int GetConnectedPeerCount() {
         return _networking.HasActiveNetworkPeer ? Multiplayer.GetPeers().Length : 0;
-    }
-
-    private void PrintTestNetworkLog(string message) {
-        GD.Print($"[LANDestructionTest][Mode={_networking.CurrentMode}] {message}");
     }
 
     private void UpdateStatusLabel() {

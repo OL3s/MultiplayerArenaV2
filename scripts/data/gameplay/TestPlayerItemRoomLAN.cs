@@ -150,7 +150,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _networking.LobbyStateChanged += OnLobbyStateChanged;
         BuildItemMenu();
         UpdateStatusLabel();
-        PrintTestNetworkLog("Scene ready.");
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "SceneReady", $"clientTarget={ClientAddress}:{ClientPort}");
 
         if (_networking.IsServer && !_networking.HasActiveNetworkPeer)
             TryStartHost();
@@ -203,12 +203,12 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     private void TryStartHost() {
         var started = _networking.BeginHostingSession();
-        PrintTestNetworkLog($"Host start result: {started}. Port: {_networking.CurrentServerPort}.");
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "HostStartResult", $"started={started} port={_networking.CurrentServerPort}");
     }
 
     private void TryStartClient() {
         var started = _networking.BeginDirectClientConnection(ClientAddress, ClientPort);
-        PrintTestNetworkLog($"Client connect start result: {started}. Target: {ClientAddress}:{ClientPort}.");
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "ClientConnectStartResult", $"started={started} target={ClientAddress}:{ClientPort}");
     }
 
     private void BuildItemMenu() {
@@ -323,6 +323,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             return;
 
         _itemMenuPanel.Visible = true;
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "ItemMenuOpened");
         SetLocalPlayersControlState(PlayerControlState.Menu);
         var focusItemId = GetFirstLocalPlayerItemId();
         if (focusItemId != string.Empty && _itemMenuButtonsById.TryGetValue(focusItemId, out var selectedButton))
@@ -336,6 +337,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             return;
 
         _itemMenuPanel.Visible = false;
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "ItemMenuClosed");
         SetLocalPlayersControlState(PlayerControlState.Gameplay);
     }
 
@@ -403,7 +405,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private void EnsureDefaultNetworkMode() {
         if (!_networking.HasSelectedMode) {
             _networking.SetLan();
-            PrintTestNetworkLog("No network role selected. Defaulting test scene to Lan.");
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "DefaultNetworkModeSelected", "mode=Lan");
         }
     }
 
@@ -421,6 +423,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             DeviceId = deviceId,
             DisplayName = _networking.IsClient ? "Client Player" : "Host Player",
         });
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "TestLocalLobbyPlayerReady", $"input={inputType} device={deviceId}");
     }
 
     private void ApplyPortOverride(string portValue) {
@@ -451,6 +454,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         RenderArenaWithCollision();
         BuildCenterProp();
         RebuildPlayersFromNetworkData();
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "TestRoomBuilt", $"floorTiles={_arenaMapData.FloorTiles.Count} wallTiles={_arenaMapData.WallTiles.Count}");
     }
 
     private void AddFloorRectangle(Rect2I rect) {
@@ -499,6 +503,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
                 player.QueueFree();
 
             _playersByGlobalId.Remove(removedGlobalId);
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Despawn, "PlayerRemoved", $"global={removedGlobalId}");
             _movementStatesByGlobalId.Remove(removedGlobalId);
             _aimStatesByGlobalId.Remove(removedGlobalId);
             _lastLocalMovementStatesByGlobalId.Remove(removedGlobalId);
@@ -558,6 +563,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _loadoutsByGlobalId[globalId] = new PlayerLoadoutState();
         SetPlayerItem(globalId, DefaultItemId);
         player.SetEstimatedAimDirection(DirectionIndexToVector(0), true);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Spawn, "PlayerAdded", $"global={globalId} tile={tilePosition} world={player.GlobalPosition}");
     }
 
     private void ProcessLocalPlayerInputStates() {
@@ -626,13 +632,17 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
         _lastLocalMovementStatesByGlobalId[globalId] = movementState;
 
-        if (_networking.IsClient && _networking.HasActiveNetworkPeer)
+        if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestSetPlayerMovementVector", $"global={globalId} vector=({movementVector.X:0.000},{movementVector.Y:0.000}) state={FormatInputState(movementState)}");
             RpcId(1, nameof(RpcRequestSetPlayerMovementVector), globalId, movementVector.X, movementVector.Y);
+        }
         else if (CanSendHostRpc()) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Movement, "ApplyHostMovementState", $"global={globalId} state={FormatInputState(movementState)}");
             SetPlayerMovementState(globalId, movementState, false);
             SyncPlayerMovementState(globalId, movementState, true);
         }
         else {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Movement, "ApplyLocalMovementState", $"global={globalId} state={FormatInputState(movementState)}");
             SetPlayerMovementState(globalId, movementState, false);
         }
     }
@@ -648,8 +658,10 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _lastLocalIsAimingByGlobalId[globalId] = isAiming;
         SetPlayerAimState(globalId, aimState, isAiming, false);
 
-        if (_networking.IsClient && _networking.HasActiveNetworkPeer)
+        if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestSetPlayerAimState", $"global={globalId} state={FormatInputState(aimState)} aiming={isAiming}");
             RpcId(1, nameof(RpcRequestSetPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength, isAiming);
+        }
         else if (CanSendHostRpc())
             SyncPlayerAimState(globalId, aimState, isAiming);
     }
@@ -703,6 +715,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (!CanSendHostRpc())
             return;
 
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncPlayerMovementState", $"global={globalId} state={FormatInputState(movementState)} includePosition={includePosition}");
         Rpc(
             nameof(RpcSyncPlayerMovementState),
             globalId,
@@ -731,6 +744,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (!CanSendHostRpc())
             return;
 
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncPlayerAimState", $"global={globalId} state={FormatInputState(aimState)} aiming={isAiming}");
         Rpc(nameof(RpcSyncPlayerAimState), globalId, aimState.DirectionIndex, (int)aimState.Strength, isAiming);
     }
 
@@ -740,8 +754,10 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             if (playerData == null || !playerData.IsLocalPlayer)
                 continue;
 
-            if (_networking.IsClient && _networking.HasActiveNetworkPeer)
+            if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
+                GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestSetPlayerItem", $"global={playerEntry.Key} item={itemId}");
                 RpcId(1, nameof(RpcRequestSetPlayerItem), playerEntry.Key, itemId);
+            }
             else if (CanSendHostRpc()) {
                 SetPlayerItem(playerEntry.Key, itemId);
                 SyncPlayerItem(playerEntry.Key, itemId);
@@ -760,8 +776,10 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             if (playerData == null || !playerData.IsLocalPlayer)
                 continue;
 
-            if (_networking.IsClient && _networking.HasActiveNetworkPeer)
+            if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
+                GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestSetPlayerArmor", $"global={playerEntry.Key} armor={armorId}");
                 RpcId(1, nameof(RpcRequestSetPlayerArmor), playerEntry.Key, armorId);
+            }
             else if (CanSendHostRpc()) {
                 SetPlayerArmor(playerEntry.Key, armorId);
                 SyncPlayerArmor(playerEntry.Key, armorId);
@@ -781,7 +799,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
         var loadout = GetOrCreateLoadout(globalId);
         if (!loadout.EquipItem(item)) {
-            PrintTestNetworkLog($"P{globalId} cannot equip {item.DisplayName}; no armor capacity for that item type.");
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "EquipItemRejected", $"global={globalId} item={item.ItemId} reason=noArmorCapacity");
             return;
         }
 
@@ -798,13 +816,15 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
             player.SetHeldTexture(item.HeldTexture);
 
-        PrintTestNetworkLog($"P{globalId} item: {item.DisplayName}. {loadout.GetLoadoutText()}.");
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.ItemEquip, "PlayerItemEquipped", $"global={globalId} item={item.ItemId} name={item.DisplayName} {loadout.GetLoadoutText()}");
         UpdateStatusLabel();
     }
 
     private void SyncPlayerItem(int globalId, string itemId) {
-        if (CanSendHostRpc())
+        if (CanSendHostRpc()) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncPlayerItem", $"global={globalId} item={itemId}");
             Rpc(nameof(RpcSyncPlayerItem), globalId, itemId);
+        }
     }
 
     private void SetPlayerArmor(int globalId, string armorId) {
@@ -826,7 +846,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
             player.SetArmorTexture(armor.HeldTexture);
 
-        PrintTestNetworkLog($"P{globalId} armor: {armor.DisplayName}. Ammo reset. {loadout.GetLoadoutText()}.");
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.ItemEquip, "PlayerArmorEquipped", $"global={globalId} armor={armor.ItemId} name={armor.DisplayName} {loadout.GetLoadoutText()}");
         UpdateStatusLabel();
     }
 
@@ -845,8 +865,10 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     private void SyncPlayerArmor(int globalId, string armorId) {
-        if (CanSendHostRpc())
+        if (CanSendHostRpc()) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncPlayerArmor", $"global={globalId} armor={armorId}");
             Rpc(nameof(RpcSyncPlayerArmor), globalId, armorId);
+        }
     }
 
     private PlayerItem LoadItem(string itemId) {
@@ -953,6 +975,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
         var loadout = GetOrCreateLoadout(globalId);
         if (loadout.GetMaxUses(item) > 0 && loadout.GetCurrentUses(item) <= 0) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "LocalItemUseRejected", $"global={globalId} item={item.ItemId} reason=empty");
             UpdateStatusLabel();
             return;
         }
@@ -967,9 +990,11 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         var aimStrength = _aimStrengthByGlobalId.TryGetValue(globalId, out var strength) ? strength : 1.0f;
         if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
             ApplyItemUsePushbackAndRecovery(globalId, item);
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestUsePlayerItem", $"global={globalId} item={item.ItemId} aim=({aimDirection.X:0.000},{aimDirection.Y:0.000}) strength={aimStrength:0.000}");
             RpcId(1, nameof(RpcRequestUsePlayerItem), globalId, aimDirection.X, aimDirection.Y, aimStrength);
         }
         else {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.ItemUse, "ExecuteLocalItemUse", $"global={globalId} item={item.ItemId} aim=({aimDirection.X:0.000},{aimDirection.Y:0.000}) strength={aimStrength:0.000}");
             ExecuteValidatedItemUse(globalId, aimDirection, aimStrength, true);
         }
     }
@@ -1001,12 +1026,13 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         player.ShowActionAimDirection(normalizedAim, ActionAimDisplaySeconds);
         var loadout = GetOrCreateLoadout(globalId);
         if (!loadout.TryConsumeUse(item)) {
-            PrintTestNetworkLog($"P{globalId} item use rejected: {item.DisplayName} is empty.");
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "ItemUseRejected", $"global={globalId} item={item.ItemId} reason=empty");
             UpdateStatusLabel();
             return;
         }
 
         ApplyItemUsePushbackAndRecovery(globalId, item);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.ItemUse, "ItemUseAccepted", $"global={globalId} item={item.ItemId} usesLeft={loadout.GetCurrentUses(item)} aim=({normalizedAim.X:0.000},{normalizedAim.Y:0.000}) strength={aimStrength:0.000}");
 
         if (item is PlayerItemThrowable throwable)
             SpawnThrownItem(globalId, throwable, startPosition, normalizedAim, aimStrength, syncToPeers);
@@ -1042,6 +1068,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             return;
 
         AddChild(bullet);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Projectile, "BulletSpawned", $"global={globalId} item={item.ItemId} start={FormatVector(startPosition)} dir={FormatVector(direction)} range={item.Range:0.0}");
         if (syncToPeers)
             SyncItemUse(globalId, item.ItemId, startPosition, direction, item.Range, GetThrowableTargetPosition(item, startPosition, direction, 1.0f));
     }
@@ -1061,6 +1088,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             return;
 
         AddChild(projectile);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Projectile, "LaunchedProjectileSpawned", $"global={globalId} item={item.ItemId} start={FormatVector(startPosition)} dir={FormatVector(direction)} range={item.Range:0.0}");
         if (syncToPeers)
             SyncItemUse(globalId, item.ItemId, startPosition, direction, item.Range, GetThrowableTargetPosition(item, startPosition, direction, 1.0f));
     }
@@ -1079,6 +1107,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             return;
 
         AddChild(thrownItem);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Projectile, "ThrownItemSpawned", $"global={globalId} item={item.ItemId} start={FormatVector(startPosition)} target={FormatVector(targetPosition)} strength={aimStrength:0.000}");
         if (syncToPeers)
             SyncItemUse(globalId, item.ItemId, startPosition, direction, startPosition.DistanceTo(targetPosition), targetPosition);
     }
@@ -1171,6 +1200,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (!CanSendHostRpc())
             return;
 
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncUsePlayerItem", $"global={globalId} item={itemId} start={FormatVector(startPosition)} dir={FormatVector(direction)} range={range:0.0} target={FormatVector(targetPosition)}");
         Rpc(
             nameof(RpcSyncUsePlayerItem),
             globalId,
@@ -1426,11 +1456,18 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     private bool IsPlayerStateRequestAllowed(int globalId) {
-        if (!_networking.HasActiveNetworkPeer || !_networking.IsServer)
+        if (!_networking.HasActiveNetworkPeer || !_networking.IsServer) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Authority, "PlayerStateRequestRejected", $"global={globalId} reason=notServerOrNoPeer");
             return false;
+        }
 
         var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
-        return playerData != null && playerData.PeerId == Multiplayer.GetRemoteSenderId();
+        var remotePeerId = Multiplayer.GetRemoteSenderId();
+        var allowed = playerData != null && playerData.PeerId == remotePeerId;
+        if (!allowed)
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Authority, "PlayerStateRequestRejected", $"global={globalId} remotePeer={remotePeerId} ownerPeer={playerData?.PeerId.ToString() ?? "none"}");
+
+        return allowed;
     }
 
     private static InputStrength ToInputStrength(int strengthValue) {
@@ -1445,6 +1482,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRequestSetPlayerMovementVector(int globalId, float movementX, float movementY) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcRequestSetPlayerMovementVector", $"from={Multiplayer.GetRemoteSenderId()} global={globalId} vector=({movementX:0.000},{movementY:0.000})");
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
@@ -1456,6 +1494,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRequestSetPlayerAimState(int globalId, int directionIndex, int strengthValue, bool isAiming) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcRequestSetPlayerAimState", $"from={Multiplayer.GetRemoteSenderId()} global={globalId} dir={directionIndex} strength={ToInputStrength(strengthValue)} aiming={isAiming}");
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
@@ -1466,6 +1505,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRequestSetPlayerItem(int globalId, string itemId) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcRequestSetPlayerItem", $"from={Multiplayer.GetRemoteSenderId()} global={globalId} item={itemId}");
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
@@ -1475,6 +1515,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRequestSetPlayerArmor(int globalId, string armorId) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcRequestSetPlayerArmor", $"from={Multiplayer.GetRemoteSenderId()} global={globalId} armor={armorId}");
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
@@ -1484,17 +1525,21 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRequestUsePlayerItem(int globalId, float aimX, float aimY, float aimStrength) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcRequestUsePlayerItem", $"from={Multiplayer.GetRemoteSenderId()} global={globalId} aim=({aimX:0.000},{aimY:0.000}) strength={aimStrength:0.000}");
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
-        if (_itemRecoverySecondsByGlobalId.TryGetValue(globalId, out var recoverySeconds) && recoverySeconds > 0.0)
+        if (_itemRecoverySecondsByGlobalId.TryGetValue(globalId, out var recoverySeconds) && recoverySeconds > 0.0) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "RpcRequestUsePlayerItemRejected", $"global={globalId} reason=recovery recovery={recoverySeconds:0.000}");
             return;
+        }
 
         ExecuteValidatedItemUse(globalId, new Vector2(aimX, aimY), Mathf.Clamp(aimStrength, 0.0f, 1.0f), true);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerMovementState(int globalId, int directionIndex, int strengthValue, float worldX, float worldY, bool includePosition) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncPlayerMovementState", $"global={globalId} dir={directionIndex} strength={ToInputStrength(strengthValue)} includePosition={includePosition} world=({worldX:0.0},{worldY:0.0})");
         SetPlayerMovementState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), includePosition, worldX, worldY);
     }
 
@@ -1506,16 +1551,19 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerAimState(int globalId, int directionIndex, int strengthValue, bool isAiming) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncPlayerAimState", $"global={globalId} dir={directionIndex} strength={ToInputStrength(strengthValue)} aiming={isAiming}");
         SetPlayerAimState(globalId, new QuantizedInputState(directionIndex, ToInputStrength(strengthValue)), isAiming, true);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerItem(int globalId, string itemId) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncPlayerItem", $"global={globalId} item={itemId}");
         SetPlayerItem(globalId, itemId);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncPlayerArmor(int globalId, string armorId) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncPlayerArmor", $"global={globalId} armor={armorId}");
         SetPlayerArmor(globalId, armorId);
     }
 
@@ -1530,6 +1578,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         float range,
         float targetX,
         float targetY) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncUsePlayerItem", $"global={globalId} item={itemId} start=({startX:0.0},{startY:0.0}) dir=({directionX:0.000},{directionY:0.000}) range={range:0.0} target=({targetX:0.0},{targetY:0.0})");
         var item = LoadItem(itemId);
         if (item == null)
             return;
@@ -1621,7 +1670,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     private void OnConnectionStateChanged() {
-        PrintTestNetworkLog($"Connection state changed. {GetNetworkDebugText()}");
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "ConnectionStateChanged", GetNetworkDebugText());
         UpdateStatusLabel();
     }
 
@@ -1634,8 +1683,12 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         return _networking.HasActiveNetworkPeer ? Multiplayer.GetPeers().Length : 0;
     }
 
-    private void PrintTestNetworkLog(string message) {
-        GD.Print($"[PlayerItemRoomTest][Mode={_networking.CurrentMode}] {message}");
+    private static string FormatInputState(QuantizedInputState state) {
+        return $"dir={state.DirectionIndex} strength={state.Strength}";
+    }
+
+    private static string FormatVector(Vector2 vector) {
+        return $"({vector.X:0.0},{vector.Y:0.0})";
     }
 
     private void UpdateStatusLabel() {

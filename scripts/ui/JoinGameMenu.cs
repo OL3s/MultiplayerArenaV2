@@ -207,10 +207,10 @@ public partial class JoinGameMenu : Control {
     }
 
     private void ApplyButtonIcons() {
-        GetNode<Button>("MainLayout/Actions/QuickmatchButton").Icon = GD.Load<Texture2D>(NetworkIconAnyPath);
-        GetNode<Button>("MainLayout/Actions/BrowseLocalButton").Icon = GD.Load<Texture2D>(NetworkIconLocalPath);
-        GetNode<Button>("MainLayout/Actions/BrowseOnlineButton").Icon = GD.Load<Texture2D>(NetworkIconOnlinePath);
-        GetNode<Button>("MainLayout/Actions/JoinIpButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
-        GetNode<Button>("MainLayout/BackButton").Icon = GD.Load<Texture2D>(BackIconPath);
+        GetNode<Button>("MainLayout/Actions/QuickmatchButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconAnyPath);
+        GetNode<Button>("MainLayout/Actions/BrowseLocalButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconLocalPath);
+        GetNode<Button>("MainLayout/Actions/BrowseOnlineButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconOnlinePath);
+        GetNode<Button>("MainLayout/Actions/JoinIpButton").Icon = UiResourceLoader.LoadIconTexture(NetworkIconClientPath);
+        GetNode<Button>("MainLayout/BackButton").Icon = UiResourceLoader.LoadIconTexture(BackIconPath);
     }
 }

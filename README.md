@@ -45,6 +45,7 @@ Use this as the documentation dictionary:
 | [Game Concept](docs/game-concept.md) | High-level game concept, planned game modes, and core design direction. |
 | [Destructible Environment](docs/destructible-environment.md) | Destructible map data model, wall damage rules, tile rendering, debug tile assets, props, and destruction authority rules. |
 | [Multiplayer And Networking](docs/multiplayer-networking.md) | Local/online multiplayer model, split-screen identity rules, lobby/setup config, network modes, transport direction, debug overlay, settings, and RPC state sync. |
+| [Game Logging](docs/game-logging.md) | Shared runtime logging format, `GameLog` API rules, scopes/types, and LAN multi-process terminal logging guidance. |
 | [Test Scenes](docs/test-scenes.md) | Current test scenes, how to launch them, controls, test-specific notes, and runtime logging conventions. |
 | [Combat LAN Test Handoff](docs/combat-lan-test-handoff.md) | Current combat/LAN handoff for the shared damage backend, LAN damage-test player runtime, and immediate player control/action context. |
 | [Player Items And Loadout Plan](docs/player-items-inventory-plan.md) | Simplified player item model: armor-driven weapon/gadget capacity, ammo/use reset rules, theme, and purchase-mode direction. |

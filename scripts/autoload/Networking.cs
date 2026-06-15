@@ -36,6 +36,12 @@ public partial class Networking : Node {
         DirectAddress,
     }
 
+    private sealed class PeerTeamGroup {
+        public int PeerId { get; set; }
+
+        public int PlayerCount { get; set; }
+    }
+
     public sealed class ServerListing {
         public string ListingId { get; set; } = string.Empty;
 
@@ -99,8 +105,11 @@ public partial class Networking : Node {
     private CanvasLayer _networkModeDebugLayer;
     private TextureRect _networkModeDebugIcon;
     private Label _networkModeDebugPeerLabel;
+    private string _lastLoggedRootScenePath = string.Empty;
 
     public override void _Ready() {
+        GameLog.RegisterNetworking(this);
+        GameLog.Print(GameLogScope.Networking, GameLogType.Lifecycle, "NetworkingReady");
         Multiplayer.PeerConnected += OnPeerConnected;
         Multiplayer.PeerDisconnected += OnPeerDisconnected;
         Multiplayer.ConnectedToServer += OnConnectedToServer;
@@ -119,6 +128,7 @@ public partial class Networking : Node {
     }
 
     public override void _Process(double delta) {
+        LogRootSceneChange();
         PollDiscoveryRequests();
     }
 
@@ -211,6 +221,7 @@ public partial class Networking : Node {
     public void SetNetworkMode(NetworkMode networkMode) {
         if (CurrentMode == networkMode) {
             if (HasLostConnection) {
+                GameLog.Print(GameLogScope.Networking, GameLogType.StateChange, "ConnectionLostCleared", $"mode={CurrentMode}");
                 HasLostConnection = false;
                 UpdateNetworkModeDebugIcon();
                 EmitConnectionStateChanged();
@@ -219,8 +230,10 @@ public partial class Networking : Node {
             return;
         }
 
+        var previousMode = CurrentMode;
         CurrentMode = networkMode;
         HasLostConnection = false;
+        GameLog.Print(GameLogScope.Networking, GameLogType.StateChange, "NetworkModeChanged", $"from={previousMode} to={CurrentMode}");
         UpdateNetworkModeDebugIcon();
         EmitConnectionStateChanged();
     }
@@ -322,20 +335,20 @@ public partial class Networking : Node {
             || string.Equals(roleValue, "server-local", StringComparison.OrdinalIgnoreCase)
             || string.Equals(roleValue, "lan", StringComparison.OrdinalIgnoreCase)) {
             SetLan();
-            PrintMultiplayerLog("Command line role selected Lan.");
+            PrintMultiplayerLog(GameLogType.StateChange, "CommandLineRoleSelected", "role=Lan");
             return;
         }
 
         if (string.Equals(roleValue, "client", StringComparison.OrdinalIgnoreCase)) {
             SetClient();
-            PrintMultiplayerLog("Command line role selected Client.");
+            PrintMultiplayerLog(GameLogType.StateChange, "CommandLineRoleSelected", "role=Client");
             return;
         }
 
         if (string.Equals(roleValue, "local", StringComparison.OrdinalIgnoreCase)
             || string.Equals(roleValue, "local-only", StringComparison.OrdinalIgnoreCase)) {
             SetLocal();
-            PrintMultiplayerLog("Command line role selected Local.");
+            PrintMultiplayerLog(GameLogType.StateChange, "CommandLineRoleSelected", "role=Local");
             return;
         }
 
@@ -343,7 +356,7 @@ public partial class Networking : Node {
             || string.Equals(roleValue, "server-online", StringComparison.OrdinalIgnoreCase)
             || string.Equals(roleValue, "online", StringComparison.OrdinalIgnoreCase)) {
             SetOnline();
-            PrintMultiplayerLog("Command line role selected Online.");
+            PrintMultiplayerLog(GameLogType.StateChange, "CommandLineRoleSelected", "role=Online");
         }
     }
 
@@ -358,7 +371,7 @@ public partial class Networking : Node {
     }
 
     public bool BeginHostingSession() {
-        PrintMultiplayerLog("Begin host session requested.");
+        PrintMultiplayerLog(GameLogType.ApiCall, "BeginHostingSession", "requested=true");
         LastConnectionError = string.Empty;
         HasLostConnection = false;
         LastConfigApplyMessage = string.Empty;
@@ -379,6 +392,7 @@ public partial class Networking : Node {
             ConnectionStatusText = "Status: Local game ready.";
             RegisterLocalLobbyPlayers();
             SetLocalPlayersFreeForAllTeams();
+            PrintMultiplayerLog(GameLogType.Lifecycle, "LocalSessionReady", $"localPlayers={MultiplayerData.Players.Count}");
             EmitConnectionStateChanged();
             return true;
         }
@@ -388,6 +402,7 @@ public partial class Networking : Node {
         if (port == -1) {
             LastConnectionError = $"Could not find an available server port from {DefaultServerPort} outward between {MinServerPort} and {MaxServerPort}.";
             ConnectionStatusText = "Status: Failed to start server.";
+            PrintMultiplayerLog(GameLogType.Error, "HostStartFailed", LastConnectionError);
             EmitConnectionStateChanged();
             return false;
         }
@@ -397,7 +412,7 @@ public partial class Networking : Node {
         MultiplayerData.SetupConfig.ServerPort = port;
         MultiplayerData.SetupConfig.OnlineEnabled = CurrentMode == NetworkMode.Online;
         ConnectionStatusText = $"Status: Hosting on {MultiplayerData.SetupConfig.ServerAddress}:{port}.";
-        PrintMultiplayerLog($"Hosting on {MultiplayerData.SetupConfig.ServerAddress}:{port}.");
+        PrintMultiplayerLog(GameLogType.Lifecycle, "HostingStarted", $"address={MultiplayerData.SetupConfig.ServerAddress} port={port}");
         StartDiscoveryServer();
         RegisterLocalLobbyPlayers();
         EmitConnectionStateChanged();
@@ -405,8 +420,12 @@ public partial class Networking : Node {
     }
 
     public bool BeginClientConnection(ServerListing listing, JoinType joinType) {
-        if (listing == null)
+        if (listing == null) {
+            PrintMultiplayerLog(GameLogType.Warning, "ClientConnectionRejected", "reason=nullListing");
             return false;
+        }
+
+        PrintMultiplayerLog(GameLogType.ApiCall, "BeginClientConnection", $"target={listing.Address}:{listing.Port} joinType={joinType} name={listing.DisplayName}");
 
         CloseNetworkPeer();
         StopDiscoveryServer();
@@ -435,21 +454,21 @@ public partial class Networking : Node {
             ConnectionStatusText = "Status: Failed to create client connection.";
             HasLostConnection = true;
             UpdateNetworkModeDebugIcon();
-            PrintMultiplayerLog(LastConnectionError);
+            PrintMultiplayerLog(GameLogType.Error, "ClientConnectionCreateFailed", LastConnectionError);
             EmitConnectionStateChanged();
             return false;
         }
 
         Multiplayer.MultiplayerPeer = peer;
         ConnectionStatusText = $"Status: Connecting to {listing.Address}:{listing.Port}.";
-        PrintMultiplayerLog($"Connecting to {listing.Address}:{listing.Port}.");
+        PrintMultiplayerLog(GameLogType.Lifecycle, "ClientConnecting", $"target={listing.Address}:{listing.Port}");
         EmitConnectionStateChanged();
         return true;
     }
 
     public bool BeginDirectClientConnection(string address, int port) {
         if (string.IsNullOrWhiteSpace(address) || port <= 0 || port > 65535) {
-            PrintMultiplayerLog($"Direct client connection rejected. Address='{address}', Port={port}.");
+            PrintMultiplayerLog(GameLogType.Warning, "DirectClientConnectionRejected", $"address={address} port={port}");
             return false;
         }
 
@@ -464,6 +483,7 @@ public partial class Networking : Node {
     }
 
     public void ResetSessionState() {
+        PrintMultiplayerLog(GameLogType.ApiCall, "ResetSessionState");
         CloseNetworkPeer();
         StopDiscoveryServer();
         _localServerListings.Clear();
@@ -481,35 +501,45 @@ public partial class Networking : Node {
     }
 
     public bool ApplyCachedSetupConfigChanges() {
-        if (!HasSelectedMode)
+        if (!HasSelectedMode) {
+            PrintMultiplayerLog(GameLogType.Validation, "ApplyCachedSetupConfigRejected", "reason=noSelectedMode");
             return false;
+        }
 
         if (!HasPendingSetupConfigChanges) {
             LastConfigApplyMessage = "No config changes to apply.";
+            PrintMultiplayerLog(GameLogType.Validation, "ApplyCachedSetupConfigRejected", "reason=noPendingChanges");
             EmitConfigApplyStateChanged();
             return false;
         }
 
         if (!IsClient) {
+            PrintMultiplayerLog(GameLogType.ApiCall, "ApplyCachedSetupConfigLocal", $"gameMode={CachedSetupConfig.GameModeId} maxPlayers={CachedSetupConfig.MaxPlayers}");
             SyncAuthoritativeSetupConfig(CachedSetupConfig);
             LastConfigApplyMessage = "Config settings changed by host.";
             EmitConfigApplyStateChanged();
             return true;
         }
 
-        if (!HasNetworkPeer())
+        if (!HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.Validation, "ApplyCachedSetupConfigRejected", "reason=clientNoNetworkPeer");
             return false;
+        }
 
         LastConfigApplyMessage = string.Empty;
+        PrintMultiplayerLog(GameLogType.RpcSend, "RpcRequestApplyCachedSetupConfig", $"target={ServerPeerId}");
         RpcId(ServerPeerId, nameof(RpcRequestApplyCachedSetupConfig), CachedSetupConfig.SerializeForNetwork());
         EmitConfigApplyStateChanged();
         return true;
     }
 
     public bool RevertCachedSetupConfigChanges() {
-        if (!HasSelectedMode)
+        if (!HasSelectedMode) {
+            PrintMultiplayerLog(GameLogType.Validation, "RevertCachedSetupConfigRejected", "reason=noSelectedMode");
             return false;
+        }
 
+        PrintMultiplayerLog(GameLogType.ApiCall, "RevertCachedSetupConfigChanges");
         SyncCachedSetupConfig();
         LastConfigApplyMessage = "Config changes reverted.";
         EmitLobbyStateChanged();
@@ -520,6 +550,7 @@ public partial class Networking : Node {
     public void RegisterLocalLobbyPlayers() {
         var peerId = GetLocalPeerId();
         if (peerId == -1) {
+            PrintMultiplayerLog(GameLogType.Warning, "RegisterLocalLobbyPlayersRejected", "reason=noLocalPeerId");
             EmitLobbyStateChanged();
             return;
         }
@@ -529,6 +560,7 @@ public partial class Networking : Node {
         MultiplayerData.Players.Clear();
         MultiplayerData.SetupConfig.LocalPlayerCount = activeLocalPlayerCount;
         MultiplayerData.SetupConfig.OnlineEnabled = CurrentMode == NetworkMode.Online;
+        PrintMultiplayerLog(GameLogType.ApiCall, "RegisterLocalLobbyPlayers", $"peer={peerId} activeLocalPlayers={activeLocalPlayerCount}");
 
         var globalId = 0;
         foreach (var localPlayerData in LocalLobbyData.LocalPlayers) {
@@ -549,10 +581,13 @@ public partial class Networking : Node {
 
     public void SetLocalPeerTeam(int teamId) {
         var peerId = GetRegisteredLocalPeerId();
-        if (peerId == -1)
+        if (peerId == -1) {
+            PrintMultiplayerLog(GameLogType.Warning, "SetLocalPeerTeamRejected", $"team={teamId} reason=noPeer");
             return;
+        }
 
         if (IsClient && HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcRequestSetLocalPeerTeam", $"target={ServerPeerId} team={teamId}");
             RpcId(ServerPeerId, nameof(RpcRequestSetLocalPeerTeam), teamId);
             return;
         }
@@ -567,6 +602,7 @@ public partial class Networking : Node {
         foreach (var playerData in MultiplayerData.Players)
             playerData.TeamId = global::MultiplayerData.NormalizeTeamId(playerData.LocalId + 1);
 
+        PrintMultiplayerLog(GameLogType.StateChange, "SetLocalPlayersFreeForAllTeams", $"players={MultiplayerData.Players.Count}");
         EmitLobbyStateChanged();
     }
 
@@ -577,6 +613,67 @@ public partial class Networking : Node {
         foreach (var playerData in MultiplayerData.Players)
             playerData.TeamId = playerData.LocalId % 2 == 0 ? 1 : 2;
 
+        PrintMultiplayerLog(GameLogType.StateChange, "SetLocalPlayersTwoTeams", $"players={MultiplayerData.Players.Count}");
+        EmitLobbyStateChanged();
+    }
+
+    public void AutoAssignPeerTeams(int teamCount) {
+        if (IsLocal) {
+            PrintMultiplayerLog(GameLogType.Validation, "AutoAssignPeerTeamsRejected", $"teams={teamCount} reason=localMode");
+            return;
+        }
+
+        if (IsClient && HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcRequestAutoAssignPeerTeams", $"target={ServerPeerId} teams={teamCount}");
+            RpcId(ServerPeerId, nameof(RpcRequestAutoAssignPeerTeams), teamCount);
+            return;
+        }
+
+        if (!IsServer) {
+            PrintMultiplayerLog(GameLogType.Authority, "AutoAssignPeerTeamsRejected", $"teams={teamCount} reason=notServer");
+            return;
+        }
+
+        ApplyAutoAssignPeerTeams(teamCount);
+    }
+
+    private void ApplyAutoAssignPeerTeams(int teamCount) {
+        if (!IsServer) {
+            PrintMultiplayerLog(GameLogType.Authority, "ApplyAutoAssignPeerTeamsRejected", $"teams={teamCount} reason=notServer");
+            return;
+        }
+
+        var normalizedTeamCount = Math.Clamp(teamCount, 2, 4);
+        var peerGroups = GetPeerTeamGroups();
+        peerGroups.Sort((a, b) => {
+            var playerCountCompare = b.PlayerCount.CompareTo(a.PlayerCount);
+            return playerCountCompare != 0 ? playerCountCompare : a.PeerId.CompareTo(b.PeerId);
+        });
+
+        var teamPlayerCounts = new Dictionary<int, int>();
+        var teamPeerCounts = new Dictionary<int, int>();
+        for (var teamId = 1; teamId <= normalizedTeamCount; teamId++) {
+            teamPlayerCounts[teamId] = 0;
+            teamPeerCounts[teamId] = 0;
+        }
+
+        foreach (var playerData in MultiplayerData.Players)
+            playerData.TeamId = global::MultiplayerData.DefaultTeamId;
+
+        foreach (var peerGroup in peerGroups) {
+            var teamId = GetBestAutofillTeam(teamPlayerCounts, teamPeerCounts);
+            var peerData = GetOrCreatePeerData(peerGroup.PeerId);
+            UpdatePeer(
+                peerGroup.PeerId,
+                peerData.IsHost,
+                teamId,
+                peerData.RequestedLocalPlayerCount,
+                peerData.MaxLocalPlayers);
+            teamPlayerCounts[teamId] += peerGroup.PlayerCount;
+            teamPeerCounts[teamId]++;
+        }
+
+        PrintMultiplayerLog(GameLogType.StateChange, "AutoAssignPeerTeams", $"teams={normalizedTeamCount} peerGroups={peerGroups.Count} players={MultiplayerData.Players.Count}");
         EmitLobbyStateChanged();
     }
 
@@ -586,6 +683,7 @@ public partial class Networking : Node {
             normalizedTeamId = GetLeastPopulatedTeamId(peerId);
 
         var peerData = GetOrCreatePeerData(peerId);
+        PrintMultiplayerLog(GameLogType.ApiCall, "SetPeerTeam", $"peer={peerId} team={normalizedTeamId}");
         UpdatePeer(
             peerId,
             peerData.IsHost,
@@ -601,7 +699,9 @@ public partial class Networking : Node {
         string serverAddress,
         int serverPort,
         string gameModeId) {
+        PrintMultiplayerLog(GameLogType.ApiCall, "UpdateSetupConfig", $"maxPlayers={maxPlayers} localPlayers={localPlayerCount} online={onlineEnabled} address={serverAddress} port={serverPort} gameMode={gameModeId}");
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcUpdateSetupConfig", "target=all");
             Rpc(
                 nameof(RpcUpdateSetupConfig),
                 maxPlayers,
@@ -620,6 +720,7 @@ public partial class Networking : Node {
         if (setupConfig == null)
             return;
 
+        PrintMultiplayerLog(GameLogType.Sync, "SyncAuthoritativeSetupConfig", $"gameMode={setupConfig.GameModeId} maxPlayers={setupConfig.MaxPlayers}");
         MultiplayerData.SetupConfig.CopyFrom(setupConfig);
         SyncCachedSetupConfig();
 
@@ -632,8 +733,10 @@ public partial class Networking : Node {
             setupConfig.GameModeId);
 
         var serializedSetupConfig = setupConfig.SerializeForNetwork();
-        if (HasNetworkPeer())
+        if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcReplaceFullSetupConfig", "target=all");
             Rpc(nameof(RpcReplaceFullSetupConfig), serializedSetupConfig);
+        }
         else {
             RpcReplaceFullSetupConfig(serializedSetupConfig);
         }
@@ -647,7 +750,9 @@ public partial class Networking : Node {
         int localId,
         string displayName,
         bool isLocalPlayer) {
+        PrintMultiplayerLog(GameLogType.ApiCall, "UpdatePlayer", $"global={globalId} peer={peerId} local={localId} localPlayer={isLocalPlayer} name={displayName}");
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcUpdatePlayer", $"target=all global={globalId}");
             Rpc(
                 nameof(RpcUpdatePlayer),
                 globalId,
@@ -662,7 +767,9 @@ public partial class Networking : Node {
     }
 
     public void UpdatePeer(int peerId, bool isHost, int teamId, int requestedLocalPlayerCount, int maxLocalPlayers) {
+        PrintMultiplayerLog(GameLogType.ApiCall, "UpdatePeer", $"peer={peerId} host={isHost} team={teamId} requestedLocalPlayers={requestedLocalPlayerCount} maxLocalPlayers={maxLocalPlayers}");
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcUpdatePeer", $"target=all peer={peerId}");
             Rpc(nameof(RpcUpdatePeer), peerId, isHost, teamId, requestedLocalPlayerCount, maxLocalPlayers);
             return;
         }
@@ -671,7 +778,9 @@ public partial class Networking : Node {
     }
 
     public void RemovePeer(int peerId) {
+        PrintMultiplayerLog(GameLogType.ApiCall, "RemovePeer", $"peer={peerId}");
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcRemovePeer", $"target=all peer={peerId}");
             Rpc(nameof(RpcRemovePeer), peerId);
             return;
         }
@@ -680,7 +789,9 @@ public partial class Networking : Node {
     }
 
     public void RemovePlayer(int peerId, int localId) {
+        PrintMultiplayerLog(GameLogType.ApiCall, "RemovePlayer", $"peer={peerId} local={localId}");
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcRemovePlayer", $"target=all peer={peerId} local={localId}");
             Rpc(nameof(RpcRemovePlayer), peerId, localId);
             return;
         }
@@ -689,7 +800,9 @@ public partial class Networking : Node {
     }
 
     public void ClearPlayers() {
+        PrintMultiplayerLog(GameLogType.ApiCall, "ClearPlayers");
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcClearPlayers", "target=all");
             Rpc(nameof(RpcClearPlayers));
             return;
         }
@@ -698,13 +811,18 @@ public partial class Networking : Node {
     }
 
     public bool DamageAuthoritativeWallTile(Vector2I position, float damageAmount = 1.0f, DamageType damageType = DamageType.Crush) {
-        if (!CanApplyAuthoritativeArenaMapChange())
+        if (!CanApplyAuthoritativeArenaMapChange()) {
+            PrintMultiplayerLog(GameLogType.Authority, "DamageWallTileRejected", $"tile={position} reason=notAuthority");
             return false;
+        }
 
-        if (!ArenaMapData.IsWallTile(position) || damageAmount <= 0.0f)
+        if (!ArenaMapData.IsWallTile(position) || damageAmount <= 0.0f) {
+            PrintMultiplayerLog(GameLogType.Validation, "DamageWallTileRejected", $"tile={position} damage={damageAmount} wall={ArenaMapData.IsWallTile(position)}");
             return false;
+        }
 
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcDamageArenaWallTile", $"tile={position} type={damageType} damage={damageAmount}");
             Rpc(nameof(RpcDamageArenaWallTile), position.X, position.Y, (int)damageType, damageAmount);
             return true;
         }
@@ -718,13 +836,18 @@ public partial class Networking : Node {
     }
 
     public bool DamageAuthoritativeWallsInRadius(Vector2I centerTile, int radius, float damageAmount = 1.0f, DamageType damageType = DamageType.Explosive) {
-        if (!CanApplyAuthoritativeArenaMapChange())
+        if (!CanApplyAuthoritativeArenaMapChange()) {
+            PrintMultiplayerLog(GameLogType.Authority, "DamageWallsInRadiusRejected", $"center={centerTile} reason=notAuthority");
             return false;
+        }
 
-        if (damageAmount <= 0.0f || radius < 0)
+        if (damageAmount <= 0.0f || radius < 0) {
+            PrintMultiplayerLog(GameLogType.Validation, "DamageWallsInRadiusRejected", $"center={centerTile} radius={radius} damage={damageAmount}");
             return false;
+        }
 
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcDamageArenaWallsInRadius", $"center={centerTile} radius={radius} type={damageType} damage={damageAmount}");
             Rpc(nameof(RpcDamageArenaWallsInRadius), centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
             return true;
         }
@@ -740,7 +863,9 @@ public partial class Networking : Node {
     }
 
     public void ClearPeers() {
+        PrintMultiplayerLog(GameLogType.ApiCall, "ClearPeers");
         if (HasNetworkPeer()) {
+            PrintMultiplayerLog(GameLogType.RpcSend, "RpcClearPeers", "target=all");
             Rpc(nameof(RpcClearPeers));
             return;
         }
@@ -750,10 +875,13 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRequestJoinServer(Godot.Collections.Array<int> localIds, Godot.Collections.Array<string> displayNames) {
-        if (!IsAuthoritativeServer())
+        if (!IsAuthoritativeServer()) {
+            PrintMultiplayerLog(GameLogType.Authority, "RpcRequestJoinServerRejected", "reason=notAuthoritativeServer");
             return;
+        }
 
         var remotePeerId = Multiplayer.GetRemoteSenderId();
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcRequestJoinServer", $"from={remotePeerId} localIds={localIds.Count} names={displayNames.Count}");
         RegisterRemotePeerPlayers(remotePeerId, localIds, displayNames);
         SendFullLobbyStateToPeer(remotePeerId);
         ConnectionStatusText = $"Status: Peer {remotePeerId} joined the lobby.";
@@ -762,21 +890,41 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRequestSetLocalPeerTeam(int teamId) {
-        if (!IsAuthoritativeServer())
+        if (!IsAuthoritativeServer()) {
+            PrintMultiplayerLog(GameLogType.Authority, "RpcRequestSetLocalPeerTeamRejected", "reason=notAuthoritativeServer");
             return;
+        }
 
         var remotePeerId = Multiplayer.GetRemoteSenderId();
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcRequestSetLocalPeerTeam", $"from={remotePeerId} team={teamId}");
         SetPeerTeam(remotePeerId, teamId);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcRequestApplyCachedSetupConfig(string serializedSetupConfig) {
-        if (!IsAuthoritativeServer())
+    public void RpcRequestAutoAssignPeerTeams(int teamCount) {
+        if (!IsAuthoritativeServer()) {
+            PrintMultiplayerLog(GameLogType.Authority, "RpcRequestAutoAssignPeerTeamsRejected", "reason=notAuthoritativeServer");
             return;
+        }
 
         var remotePeerId = Multiplayer.GetRemoteSenderId();
-        if (!SetupConfig.TryDeserializeForNetwork(serializedSetupConfig, out var requestedSetupConfig))
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcRequestAutoAssignPeerTeams", $"from={remotePeerId} teams={teamCount}");
+        ApplyAutoAssignPeerTeams(teamCount);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestApplyCachedSetupConfig(string serializedSetupConfig) {
+        if (!IsAuthoritativeServer()) {
+            PrintMultiplayerLog(GameLogType.Authority, "RpcRequestApplyCachedSetupConfigRejected", "reason=notAuthoritativeServer");
             return;
+        }
+
+        var remotePeerId = Multiplayer.GetRemoteSenderId();
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcRequestApplyCachedSetupConfig", $"from={remotePeerId}");
+        if (!SetupConfig.TryDeserializeForNetwork(serializedSetupConfig, out var requestedSetupConfig)) {
+            PrintMultiplayerLog(GameLogType.Validation, "RpcRequestApplyCachedSetupConfigRejected", $"from={remotePeerId} reason=deserializeFailed");
+            return;
+        }
 
         requestedSetupConfig.ServerAddress = MultiplayerData.SetupConfig.ServerAddress;
         requestedSetupConfig.ServerPort = MultiplayerData.SetupConfig.ServerPort;
@@ -798,6 +946,7 @@ public partial class Networking : Node {
         string serverAddress,
         int serverPort,
         string gameModeId) {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcUpdateSetupConfig", $"maxPlayers={maxPlayers} localPlayers={localPlayerCount} online={onlineEnabled} address={serverAddress} port={serverPort} gameMode={gameModeId}");
         MultiplayerData.SetupConfig.MaxPlayers = maxPlayers;
         MultiplayerData.SetupConfig.LocalPlayerCount = localPlayerCount;
         MultiplayerData.SetupConfig.OnlineEnabled = onlineEnabled;
@@ -811,8 +960,11 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcReplaceFullSetupConfig(string serializedSetupConfig) {
-        if (!SetupConfig.TryDeserializeForNetwork(serializedSetupConfig, out var deserializedSetupConfig))
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcReplaceFullSetupConfig");
+        if (!SetupConfig.TryDeserializeForNetwork(serializedSetupConfig, out var deserializedSetupConfig)) {
+            PrintMultiplayerLog(GameLogType.Validation, "RpcReplaceFullSetupConfigRejected", "reason=deserializeFailed");
             return;
+        }
 
         MultiplayerData.SetupConfig.CopyFrom(deserializedSetupConfig);
         SyncCachedSetupConfig();
@@ -822,6 +974,7 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcNotifyConfigApplied(string message) {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcNotifyConfigApplied", message);
         LastConfigApplyMessage = message;
         SyncCachedSetupConfig();
         EmitConfigApplyStateChanged();
@@ -834,6 +987,7 @@ public partial class Networking : Node {
         int localId,
         string displayName,
         bool isLocalPlayer) {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcUpdatePlayer", $"global={globalId} peer={peerId} local={localId} localPlayer={isLocalPlayer} name={displayName}");
         GetOrCreatePeerData(peerId);
 
         var playerData = GetOrCreatePlayerData(peerId, localId);
@@ -845,6 +999,7 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcUpdatePeer(int peerId, bool isHost, int teamId, int requestedLocalPlayerCount, int maxLocalPlayers) {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcUpdatePeer", $"peer={peerId} host={isHost} team={teamId} requestedLocalPlayers={requestedLocalPlayerCount} maxLocalPlayers={maxLocalPlayers}");
         var peerData = GetOrCreatePeerData(peerId);
         peerData.IsHost = isHost;
         peerData.TeamId = global::MultiplayerData.NormalizeTeamId(teamId);
@@ -855,6 +1010,7 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRemovePeer(int peerId) {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcRemovePeer", $"peer={peerId}");
         for (var i = MultiplayerData.Peers.Count - 1; i >= 0; i--) {
             if (MultiplayerData.Peers[i].PeerId == peerId) {
                 MultiplayerData.Peers.RemoveAt(i);
@@ -869,6 +1025,7 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcRemovePlayer(int peerId, int localId) {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcRemovePlayer", $"peer={peerId} local={localId}");
         for (var i = MultiplayerData.Players.Count - 1; i >= 0; i--) {
             if (MultiplayerData.Players[i].PeerId == peerId && MultiplayerData.Players[i].LocalId == localId) {
                 MultiplayerData.Players.RemoveAt(i);
@@ -882,12 +1039,14 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcClearPlayers() {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcClearPlayers");
         MultiplayerData.Players.Clear();
         EmitLobbyStateChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcClearPeers() {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcClearPeers");
         MultiplayerData.Peers.Clear();
         MultiplayerData.Players.Clear();
         EmitLobbyStateChanged();
@@ -895,12 +1054,14 @@ public partial class Networking : Node {
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcDamageArenaWallTile(int x, int y, int damageTypeValue, float damageAmount) {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcDamageArenaWallTile", $"tile=({x},{y}) type={ToDamageType(damageTypeValue)} damage={damageAmount}");
         ArenaMapData.DamageWallTile(new Vector2I(x, y), ToDamageType(damageTypeValue), damageAmount);
         EmitArenaMapChanged();
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcDamageArenaWallsInRadius(int centerX, int centerY, int radius, int damageTypeValue, float damageAmount) {
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcDamageArenaWallsInRadius", $"center=({centerX},{centerY}) radius={radius} type={ToDamageType(damageTypeValue)} damage={damageAmount}");
         ArenaMapData.DamageWallsInRadius(new Vector2I(centerX, centerY), radius, ToDamageType(damageTypeValue), damageAmount);
         EmitArenaMapChanged();
     }
@@ -912,7 +1073,7 @@ public partial class Networking : Node {
     }
 
     private void OnPeerConnected(long peerId) {
-        PrintMultiplayerLog($"Peer connected: {peerId}. Connected peers: {Multiplayer.GetPeers().Length}.");
+        PrintMultiplayerLog(GameLogType.Lifecycle, "PeerConnected", $"peer={peerId} connectedPeers={Multiplayer.GetPeers().Length}");
 
         if (!IsAuthoritativeServer())
             return;
@@ -922,7 +1083,7 @@ public partial class Networking : Node {
     }
 
     private void OnPeerDisconnected(long peerId) {
-        PrintMultiplayerLog($"Peer disconnected: {peerId}. Connected peers: {Multiplayer.GetPeers().Length}.");
+        PrintMultiplayerLog(GameLogType.Lifecycle, "PeerDisconnected", $"peer={peerId} connectedPeers={Multiplayer.GetPeers().Length}");
 
         if (!IsAuthoritativeServer())
             return;
@@ -936,8 +1097,9 @@ public partial class Networking : Node {
         ConnectionStatusText = "Status: Connected. Syncing lobby data from server.";
         HasLostConnection = false;
         UpdateNetworkModeDebugIcon();
-        PrintMultiplayerLog($"Connected to server. Local peer id: {Multiplayer.GetUniqueId()}.");
+        PrintMultiplayerLog(GameLogType.Lifecycle, "ConnectedToServer", $"localPeer={Multiplayer.GetUniqueId()}");
         EmitConnectionStateChanged();
+        PrintMultiplayerLog(GameLogType.RpcSend, "RpcRequestJoinServer", $"target={ServerPeerId} localPlayers={GetActiveLocalPlayerCount()}");
         RpcId(ServerPeerId, nameof(RpcRequestJoinServer), BuildActiveLocalIdArray(), BuildActiveLocalNameArray());
     }
 
@@ -946,7 +1108,7 @@ public partial class Networking : Node {
         ConnectionStatusText = "Status: Connection failed.";
         HasLostConnection = true;
         UpdateNetworkModeDebugIcon();
-        PrintMultiplayerLog("Connection failed.");
+        PrintMultiplayerLog(GameLogType.Error, "ConnectionFailed");
         CloseNetworkPeer();
         EmitConnectionStateChanged();
     }
@@ -956,7 +1118,7 @@ public partial class Networking : Node {
         ConnectionStatusText = "Status: Disconnected from server.";
         HasLostConnection = true;
         UpdateNetworkModeDebugIcon();
-        PrintMultiplayerLog("Server disconnected.");
+        PrintMultiplayerLog(GameLogType.Warning, "ServerDisconnected");
         CloseNetworkPeer();
         ClearMultiplayerDataLocal();
         EmitConnectionStateChanged();
@@ -1059,6 +1221,23 @@ public partial class Networking : Node {
             _discoveryServer.SetDestAddress(senderAddress, senderPort);
             _discoveryServer.PutPacket(Encoding.UTF8.GetBytes(BuildDiscoveryResponse()));
         }
+    }
+
+    private void LogRootSceneChange() {
+        var currentScene = GetTree()?.CurrentScene;
+        if (currentScene == null)
+            return;
+
+        var scenePath = currentScene.SceneFilePath;
+        if (string.IsNullOrWhiteSpace(scenePath))
+            scenePath = currentScene.Name;
+
+        if (scenePath == _lastLoggedRootScenePath)
+            return;
+
+        var previousScenePath = string.IsNullOrWhiteSpace(_lastLoggedRootScenePath) ? "none" : _lastLoggedRootScenePath;
+        _lastLoggedRootScenePath = scenePath;
+        GameLog.Print(GameLogScope.UI, GameLogType.StateChange, "RootSceneChanged", $"from={previousScenePath} to={scenePath}");
     }
 
     private void PollDiscoveryResponses(PacketPeerUdp discoveryClient) {
@@ -1172,6 +1351,56 @@ public partial class Networking : Node {
 
     private static int GetDefaultPeerTeamId(int peerId) {
         return global::MultiplayerData.DefaultTeamId;
+    }
+
+    private List<PeerTeamGroup> GetPeerTeamGroups() {
+        var groupsByPeerId = new Dictionary<int, PeerTeamGroup>();
+        foreach (var peerData in MultiplayerData.Peers) {
+            if (!groupsByPeerId.ContainsKey(peerData.PeerId)) {
+                groupsByPeerId[peerData.PeerId] = new PeerTeamGroup {
+                    PeerId = peerData.PeerId,
+                };
+            }
+        }
+
+        foreach (var playerData in MultiplayerData.Players) {
+            if (!groupsByPeerId.TryGetValue(playerData.PeerId, out var group)) {
+                group = new PeerTeamGroup {
+                    PeerId = playerData.PeerId,
+                };
+                groupsByPeerId[playerData.PeerId] = group;
+            }
+
+            group.PlayerCount++;
+        }
+
+        var groups = new List<PeerTeamGroup>();
+        foreach (var group in groupsByPeerId.Values) {
+            if (group.PlayerCount > 0)
+                groups.Add(group);
+        }
+
+        return groups;
+    }
+
+    private static int GetBestAutofillTeam(Dictionary<int, int> teamPlayerCounts, Dictionary<int, int> teamPeerCounts) {
+        var bestTeamId = 1;
+        var bestPlayerCount = int.MaxValue;
+        var bestPeerCount = int.MaxValue;
+        foreach (var teamPlayerCount in teamPlayerCounts) {
+            var teamId = teamPlayerCount.Key;
+            var playerCount = teamPlayerCount.Value;
+            var peerCount = teamPeerCounts[teamId];
+            if (playerCount < bestPlayerCount
+                || playerCount == bestPlayerCount && peerCount < bestPeerCount
+                || playerCount == bestPlayerCount && peerCount == bestPeerCount && teamId < bestTeamId) {
+                bestTeamId = teamId;
+                bestPlayerCount = playerCount;
+                bestPeerCount = peerCount;
+            }
+        }
+
+        return bestTeamId;
     }
 
     private void ApplyLocalTeams() {
@@ -1353,7 +1582,11 @@ public partial class Networking : Node {
     }
 
     private void PrintMultiplayerLog(string message) {
-        GD.Print($"[Multiplayer][Mode={CurrentMode}] {message}");
+        PrintMultiplayerLog(GameLogType.StateChange, "Multiplayer", message);
+    }
+
+    private void PrintMultiplayerLog(GameLogType type, string eventName, string details = "") {
+        GameLog.Print(GameLogScope.Networking, type, eventName, details);
     }
 
     private void EmitLobbyStateChanged() {

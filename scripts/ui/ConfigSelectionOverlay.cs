@@ -93,7 +93,7 @@ public partial class ConfigSelectionOverlay : PanelContainer {
         if (optionIconPaths == null || optionIndex < 0 || optionIndex >= optionIconPaths.Length || string.IsNullOrWhiteSpace(optionIconPaths[optionIndex]))
             return null;
 
-        return GD.Load<Texture2D>(optionIconPaths[optionIndex]);
+        return UiResourceLoader.LoadIconTexture(optionIconPaths[optionIndex]);
     }
 
     private static StyleBoxFlat CreateOptionTileStyle() {
