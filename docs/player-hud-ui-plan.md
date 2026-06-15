@@ -4,7 +4,7 @@ This document tracks the planned in-match player stats and equipment HUD.
 
 ## Goal
 
-Add a reusable player HUD that shows local player identity, combat stats, armor, weapon slots, gadget slots, remaining uses, and empty capacity while supporting up to 4 local players on one device.
+Add a reusable player HUD that shows local player identity, combat stats, armor, weapon slots, gadget slots, loaded ammo, reload/refresh cooldowns, gadget readiness, and empty capacity while supporting up to 4 local players on one device.
 
 The first implementation should be test-scene friendly and reusable. Build it as `.tscn` scenes instead of constructing the whole HUD directly inside `TestPlayerItemRoomLAN.cs`.
 
@@ -28,7 +28,8 @@ Each player panel should show:
 - Kills.
 - Health/status, including dead/recovering states when available.
 - Current equipped/selected weapon or active item.
-- Remaining weapon uses/ammo.
+- Loaded weapon ammo and reload state.
+- Gadget readiness and refresh state.
 - Equipped armor and armor status.
 - Weapon slots.
 - Gadget slots.
@@ -62,7 +63,7 @@ Initial data can come from the player/item LAN test runtime:
 
 - `Networking.MultiplayerData.GetPlayerByGlobalId(GlobalId)` for name, local id, peer id, and local ownership.
 - `DamageTestPlayer.Health` for health/status.
-- Runtime equipment data for selected item, armor, weapon slots, gadget slots, remaining uses, and empty slots.
+- Runtime equipment data for selected item, armor, weapon slots, gadget slots, loaded ammo, weapon reload timers, gadget readiness, gadget refresh timers, and empty slots.
 - Match scoring state for kills once available.
 
 The HUD should tolerate missing data while the item system is still being built. Unknown values should show placeholders like empty slots, `0`, or `--` instead of crashing or hiding entire sections.
@@ -82,7 +83,7 @@ The temporary `B` item grid remains a debug/equipment menu, not the final buy wh
 
 - HUD uses `.tscn` scenes for reusable UI structure.
 - HUD displays up to 4 local player panels at once.
-- Each panel shows name, avatar placeholder, kills placeholder, health, selected item, armor, weapon slots, gadget slots, remaining uses, and empty slots.
+- Each panel shows name, avatar placeholder, kills placeholder, health, selected item, armor, weapon slots, gadget slots, loaded ammo, reload/refresh cooldown state, and empty slots.
 - HUD updates when selecting weapons or armor in `TestPlayerItemRoomLAN`.
 - HUD does not break LAN host/client testing or local-only scene startup.
 - HUD remains readable at desktop resolution and does not overlap the active aim indicator in the center of the screen.

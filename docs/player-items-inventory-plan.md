@@ -1,10 +1,10 @@
 # Player Items And Loadout Plan
 
-This document tracks the simplified in-game player item, armor, ammo, and loadout model.
+This document tracks the simplified in-game player item, armor, reload cooldown, and loadout model.
 
 ## Core Goal
 
-Keep the game fast and readable. A player should not manage backpacks, backstraps, magazine pouches, or separate inventory providers. The equipped armor is the only loadout-capacity provider.
+Keep the game fast and readable. A player should not manage backpacks, backstraps, magazine pouches, or separate inventory providers. Equipped armor is the only loadout-capacity provider, and it modifies item-defined reload/refresh pacing instead of granting extra ammo bundles directly.
 
 The simplified player shape is:
 
@@ -19,21 +19,23 @@ public partial class InGamePlayerData : Resource {
 
 `PlayerItem` is the shared purchasable/display base for weapons, gadgets, and armor. It owns item id, display name, theme, cost, weight, held texture, and showcase texture. Weapons and gadgets are intentionally separate resource families instead of sharing a single equipable base class.
 
-## Armor-Driven Capacity
+## Armor-Driven Capacity And Cooldowns
 
-`PlayerArmor` owns both protection and loadout capacity:
+`PlayerArmor` owns protection, loadout capacity, and reload/refresh cooldown modifiers:
 
 - `AllowsSecondWeapon`: whether the player may carry a second weapon.
 - `GadgetSlotCount`: how many gadget slots are available, clamped to `0-3`.
-- `WeaponMagazineCount`: how many magazines each equipped ammo weapon gets when ammo is reset.
-- `GadgetUseCount`: how many uses each equipped gadget gets when ammo is reset.
+- `WeaponReloadCooldownMultiplier`: percentage-style multiplier applied to a weapon's own reload cooldown.
+- `GadgetRefreshCooldownMultiplier`: percentage-style multiplier applied to a gadget's own refresh cooldown.
 
-There are no standalone inventory bags, ammo rigs, pouches, holsters, or backstrap items in the current model. If a later design needs more capacity, add another armor variant instead of adding a second equipment layer.
+Armor does not define how many magazines a weapon has, how many total uses a gadget has, or the base cooldown length of an item. Weapon `.tres` resources own their magazine/ammo shape and base reload cooldown. Gadget `.tres` resources own their ready/use shape and base refresh cooldown. Armor only applies a percentage modifier that can speed up or slow down those item-defined cooldowns.
 
-Current first-pass armor tuning:
+There are no standalone inventory bags, ammo rigs, pouches, holsters, or backstrap items in the current model. If a later design needs different carry capacity or reload/refresh modifiers, add another armor variant instead of adding a second equipment layer.
 
-- No armor or light armor style baseline: 1 weapon, 1 gadget, 2 weapon magazines, 1 use per gadget.
-- Heavy armor: 2 weapons, 2 gadgets, 3 weapon magazines, 2 uses per gadget.
+Current first-pass armor tuning target:
+
+- No armor or light armor style baseline: 1 weapon, 1 gadget, `1.0x` weapon reload multiplier, `1.0x` gadget refresh multiplier.
+- Heavy armor: 2 weapons, 2 gadgets, slower or faster reload/refresh multipliers depending on its protection/capacity tradeoff.
 
 ## Weapons And Gadgets
 
@@ -43,23 +45,44 @@ Items are split into separate resource families:
 - `PlayerGadget`: base for grenades, instant-use items, and future small utility items.
 - `PlayerArmor`: base for armor and loadout-capacity data.
 
-`PlayerWeapon` and `PlayerGadget` both implement `IPlayerUsable` for the runtime use path, but they do not inherit from a shared `PlayerEquipable` resource class. This keeps weapon and gadget data separated while preserving one item-use execution path where needed. Item use is intentionally simple: single-fire weapons and gadgets use once per press, full-auto weapons repeat while held after `RecoverySeconds`, and every use is gated by remaining uses. There are no toggled fire modes, burst modes, or fire-mode cycling controls.
+`PlayerWeapon` and `PlayerGadget` both implement `IPlayerUsable` for the runtime use path, but they do not inherit from a shared `PlayerEquipable` resource class. This keeps weapon and gadget data separated while preserving one item-use execution path where needed. Item use is intentionally simple: single-fire weapons and gadgets use once per press, full-auto weapons repeat while held after `RecoverySeconds`, weapon firing is gated by loaded ammo, and gadget use is gated by readiness/refresh state. There are no toggled fire modes, burst modes, or fire-mode cycling controls.
 
 The player can carry at most 2 weapons and at most 3 gadgets. The active armor decides how many of those slots are available.
 
-Weapon ammo is intentionally simple:
+Weapon ammo is intentionally explicit but still lightweight:
 
 ```text
-max weapon uses = item.MagazineSize * armor.WeaponMagazineCount
+loaded ammo = weapon.MagazineSize
+reload duration = weapon.ReloadCooldownSeconds * armor.WeaponReloadCooldownMultiplier
 ```
 
-Gadget count is intentionally simple:
+Weapon behavior:
+
+- Firing consumes loaded ammo.
+- A weapon with no loaded ammo cannot fire.
+- Pressing reload starts that weapon's reload cooldown if it is not already full, not already reloading, and the player is allowed to act.
+- When the cooldown finishes, the weapon reloads back to its weapon-defined loaded-ammo maximum.
+- The weapon resource controls the base reload cooldown duration.
+- Armor applies a percentage-style reload cooldown multiplier. Values below `1.0` are faster; values above `1.0` are slower.
+- Armor does not grant extra magazines or reserve ammo.
+
+Gadget count is intentionally timer-based:
 
 ```text
-max gadget uses = armor.GadgetUseCount
+ready gadget use = 1
+refresh duration = gadget.RefreshCooldownSeconds * armor.GadgetRefreshCooldownMultiplier
 ```
 
-There are no `Small`, `Medium`, `Large`, or `Special` reserve buckets. Launchers use the same weapon ammo rule as guns. Grenades use the same gadget count rule as other gadgets.
+Gadget behavior:
+
+- Using a ready gadget consumes it immediately.
+- Consuming a gadget starts that gadget's refresh timer.
+- A gadget cannot be used again until its refresh timer completes.
+- The gadget resource controls the base refresh cooldown duration.
+- Armor applies a percentage-style gadget refresh cooldown multiplier. Values below `1.0` are faster; values above `1.0` are slower.
+- Armor does not grant extra gadget uses.
+
+There are no `Small`, `Medium`, `Large`, or `Special` reserve buckets. Launchers use the same reload cooldown rule as guns. Grenades use the same gadget refresh rule as other gadgets.
 
 Weapon firing behavior is fixed by the weapon resource:
 
@@ -70,16 +93,17 @@ The current modern SMGs and ARs are full-auto. Pistols, rifles, and launchers ar
 
 ## Runtime State
 
-`PlayerLoadoutState` is the current runtime helper for the test scene. It stores equipped armor, up to 2 weapon slots, up to 3 gadget slots, selected item, and current item uses by item id.
+`PlayerLoadoutState` is the current runtime helper for the test scene. It stores equipped armor, up to 2 weapon slots, up to 3 gadget slots, selected item, loaded weapon ammo, weapon reload timers, gadget readiness, and gadget refresh timers. Reload/refresh timers should be calculated from item-owned base cooldowns plus armor multipliers.
 
 Important API:
 
-- `EquipArmor(PlayerArmor armor)`: applies armor capacity, clamps unavailable slots, and resets item uses to max.
-- `EquipItem(PlayerItem item)`: equips a `PlayerWeapon` or `PlayerGadget`, selects it, and resets item uses to max.
-- `ResetUsesToMax()`: resets all equipped weapons/gadgets to the current armor-derived maximum.
-- `TryConsumeUse(PlayerItem item)`: validates and consumes one use before item execution.
+- `EquipArmor(PlayerArmor armor)`: applies armor capacity, clamps unavailable slots, and changes future reload/refresh cooldown multipliers.
+- `EquipItem(PlayerItem item)`: equips a `PlayerWeapon` or `PlayerGadget`, selects it, and initializes that item's ammo/ready state.
+- `TryConsumeWeaponAmmo(PlayerWeapon weapon)`: validates and consumes one loaded weapon shot before execution.
+- `TryStartWeaponReload(PlayerWeapon weapon)`: starts the weapon-defined reload cooldown after applying the armor reload multiplier.
+- `TryConsumeGadgetUse(PlayerGadget gadget)`: validates a ready gadget, consumes it, and starts the gadget-defined refresh cooldown after applying the armor refresh multiplier.
 
-The test room also exposes this flow through `ResetPlayerUsesToMax(globalId)` so future respawn, buy-zone, or round-start code can restock from the same armor-derived rules.
+Future respawn, buy-zone, or round-start code should reset loaded ammo and gadget readiness explicitly. It should not use armor as a source of extra magazines or extra gadget uses.
 
 ## Test Room Behavior
 
@@ -94,9 +118,10 @@ Current behavior:
 
 - Selecting a weapon equips it into the simplified weapon slots and makes it active.
 - Selecting a grenade/gadget equips it into the simplified gadget slots and makes it active.
-- Selecting armor applies the armor overlay, clamps unavailable weapon/gadget slots, and resets item uses to the armor-derived maximum.
-- Item use is server-authoritative in the LAN test path: clients request use, the host validates ownership, recovery, death/control state, and remaining uses, then executes and syncs the result.
-- If an item has no remaining uses, the host rejects execution.
+- Selecting armor applies the armor overlay, clamps unavailable weapon/gadget slots, and changes future reload/refresh cooldown multipliers.
+- Item use is server-authoritative in the LAN test path: clients request use, the host validates ownership, recovery, death/control state, loaded ammo or gadget readiness, then executes and syncs the result.
+- If a weapon has no loaded ammo, the host rejects firing until reload completes.
+- If a gadget is refreshing, the host rejects gadget use until refresh completes.
 
 ## Item Execution
 
@@ -126,7 +151,7 @@ The full buy wheel is deferred. When purchase mode is implemented, validation sh
 - Buying a weapon requires an available weapon slot from armor capacity.
 - Buying a gadget requires an available gadget slot from armor capacity.
 - Buying/equipping armor may remove excess weapons/gadgets if the new armor has fewer slots.
-- Restocking ammo calls the same reset-to-max API used by armor equip.
+- Restocking at round start, respawn, or buy zones should refill loaded weapon ammo and mark gadgets ready without changing armor's cooldown role.
 
 ## Deferred Or Removed
 
@@ -137,10 +162,12 @@ Removed from the active design:
 - Typed physical slots like holster, pouch, strap, and backpack.
 - Separate magazine reserve buckets like `Small`, `Medium`, `Large`, and `Special`.
 - Separate ammo-carrier worn item.
+- Armor-granted magazine counts.
+- Armor-granted gadget use counts.
 
 Deferred future work:
 
 - Final buy wheel UI.
-- Full HUD presentation for weapon/gadget slots and remaining uses.
+- Full HUD presentation for weapon/gadget slots, loaded ammo, reload cooldowns, gadget readiness, and refresh cooldowns.
 - Additional armor variants with different protection/capacity tradeoffs.
 - Non-modern item themes after the modern item/action slice is stable.

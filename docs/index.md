@@ -28,7 +28,7 @@ The root `README.md` should stay concise and newcomer-friendly. Detailed technic
 
 | Plan | Doc |
 | --- | --- |
-| Player items, simplified armor-driven loadouts, weapons, gadgets, and ammo uses | [Player Items And Loadout Plan](player-items-inventory-plan.md) |
+| Player items, simplified armor-driven loadouts, weapons, gadgets, ammo reloads, and gadget refreshes | [Player Items And Loadout Plan](player-items-inventory-plan.md) |
 | Local player stats/equipment HUD | [Player HUD UI Plan](player-hud-ui-plan.md) |
 | First modern weapon, armor, throwable, and projectile content pass | [Modern Item Content Plan](modern-item-content-plan.md) |
 
@@ -38,7 +38,7 @@ The root `README.md` should stay concise and newcomer-friendly. Detailed technic
 - Primary active gameplay test bed: `scenes/tests/test_player_item_room_lan.tscn`.
 - Destruction-focused LAN test bed: `scenes/tests/test_map_destruction_logic_lan.tscn`.
 - Current technical direction: build data/resource-driven gameplay systems first, keep UI reusable, and keep multiplayer behavior shaped around server authority.
-- Current next work: continue the simplified armor-driven loadout slice with weapon/gadget uses, armor capacity, item validation, and the local player HUD.
+- Current next work: rework ammo so item `.tres` resources own base weapon reload and gadget refresh cooldowns, while armor applies percentage cooldown modifiers instead of granting extra magazines or gadget uses.
 
 ## Maintenance Rules
 

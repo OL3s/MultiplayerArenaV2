@@ -4,22 +4,22 @@ This file tracks what to focus on in the next working session.
 
 ## Next Session Goal
 
-Continue the simplified player equipment slice inside the dedicated player item/action LAN test scene. The current direction is armor-driven loadout capacity: no backstrap, no inventory bags, no separate ammo rig, and no separate magazine reserve buckets.
+Continue the simplified player equipment slice inside the dedicated player item/action LAN test scene. The current direction is armor-driven loadout capacity plus armor-modified item reload/refresh cooldowns: no backstrap, no inventory bags, no separate ammo rig, and no separate magazine reserve buckets.
 
 Use `scenes/tests/test_player_item_room_lan.tscn` and `scripts/data/gameplay/TestPlayerItemRoomLAN.cs` for this slice.
 
 ## Primary Focus
 
-- Continue from the current `simplify/equipment-ammo-carrier` branch unless a new branch is explicitly requested.
+- Continue from the current `rework-ammo-system` branch unless a new branch is explicitly requested.
 - Read `docs/player-items-inventory-plan.md` first.
 - Keep `scenes/tests/test_map_destruction_logic_lan.tscn` focused on destructible map and prop damage sync.
 - Keep `DamageTestPlayer.GlobalId` as the runtime identity key and resolve ownership through `Networking.MultiplayerData.GetPlayerByGlobalId(GlobalId)`.
 - Treat the existing `B` item grid as a temporary equipment/debug menu, not the final purchase UI.
-- Keep item use shaped like future server-authoritative commands: local input requests an item action, host/server validates ownership, control/death/recovery state, remaining item uses, and applies it.
-- Use armor as the only capacity provider. Armor decides whether the player can carry a second weapon, how many gadget slots are available, how many weapon magazines are granted, and how many uses each gadget gets.
+- Keep item use shaped like future server-authoritative commands: local input requests an item action, host/server validates ownership, control/death/recovery state, loaded ammo or gadget readiness, and applies it.
+- Use armor as the only capacity and cooldown-modifier provider. Armor decides whether the player can carry a second weapon, how many gadget slots are available, and which percentage multipliers apply to item-defined weapon reloads and gadget refreshes.
 - Keep `PlayerWeapon` and `PlayerGadget` as separate resource families. Shared purchasable/display data belongs on `PlayerItem`, which is also used by armor.
 - Use `IPlayerUsable` only as a runtime bridge for the common item-use path, not as a shared exported Godot resource base.
-- Keep item use simple: single-fire weapons/gadgets use once per press, full-auto weapons repeat while held after recovery, and every use is gated by remaining uses. Do not reintroduce toggled fire modes or burst mode.
+- Keep item use simple: single-fire weapons/gadgets use once per press, full-auto weapons repeat while held after recovery, weapon use is gated by loaded ammo, and gadget use is gated by readiness/refresh timers. Do not reintroduce toggled fire modes or burst mode.
 - Remove old planning assumptions around backstrap items, inventory providers, separate ammo carriers, and `Small`/`Medium`/`Large`/`Special` magazine buckets.
 - Give every item separate visual roles where relevant: showcase/UI image and in-use gameplay image.
 - Render equipped armor as an overlay above the root/base player body sprite.
@@ -29,12 +29,13 @@ Use `scenes/tests/test_player_item_room_lan.tscn` and `scripts/data/gameplay/Tes
 
 - Maximum weapon slots: 2.
 - Maximum gadget slots: 3.
-- No armor/default capacity: 1 weapon, 1 gadget, 2 weapon magazines, 1 use per gadget.
+- No armor/default capacity: 1 weapon, 1 gadget, `1.0x` weapon reload multiplier, `1.0x` gadget refresh multiplier.
 - Light armor currently follows the default capacity.
-- Heavy armor currently allows 2 weapons, 2 gadgets, 3 weapon magazines, and 2 uses per gadget.
-- Weapon max uses are `item.MagazineSize * armor.WeaponMagazineCount`.
-- Gadget max uses are `armor.GadgetUseCount` per equipped gadget.
-- Equipping armor clamps unavailable weapon/gadget slots and calls the reset-to-max ammo/use API.
+- Heavy armor currently allows 2 weapons and 2 gadgets, with slower or faster reload/refresh multipliers depending on its protection/capacity tradeoff.
+- Weapon loaded ammo is `item.MagazineSize`.
+- Pressing reload starts the selected weapon's item-defined reload cooldown after applying the armor reload multiplier.
+- Gadget use consumes readiness and starts that gadget's item-defined refresh cooldown after applying the armor refresh multiplier.
+- Equipping armor clamps unavailable weapon/gadget slots and changes future reload/refresh cooldown multipliers.
 
 ## Modern Items In Scope
 
@@ -49,12 +50,14 @@ Use `scenes/tests/test_player_item_room_lan.tscn` and `scripts/data/gameplay/Tes
 
 ## Next Implementation Order
 
-1. Harden the simplified runtime loadout path in `PlayerLoadoutState` and `TestPlayerItemRoomLAN`.
-2. Improve the temporary `B` menu so assigning weapons/gadgets into armor-limited slots is clearer than simply replacing the last available slot.
-3. Add HUD scenes for local player equipment/readability: selected item, weapon slots, gadget slots, armor, health, and remaining uses.
-4. Sync remaining uses explicitly if status/HUD readability requires it across peers.
-5. Add focused tests or test helpers for armor equip reset, full/empty item uses, slot clamping when changing armor, and invalid use rejection.
-6. Run `dotnet build MultiplayerArenaV2.csproj` and `./tools/verify-startup.sh` after implementation.
+1. Rework `PlayerLoadoutState` around loaded weapon ammo, weapon reload timers, gadget readiness, and gadget refresh timers.
+2. Add reload input handling in `TestPlayerItemRoomLAN` so pressing reload starts the selected weapon's item-defined reload cooldown after applying the armor multiplier.
+3. Make gadget use start that gadget's item-defined refresh timer after applying the armor multiplier.
+4. Improve the temporary `B` menu so assigning weapons/gadgets into armor-limited slots is clearer than simply replacing the last available slot.
+5. Add HUD scenes for local player equipment/readability: selected item, weapon slots, gadget slots, armor, health, loaded ammo, reload state, and gadget refresh state.
+6. Sync loaded ammo/readiness/cooldown state explicitly if status/HUD readability requires it across peers.
+7. Add focused tests or test helpers for reload start/finish, gadget refresh start/finish, slot clamping when changing armor, and invalid use rejection.
+8. Run `dotnet build MultiplayerArenaV2.csproj` and `./tools/verify-startup.sh` after implementation.
 
 ## First Test Cases
 
@@ -66,9 +69,9 @@ Use `scenes/tests/test_player_item_room_lan.tscn` and `scripts/data/gameplay/Tes
 - Generic bullet, thrown-item, and launched-projectile scenes each instantiate from item execution code.
 - A player without armor can carry 1 weapon and 1 gadget.
 - Heavy armor allows a second weapon and a second gadget slot.
-- Equipping armor resets equipped weapon/gadget uses to max.
-- Shootable weapons and launchers consume weapon uses and cannot execute when empty.
-- Grenades consume gadget uses and cannot execute when empty.
+- Pressing reload starts a weapon reload cooldown using the selected weapon's base reload duration and the currently equipped armor's reload multiplier.
+- Shootable weapons and launchers consume loaded ammo and cannot execute when empty or reloading.
+- Grenades consume gadget readiness and cannot execute while their refresh timer is active.
 - Changing from higher-capacity armor to lower-capacity armor clamps unavailable slots.
 - Armor can affect protection and future movement penalties without being a carried usable item.
 - Player stats HUD can eventually display 1, 2, 3, or 4 local player panels at the same time.
