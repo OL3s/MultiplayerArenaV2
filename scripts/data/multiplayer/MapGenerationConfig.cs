@@ -4,10 +4,6 @@ using Godot;
 public partial class MapGenerationConfig : Resource {
     public enum StructureType {
         Arena,
-        Rooms,
-        Narrow,
-        Islands,
-        Plain,
     }
 
     public enum SeedMode {

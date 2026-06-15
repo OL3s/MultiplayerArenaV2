@@ -73,7 +73,7 @@ public partial class TestMapDestructionLogicLAN : Node2D {
     public string ClientAddress { get; set; } = "127.0.0.1";
 
     [Export]
-    public int ClientPort { get; set; } = 7700;
+    public int ClientPort { get; set; } = 12000;
 
     [Export]
     public BiomeConfig.BiomeType TestWallBiome { get; set; } = BiomeConfig.BiomeType.Arena;

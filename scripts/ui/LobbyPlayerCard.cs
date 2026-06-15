@@ -3,10 +3,8 @@ using Godot;
 public partial class LobbyPlayerCard : PanelContainer {
     public void SetPlayer(PlayerData playerData, int teamId) {
         GetNode<Label>("Content/Info/NameLabel").Text = playerData.DisplayName;
-        GetNode<Label>("Content/Info/DetailLabel").Text = $"Global {playerData.GlobalId} | Peer {playerData.PeerId} | Local {playerData.LocalId} | Team {FormatTeamName(teamId)}";
-    }
-
-    private static string FormatTeamName(int teamId) {
-        return teamId == global::MultiplayerData.DefaultTeamId ? "Auto-Assign" : $"Team {teamId}";
+        GetNode<Label>("Content/Info/DetailLabel").Text = $"P{playerData.GlobalId + 1} | Slot {playerData.LocalId + 1}";
+        GetNode<Label>("Content/Info/DeviceLabel").Text = playerData.IsLocalPlayer ? "Local Device" : "Remote Device";
+        AddThemeStyleboxOverride("panel", TeamVisuals.GetPlayerCardStyle(teamId));
     }
 }

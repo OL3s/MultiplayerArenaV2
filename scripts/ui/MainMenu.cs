@@ -14,6 +14,7 @@ public partial class MainMenu : Control {
     private const string NetworkIconClientPath = "res://assets/network/networkmodes/network_client.svg";
     private const string SettingsIconPath = "res://assets/ui/settings_cog.svg";
     private const string ExitIconPath = "res://assets/ui/exit_power.svg";
+    private const string ResetIconPath = "res://assets/ui/reset_revert.svg";
 
     private PackedScene _confirmationOverlayScene;
     private double _joinPromptIconElapsed;
@@ -340,9 +341,6 @@ public partial class MainMenu : Control {
     }
 
     private void OnHostGamePressed() {
-        if (!HasActiveLocalPlayer())
-            return;
-
         GetTree().ChangeSceneToFile(HostServerMenuScenePath);
     }
 
@@ -366,7 +364,7 @@ public partial class MainMenu : Control {
 
     private void RefreshActionButtonsVisibility() {
         var hasActiveLocalPlayer = HasActiveLocalPlayer();
-        GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Visible = hasActiveLocalPlayer;
+        GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Visible = true;
 
         var joinGameButton = GetNode<Button>("MainLayout/ActionButtons/JoinGameButton");
         joinGameButton.Visible = hasActiveLocalPlayer;
@@ -380,6 +378,7 @@ public partial class MainMenu : Control {
         GetNode<Button>("TopRightButtons/ExitGameButton").Icon = GD.Load<Texture2D>(ExitIconPath);
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Icon = GD.Load<Texture2D>(NetworkIconLanPath);
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
+        GetNode<Button>("MainLayout/ActionButtons/ResetPlayersButton").Icon = GD.Load<Texture2D>(ResetIconPath);
     }
 
     private void RefreshDefaultFocus() {
@@ -387,12 +386,7 @@ public partial class MainMenu : Control {
         if (focusOwner != null && focusOwner.IsVisibleInTree())
             return;
 
-        if (HasActiveLocalPlayer()) {
-            GetNode<Button>("MainLayout/ActionButtons/HostGameButton").GrabFocus();
-            return;
-        }
-
-        GetNode<Button>("TopRightButtons/ExitGameButton").GrabFocus();
+        GetNode<Button>("MainLayout/ActionButtons/HostGameButton").GrabFocus();
     }
 
     private bool HasActiveLocalPlayer() {

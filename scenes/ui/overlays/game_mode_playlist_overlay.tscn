@@ -1,6 +1,11 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/GameModePlaylistOverlay.cs" id="1_playlist"]
+[ext_resource type="Texture2D" path="res://assets/ui/reset_revert.svg" id="2_reset_revert"]
+[ext_resource type="Texture2D" path="res://assets/ui/back_arrow.svg" id="3_back_arrow"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_back_button.tres" id="4_back_style"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_revert_button.tres" id="5_clear_style"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_apply_button.tres" id="6_apply_style"]
 
 [node name="GameModePlaylistOverlay" type="PanelContainer"]
 custom_minimum_size = Vector2(520, 420)
@@ -46,6 +51,28 @@ layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
+[node name="CloseButton" type="Button" parent="Content/Footer"]
+custom_minimum_size = Vector2(110, 40)
+layout_mode = 2
+text = "Back"
+icon = ExtResource("3_back_arrow")
+icon_max_width = 18
+expand_icon = true
+theme_override_styles/normal = ExtResource("6_apply_style")
+theme_override_styles/hover = ExtResource("6_apply_style")
+theme_override_styles/pressed = ExtResource("6_apply_style")
+
+[node name="ClearButton" type="Button" parent="Content/Footer"]
+custom_minimum_size = Vector2(110, 40)
+layout_mode = 2
+text = "Clear"
+icon = ExtResource("2_reset_revert")
+icon_max_width = 18
+expand_icon = true
+theme_override_styles/normal = ExtResource("5_clear_style")
+theme_override_styles/hover = ExtResource("5_clear_style")
+theme_override_styles/pressed = ExtResource("5_clear_style")
+
 [node name="AddDeathmatchButton" type="Button" parent="Content/Footer"]
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
@@ -55,8 +82,3 @@ text = "Add Deathmatch"
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 text = "Add CTF"
-
-[node name="CloseButton" type="Button" parent="Content/Footer"]
-custom_minimum_size = Vector2(110, 40)
-layout_mode = 2
-text = "Close"

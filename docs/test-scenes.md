@@ -112,7 +112,7 @@ Script defaults:
 
 - `GODOT_BIN=godot`
 - `ADDRESS=127.0.0.1`
-- `PORT=7700`
+- `PORT=12000`
 - `CLIENTS=2`
 - `START_DELAY=2`
 
@@ -140,24 +140,24 @@ godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role 
 Client:
 
 ```bash
-godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
 Launch destruction host and client:
 
 ```bash
 godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role host
-godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
 Launch player item room host and client:
 
 ```bash
 godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host
-godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
-If the host log says it picked a port other than `7700`, use that port for the client. This can happen if another old test instance is still holding `7700`.
+If the host log says it picked a port other than `12000`, use that port for the client. This can happen if another old test instance is still holding `12000`.
 
 Supported shared role values are `local`, `lan`, `host`, `server`, `server-local`, `client`, `online`, `online-host`, and `server-online`.
 

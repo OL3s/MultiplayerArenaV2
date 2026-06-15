@@ -17,7 +17,7 @@ public partial class SetupConfig : Resource {
     public string ServerAddress { get; set; } = "127.0.0.1";
 
     [Export]
-    public int ServerPort { get; set; } = 7777;
+    public int ServerPort { get; set; } = 12000;
 
     [Export]
     public string GameModeId { get; set; } = "deathmatch";
@@ -237,13 +237,12 @@ public partial class SetupConfig : Resource {
         }
 
         if (MapConfig.EnabledStructureTypes.Count == 0) {
-            foreach (MapGenerationConfig.StructureType structureType in Enum.GetValues(typeof(MapGenerationConfig.StructureType)))
-                MapConfig.EnabledStructureTypes.Add(structureType);
+            MapConfig.EnabledStructureTypes.Add(MapGenerationConfig.StructureType.Arena);
         }
 
         if (BiomeConfig.EnabledBiomes.Count == 0) {
-            foreach (BiomeConfig.BiomeType biomeType in Enum.GetValues(typeof(BiomeConfig.BiomeType)))
-                BiomeConfig.EnabledBiomes.Add(biomeType);
+            BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Plains);
+            BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Arena);
         }
     }
 

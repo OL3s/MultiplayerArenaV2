@@ -4,17 +4,40 @@ using Godot;
 
 public partial class MatchLobby : Control {
     private const string MainMenuScenePath = "res://scenes/ui/menus/main_menu.tscn";
+    private const string LobbyTeamContainerScenePath = "res://scenes/ui/lobby/lobby_team_container.tscn";
     private const string LobbyPlayerCardScenePath = "res://scenes/ui/lobby/lobby_player_card.tscn";
+    private const string LobbyEmptyPlayerSlotScenePath = "res://scenes/ui/lobby/lobby_empty_player_slot.tscn";
     private const string ConfigSelectionOverlayScenePath = "res://scenes/ui/overlays/config_selection_overlay.tscn";
     private const string GameModePlaylistOverlayScenePath = "res://scenes/ui/overlays/game_mode_playlist_overlay.tscn";
     private const string ConfirmationOverlayScenePath = "res://scenes/ui/overlays/confirmation_overlay.tscn";
+    private const string ConfigBiomeIconPath = "res://assets/ui/config_biome.svg";
+    private const string ConfigStructureIconPath = "res://assets/ui/config_structure.svg";
+    private const string BiomePlainsIconPath = "res://assets/ui/biome_plains.svg";
+    private const string BiomeArenaIconPath = "res://assets/ui/biome_arena.svg";
+    private const string StructureArenaIconPath = "res://assets/ui/structure_arena.svg";
     private static readonly int[] DefaultTeamIds = { 0, 1, 2, 3, 4 };
     private static readonly GameModeConfig.GameModeType[] AvailableGameModes = {
         GameModeConfig.GameModeType.Deathmatch,
         GameModeConfig.GameModeType.CaptureTheFlag,
     };
+    private static readonly MapGenerationConfig.StructureType[] AvailableStructureTypes = {
+        MapGenerationConfig.StructureType.Arena,
+    };
+    private static readonly BiomeConfig.BiomeType[] AvailableBiomes = {
+        BiomeConfig.BiomeType.Plains,
+        BiomeConfig.BiomeType.Arena,
+    };
+    private static readonly string[] AvailableStructureIconPaths = {
+        StructureArenaIconPath,
+    };
+    private static readonly string[] AvailableBiomeIconPaths = {
+        BiomePlainsIconPath,
+        BiomeArenaIconPath,
+    };
 
     private PackedScene _lobbyPlayerCardScene;
+    private PackedScene _lobbyTeamContainerScene;
+    private PackedScene _lobbyEmptyPlayerSlotScene;
     private PackedScene _configSelectionOverlayScene;
     private PackedScene _gameModePlaylistOverlayScene;
     private PackedScene _confirmationOverlayScene;
@@ -23,7 +46,9 @@ public partial class MatchLobby : Control {
 
     public override void _Ready() {
         UiInputActions.EnsureConfigured();
+        _lobbyTeamContainerScene = GD.Load<PackedScene>(LobbyTeamContainerScenePath);
         _lobbyPlayerCardScene = GD.Load<PackedScene>(LobbyPlayerCardScenePath);
+        _lobbyEmptyPlayerSlotScene = GD.Load<PackedScene>(LobbyEmptyPlayerSlotScenePath);
         _configSelectionOverlayScene = GD.Load<PackedScene>(ConfigSelectionOverlayScenePath);
         _gameModePlaylistOverlayScene = GD.Load<PackedScene>(GameModePlaylistOverlayScenePath);
         _confirmationOverlayScene = GD.Load<PackedScene>(ConfirmationOverlayScenePath);
@@ -31,6 +56,7 @@ public partial class MatchLobby : Control {
         GetNetworking().ConnectionStateChanged += RefreshLobbyState;
         GetNetworking().ConfigApplyStateChanged += OnConfigApplyStateChanged;
         GetNode<Button>("MainLayout/Actions/StartButton").Pressed += OnStartPressed;
+        GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutoAssignButton").Pressed += OnAutoAssignPressed;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/ApplyConfigButton").Pressed += OnApplyConfigPressed;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/RevertConfigButton").Pressed += OnRevertConfigPressed;
         GetNode<Button>("MainLayout/Actions/BackButton").Pressed += OnBackPressed;
@@ -59,18 +85,18 @@ public partial class MatchLobby : Control {
     private void RefreshLobbyState() {
         var networking = GetNetworking();
         GetNode<Label>("MainLayout/TitleLabel").Text = GetTitle(networking.CurrentMode);
-        GetNode<Label>("MainLayout/StatusLabel").Text = GetStatusText(networking);
-        GetNode<Label>("SummaryPanel/SummaryLabel").Text = FormatSummary(networking);
         RefreshConfigControls(GetEditableSetupConfig());
         RefreshPlayerSections(networking.MultiplayerData);
 
+        var autoAssignButton = GetNode<Button>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutoAssignButton");
+        autoAssignButton.Disabled = !networking.HasSelectedMode || networking.MultiplayerData.Players.Count == 0;
+        autoAssignButton.Modulate = autoAssignButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
+
         var startButton = GetNode<Button>("MainLayout/Actions/StartButton");
         startButton.Visible = networking.IsServer || networking.IsLocal;
-        startButton.Disabled = !startButton.Visible
-            || networking.HasPendingSetupConfigChanges
-            || networking.CurrentMode == Networking.NetworkMode.NotSelected
-            || !CanStartMatch(GetEditableSetupConfig());
-        startButton.Modulate = startButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
+        var canStartMatch = CanStartMatchNow(networking, GetEditableSetupConfig());
+        startButton.Disabled = !startButton.Visible;
+        startButton.Modulate = canStartMatch ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
 
         var applyButton = GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions/ApplyConfigButton");
         applyButton.Visible = networking.HasSelectedMode;
@@ -93,30 +119,9 @@ public partial class MatchLobby : Control {
         };
     }
 
-    private static string GetStatusText(Networking networking) {
-        if (networking.IsServer)
-            return networking.ConnectionStatusText;
-
-        if (networking.IsClient)
-            return networking.ConnectionStatusText;
-
-        if (networking.IsLocal)
-            return "Status: Local game. Ready when local players are configured.";
-
-        return "Status: No mode selected.";
-    }
-
-    private static string FormatSummary(Networking networking) {
-        return $"Type: {FormatModeName(networking.CurrentMode)}\n"
-            + $"Peers connected: {networking.MultiplayerData.Peers.Count}\n"
-            + $"Players: {networking.MultiplayerData.Players.Count}";
-    }
-
     private void RefreshPlayerSections(MultiplayerData multiplayerData) {
-        var teamSections = GetNode<VBoxContainer>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/TeamSections");
+        var teamSections = GetNode<GridContainer>("MainLayout/LobbyBody/PlayersPanel/PlayersLayout/TeamSections");
         ClearChildren(teamSections);
-
-        teamSections.AddChild(CreateTeamSection(global::MultiplayerData.DefaultTeamId));
 
         var playerDataByTeam = new SortedDictionary<int, List<PlayerData>>();
         var visibleTeamIds = GetVisibleTeamIds(multiplayerData.SetupConfig);
@@ -125,27 +130,24 @@ public partial class MatchLobby : Control {
 
         foreach (var playerData in multiplayerData.Players) {
             var teamId = multiplayerData.GetTeam(playerData);
+            if (teamId == global::MultiplayerData.DefaultTeamId)
+                teamId = 1;
+
             if (!playerDataByTeam.ContainsKey(teamId))
                 playerDataByTeam[teamId] = new List<PlayerData>();
 
             playerDataByTeam[teamId].Add(playerData);
         }
 
-        if (multiplayerData.Players.Count == 0) {
-            var emptyLabel = new Label { Text = "No players registered yet.", HorizontalAlignment = HorizontalAlignment.Center };
-            teamSections.AddChild(emptyLabel);
-            return;
-        }
-
         foreach (var teamPlayers in playerDataByTeam) {
-            var teamSection = CreateTeamSection(teamPlayers.Key);
-            var playerList = teamSection.GetNode<HBoxContainer>("PlayerCards");
-            foreach (var playerData in teamPlayers.Value) {
-                var playerCard = _lobbyPlayerCardScene.Instantiate<LobbyPlayerCard>();
-                playerCard.SetPlayer(playerData, teamPlayers.Key);
-                playerList.AddChild(playerCard);
-            }
-
+            var teamSection = _lobbyTeamContainerScene.Instantiate<LobbyTeamContainer>();
+            teamSection.Configure(
+                teamPlayers.Key,
+                teamPlayers.Value,
+                _lobbyPlayerCardScene,
+                _lobbyEmptyPlayerSlotScene,
+                GetNetworking().HasSelectedMode);
+            teamSection.TeamSelected += OnTeamHeaderPressed;
             teamSections.AddChild(teamSection);
         }
     }
@@ -168,31 +170,13 @@ public partial class MatchLobby : Control {
         };
     }
 
-    private VBoxContainer CreateTeamSection(int teamId) {
-        var teamSection = new VBoxContainer();
-        teamSection.AddThemeConstantOverride("separation", 8);
-        teamSection.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-
-        var teamButton = new Button {
-            Text = $"[{FormatTeamName(teamId)}]",
-            CustomMinimumSize = new Vector2(0, 34),
-            Disabled = GetNetworking().IsLocal,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        };
-        teamButton.AddThemeFontSizeOverride("font_size", 18);
-        teamButton.Pressed += () => OnTeamHeaderPressed(teamId);
-
-        var playerCards = new HBoxContainer { Name = "PlayerCards" };
-        playerCards.AddThemeConstantOverride("separation", 8);
-        playerCards.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-
-        teamSection.AddChild(teamButton);
-        teamSection.AddChild(playerCards);
-        return teamSection;
-    }
-
     private void OnTeamHeaderPressed(int teamId) {
         GetNetworking().SetLocalPeerTeam(teamId);
+        RefreshLobbyState();
+    }
+
+    private void OnAutoAssignPressed() {
+        GetNetworking().SetLocalPeerTeam(global::MultiplayerData.DefaultTeamId);
         RefreshLobbyState();
     }
 
@@ -208,33 +192,124 @@ public partial class MatchLobby : Control {
     }
 
     private void InitializeConfigControls() {
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/BiomeRow/BiomeButton").Pressed += OnBiomePressed;
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow/MapTypeButton").Pressed += OnStructurePressed;
-        GetNode<SpinBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/SeedSpinBox").ValueChanged += OnSeedChanged;
-        GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/RandomSeedCheckBox").Toggled += OnRandomSeedToggled;
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameModeButton").Pressed += OnGameModePressed;
-        GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/RandomOrderCheckBox").Toggled += OnRandomOrderToggled;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton").Pressed += OnBiomePressed;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/StructureButton").Pressed += OnStructurePressed;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameModeButton").Pressed += OnGameModePressed;
+        GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/RandomOrderCheckBox").Toggled += OnRandomOrderToggled;
     }
 
     private void RefreshConfigControls(SetupConfig setupConfig) {
         _isRefreshingConfig = true;
-        GetNode<Label>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/InternetSection/ConnectionInfoLabel").Text = FormatConnectionInfo(setupConfig);
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapTypeRow/MapTypeButton").Text = DescribeStructures(setupConfig.MapConfig);
-        GetNode<SpinBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/SeedSpinBox").Value = setupConfig.MapConfig.FixedSeed;
-        GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/SeedRow/RandomSeedCheckBox").ButtonPressed = setupConfig.MapConfig.SelectedSeedMode == MapGenerationConfig.SeedMode.AlwaysRandom;
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/BiomeRow/BiomeButton").Text = DescribeBiomes(setupConfig.BiomeConfig);
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameModeButton").Text = DescribeGameModes(setupConfig);
-        GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/RandomOrderCheckBox").ButtonPressed = setupConfig.GameplayScoring.RandomizeGameModeOrder;
+        EnsureRandomSeedMode(setupConfig);
+        EnsureMvpMapSelections(setupConfig);
+        GetNode<Label>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConnectionSection/ConnectionContent/ConnectionText/ConnectionInfoLabel").Text = FormatConnectionInfo(setupConfig);
+        ConfigureMapOptionButton(
+            "MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton",
+            "Biome",
+            DescribeBiomes(setupConfig.BiomeConfig),
+            GetBiomeButtonIconPath(setupConfig.BiomeConfig));
+        ConfigureMapOptionButton(
+            "MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/StructureButton",
+            "Structure",
+            DescribeStructures(setupConfig.MapConfig),
+            GetStructureButtonIconPath(setupConfig.MapConfig));
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameModeButton").Text = $"Mode\n{DescribeGameModes(setupConfig)}";
+        GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/RandomOrderCheckBox").ButtonPressed = setupConfig.GameplayScoring.RandomizeGameModeOrder;
         _isRefreshingConfig = false;
+    }
+
+    private void ConfigureMapOptionButton(string buttonPath, string title, string value, string iconPath) {
+        GetNode<Button>(buttonPath).Text = string.Empty;
+        GetNode<Label>($"{buttonPath}/Content/TitleLabel").Text = title;
+        GetNode<Label>($"{buttonPath}/Content/ValueLabel").Text = value;
+        GetNode<TextureRect>($"{buttonPath}/Content/Icon").Texture = GD.Load<Texture2D>(iconPath);
+    }
+
+    private static string GetBiomeButtonIconPath(BiomeConfig biomeConfig) {
+        if (biomeConfig?.EnabledBiomes.Count != 1)
+            return ConfigBiomeIconPath;
+
+        return GetBiomeIconPath(biomeConfig.EnabledBiomes[0]);
+    }
+
+    private static string GetStructureButtonIconPath(MapGenerationConfig mapConfig) {
+        if (mapConfig?.EnabledStructureTypes.Count != 1)
+            return ConfigStructureIconPath;
+
+        return GetStructureIconPath(mapConfig.EnabledStructureTypes[0]);
+    }
+
+    private static string GetBiomeIconPath(BiomeConfig.BiomeType biomeType) {
+        return biomeType switch {
+            BiomeConfig.BiomeType.Plains => BiomePlainsIconPath,
+            BiomeConfig.BiomeType.Arena => BiomeArenaIconPath,
+            _ => ConfigBiomeIconPath,
+        };
+    }
+
+    private static string GetStructureIconPath(MapGenerationConfig.StructureType structureType) {
+        return structureType switch {
+            MapGenerationConfig.StructureType.Arena => StructureArenaIconPath,
+            _ => ConfigStructureIconPath,
+        };
+    }
+
+    private static void EnsureRandomSeedMode(SetupConfig setupConfig) {
+        if (setupConfig?.MapConfig == null)
+            return;
+
+        setupConfig.MapConfig.SelectedSeedMode = MapGenerationConfig.SeedMode.AlwaysRandom;
+    }
+
+    private static void EnsureMvpMapSelections(SetupConfig setupConfig) {
+        if (setupConfig?.MapConfig == null || setupConfig.BiomeConfig == null)
+            return;
+
+        for (var i = setupConfig.MapConfig.EnabledStructureTypes.Count - 1; i >= 0; i--) {
+            if (!IsAvailableStructure(setupConfig.MapConfig.EnabledStructureTypes[i]))
+                setupConfig.MapConfig.EnabledStructureTypes.RemoveAt(i);
+        }
+
+        if (setupConfig.MapConfig.EnabledStructureTypes.Count == 0)
+            setupConfig.MapConfig.AddStructureType(MapGenerationConfig.StructureType.Arena);
+
+        for (var i = setupConfig.BiomeConfig.EnabledBiomes.Count - 1; i >= 0; i--) {
+            if (!IsAvailableBiome(setupConfig.BiomeConfig.EnabledBiomes[i]))
+                setupConfig.BiomeConfig.EnabledBiomes.RemoveAt(i);
+        }
+
+        if (setupConfig.BiomeConfig.EnabledBiomes.Count == 0) {
+            setupConfig.BiomeConfig.AddBiome(BiomeConfig.BiomeType.Plains);
+            setupConfig.BiomeConfig.AddBiome(BiomeConfig.BiomeType.Arena);
+        }
+    }
+
+    private static bool IsAvailableStructure(MapGenerationConfig.StructureType structureType) {
+        foreach (var availableStructureType in AvailableStructureTypes) {
+            if (availableStructureType == structureType)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsAvailableBiome(BiomeConfig.BiomeType biomeType) {
+        foreach (var availableBiome in AvailableBiomes) {
+            if (availableBiome == biomeType)
+                return true;
+        }
+
+        return false;
     }
 
     private void OnStructurePressed() {
         ShowSelectionOverlay(
             "Structures",
             GetStructureDisplayNames(),
-            index => GetEditableSetupConfig().MapConfig.HasStructureType((MapGenerationConfig.StructureType)index),
+            AvailableStructureIconPaths,
+            index => GetEditableSetupConfig().MapConfig.HasStructureType(AvailableStructureTypes[index]),
             (index, enabled) => {
-                var structureType = (MapGenerationConfig.StructureType)index;
+                var structureType = AvailableStructureTypes[index];
                 if (enabled)
                     GetEditableSetupConfig().MapConfig.AddStructureType(structureType);
                 else {
@@ -245,25 +320,14 @@ public partial class MatchLobby : Control {
             });
     }
 
-    private void OnSeedChanged(double seed) {
-        if (_isRefreshingConfig) return;
-        GetEditableSetupConfig().MapConfig.FixedSeed = (int)seed;
-        RefreshLobbyState();
-    }
-
-    private void OnRandomSeedToggled(bool enabled) {
-        if (_isRefreshingConfig) return;
-        GetEditableSetupConfig().MapConfig.SelectedSeedMode = enabled ? MapGenerationConfig.SeedMode.AlwaysRandom : MapGenerationConfig.SeedMode.FixedSeed;
-        RefreshLobbyState();
-    }
-
     private void OnBiomePressed() {
         ShowSelectionOverlay(
             "Biomes",
-            Enum.GetNames(typeof(BiomeConfig.BiomeType)),
-            index => GetEditableSetupConfig().BiomeConfig.HasBiome((BiomeConfig.BiomeType)index),
+            GetBiomeDisplayNames(),
+            AvailableBiomeIconPaths,
+            index => GetEditableSetupConfig().BiomeConfig.HasBiome(AvailableBiomes[index]),
             (index, enabled) => {
-                var biomeType = (BiomeConfig.BiomeType)index;
+                var biomeType = AvailableBiomes[index];
                 if (enabled)
                     GetEditableSetupConfig().BiomeConfig.AddBiome(biomeType);
                 else {
@@ -284,7 +348,8 @@ public partial class MatchLobby : Control {
             AddGameModeEntry,
             MoveGameModeEntryUp,
             MoveGameModeEntryDown,
-            RemoveGameModeEntry);
+            RemoveGameModeEntry,
+            ClearGameModeEntries);
         playlistOverlay.RefreshList(GetEditableSetupConfig());
         overlay.AddOverlay(playlistOverlay, true);
     }
@@ -297,10 +362,10 @@ public partial class MatchLobby : Control {
         RefreshLobbyState();
     }
 
-    private void ShowSelectionOverlay(string title, string[] options, Func<int, bool> isSelected, Action<int, bool> onToggled) {
+    private void ShowSelectionOverlay(string title, string[] options, string[] optionIconPaths, Func<int, bool> isSelected, Action<int, bool> onToggled) {
         var overlay = SceneOverlay.GetOrCreate(this);
         var selectionOverlay = _configSelectionOverlayScene.Instantiate<ConfigSelectionOverlay>();
-        selectionOverlay.Configure(title, options, isSelected, onToggled);
+        selectionOverlay.Configure(title, options, optionIconPaths, isSelected, onToggled);
         overlay?.AddOverlay(selectionOverlay, true);
     }
 
@@ -350,30 +415,34 @@ public partial class MatchLobby : Control {
     }
 
     private static string DescribeBiomes(BiomeConfig biomeConfig) {
-        return DescribeSelection(biomeConfig.EnabledBiomes.Count, Enum.GetValues(typeof(BiomeConfig.BiomeType)).Length, biomeConfig.EnabledBiomes.Count == 1 ? biomeConfig.EnabledBiomes[0].ToString() : "Biome");
+        return DescribeSelection(biomeConfig.EnabledBiomes.Count, AvailableBiomes.Length, biomeConfig.EnabledBiomes.Count == 1 ? biomeConfig.EnabledBiomes[0].ToString() : "Biome");
     }
 
     private static string DescribeStructures(MapGenerationConfig mapConfig) {
         return DescribeSelection(
             mapConfig.EnabledStructureTypes.Count,
-            Enum.GetValues(typeof(MapGenerationConfig.StructureType)).Length,
+            AvailableStructureTypes.Length,
             mapConfig.EnabledStructureTypes.Count == 1 ? FormatStructureName(mapConfig.EnabledStructureTypes[0]) : "Structure");
     }
 
     private static string[] GetStructureDisplayNames() {
-        var structureTypes = (MapGenerationConfig.StructureType[])Enum.GetValues(typeof(MapGenerationConfig.StructureType));
-        var displayNames = new string[structureTypes.Length];
-        for (var i = 0; i < structureTypes.Length; i++)
-            displayNames[i] = FormatStructureName(structureTypes[i]);
+        var displayNames = new string[AvailableStructureTypes.Length];
+        for (var i = 0; i < AvailableStructureTypes.Length; i++)
+            displayNames[i] = FormatStructureName(AvailableStructureTypes[i]);
+
+        return displayNames;
+    }
+
+    private static string[] GetBiomeDisplayNames() {
+        var displayNames = new string[AvailableBiomes.Length];
+        for (var i = 0; i < AvailableBiomes.Length; i++)
+            displayNames[i] = AvailableBiomes[i].ToString();
 
         return displayNames;
     }
 
     private static string FormatStructureName(MapGenerationConfig.StructureType structureType) {
-        return structureType switch {
-            MapGenerationConfig.StructureType.Narrow => "Narrow",
-            _ => structureType.ToString(),
-        };
+        return structureType.ToString();
     }
 
     private static string DescribeGameModes(SetupConfig setupConfig) {
@@ -453,6 +522,12 @@ public partial class MatchLobby : Control {
         RefreshTopPlaylistOverlay();
     }
 
+    private void ClearGameModeEntries() {
+        GetEditableSetupConfig().GameModes.Clear();
+        RefreshLobbyState();
+        RefreshTopPlaylistOverlay();
+    }
+
     private void RefreshTopPlaylistOverlay() {
         var overlay = SceneOverlay.Get(this);
         if (overlay == null)
@@ -512,6 +587,44 @@ public partial class MatchLobby : Control {
     }
 
     private void OnStartPressed() {
+        var networking = GetNetworking();
+        var startBlockReason = GetStartBlockReason(networking, GetEditableSetupConfig());
+        if (!string.IsNullOrWhiteSpace(startBlockReason)) {
+            ShowMessageOverlay("Cannot Start Match", startBlockReason);
+            return;
+        }
+    }
+
+    private static bool CanStartMatchNow(Networking networking, SetupConfig setupConfig) {
+        return string.IsNullOrWhiteSpace(GetStartBlockReason(networking, setupConfig));
+    }
+
+    private static string GetStartBlockReason(Networking networking, SetupConfig setupConfig) {
+        if (networking == null)
+            return "Networking is not available yet.";
+
+        if (networking.CurrentMode == Networking.NetworkMode.NotSelected)
+            return "Choose Local, LAN, or Online hosting before starting.";
+
+        if (networking.IsClient)
+            return "Only the host can start the match.";
+
+        if (networking.HasPendingSetupConfigChanges)
+            return "Apply or revert the pending Match Config changes before starting.";
+
+        if (setupConfig == null)
+            return "Match Config is not available yet.";
+
+        if (setupConfig.BiomeConfig.EnabledBiomes.Count == 0)
+            return "Select at least one biome before starting.";
+
+        if (setupConfig.MapConfig.EnabledStructureTypes.Count == 0)
+            return "Select at least one structure before starting.";
+
+        if (GetConfiguredGameModeCount(setupConfig) == 0)
+            return "Add at least one game mode before starting.";
+
+        return string.Empty;
     }
 
     private void OnApplyConfigPressed() {

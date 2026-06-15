@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/LobbyTeamContainer.cs" id="1_teamcontainer"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_team_1_panel.tres" id="2_team_style"]
+
+[node name="LobbyTeamContainer" type="PanelContainer"]
+custom_minimum_size = Vector2(360, 156)
+size_flags_horizontal = 3
+script = ExtResource("1_teamcontainer")
+theme_override_styles/panel = ExtResource("2_team_style")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TeamMeta" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TeamLabel" type="Label" parent="Content/TeamMeta"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 15
+text = "Team 1"
+vertical_alignment = 1
+
+[node name="AssignButton" type="Button" parent="Content/TeamMeta"]
+custom_minimum_size = Vector2(82, 28)
+layout_mode = 2
+text = "Assign"
+
+[node name="PlayerCards" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6

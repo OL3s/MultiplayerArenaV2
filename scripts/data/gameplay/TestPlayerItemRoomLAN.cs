@@ -127,7 +127,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     public string ClientAddress { get; set; } = "127.0.0.1";
 
     [Export]
-    public int ClientPort { get; set; } = 7700;
+    public int ClientPort { get; set; } = 12000;
 
     public override void _Ready() {
         UiInputActions.EnsureConfigured();

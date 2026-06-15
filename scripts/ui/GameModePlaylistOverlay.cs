@@ -6,10 +6,12 @@ public partial class GameModePlaylistOverlay : PanelContainer {
     private Action<int> _onMoveUp;
     private Action<int> _onMoveDown;
     private Action<int> _onRemove;
+    private Action _onClear;
 
     public override void _Ready() {
         GetNode<Button>("Content/Footer/AddDeathmatchButton").Pressed += () => _onAdd?.Invoke(GameModeConfig.GameModeType.Deathmatch);
         GetNode<Button>("Content/Footer/AddCaptureTheFlagButton").Pressed += () => _onAdd?.Invoke(GameModeConfig.GameModeType.CaptureTheFlag);
+        GetNode<Button>("Content/Footer/ClearButton").Pressed += () => _onClear?.Invoke();
         GetNode<Button>("Content/Footer/CloseButton").Pressed += QueueFree;
     }
 
@@ -17,15 +19,21 @@ public partial class GameModePlaylistOverlay : PanelContainer {
         Action<GameModeConfig.GameModeType> onAdd,
         Action<int> onMoveUp,
         Action<int> onMoveDown,
-        Action<int> onRemove) {
+        Action<int> onRemove,
+        Action onClear) {
         _onAdd = onAdd;
         _onMoveUp = onMoveUp;
         _onMoveDown = onMoveDown;
         _onRemove = onRemove;
+        _onClear = onClear;
     }
 
     public void RefreshList(SetupConfig setupConfig) {
         var list = GetNode<VBoxContainer>("Content/Scroll/List");
+        var hasGameModes = setupConfig != null && setupConfig.GameModes.Count > 0;
+        GetNode<Button>("Content/Footer/ClearButton").Disabled = !hasGameModes;
+        GetNode<Button>("Content/Footer/CloseButton").Disabled = !hasGameModes;
+
         foreach (var child in list.GetChildren()) {
             list.RemoveChild(child);
             child.QueueFree();

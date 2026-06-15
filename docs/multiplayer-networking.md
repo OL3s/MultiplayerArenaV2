@@ -16,6 +16,8 @@ The player model should be dynamic. A network peer is a device/connection, not n
 
 The main menu should include a lobby system where local players are selected before hosting or joining. The local lobby target is 4 slots per device.
 
+The main menu Host action should always be visible and usable so a device can start a host/server lobby without local players. Join Game and Reset Players should only appear after at least one local player is active in the local lobby config.
+
 On PC, supported local lobby setups should include:
 
 - 1 keyboard/mouse player and up to 3 gamepad players.
@@ -94,7 +96,7 @@ Current implementation note:
 
 - The `Networking` autoload creates a small always-on-top network mode icon in the top-left corner for debug builds/runs.
 - The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `assets/network/networkmodes/`.
-- Non-client modes also show a small peer-count label beside the icon so host/server peer state is readable while developing.
+- The debug overlay shows the current peer count and accepted player count beside the network-mode icon so host/server lobby state is readable while developing.
 - `SettingsConfig.ShowNetworkDebugOverlay` controls whether the network debug overlay is visible.
 - The setting is exposed in the main menu Settings screen under the `Online` tab.
 - A separate connection-lost icon is shown when a client connection fails or an already-connected client loses the server. This is a debug/display state exposed through `Networking.HasLostConnection`, not a separate `NetworkMode`.
@@ -118,12 +120,36 @@ Important identity rule: `PlayerData` is looked up by `(PeerId, LocalId)`, not b
 
 Real team ids currently run from `1` to `4`. Team `0` is treated as an auto-assign request, not a persistent gameplay team. Team resolution is peer-based for the current lobby model.
 
-The match lobby shows a small top-left setup summary, a centered players section, and a right-side config section. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped under clickable team headers like `[Auto-Assign]`, `[Team 1]`, `[Team 2]`, `[Team 3]`, and `[Team 4]`.
+The match lobby shows a centered players section and a right-side config section. The network-mode debug overlay owns mode/peer/player summary display, so the match lobby should not duplicate that summary panel. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped into reusable `LobbyTeamContainer` scene instances for `Team 1` through `Team 4`. The team section uses a generic 2x2 grid so the default 16:9 lobby fits all four teams without vertical scrolling. Each team container represents the current 4-player-per-team cap with a horizontal row of four player slots. Occupied slots use player cards; empty slots use `LobbyEmptyPlayerSlot` scene instances and stay visible as open capacity.
+
+When the host Start Match action is visually grayed out, it should remain clickable and show a popup explaining the blocking reason instead of silently doing nothing. Current blocking reasons include pending config changes, no selected mode, missing biomes, missing structures, or no game modes.
+
+Lobby team UI should stay scene-driven for easier iteration in the Godot editor:
+
+- `scenes/ui/lobby/lobby_team_container.tscn`: one team container, compact team label, small assign action, and player-slot row.
+- `scenes/ui/lobby/lobby_player_card.tscn`: one occupied player slot.
+- `scenes/ui/lobby/lobby_empty_player_slot.tscn`: one open player slot.
+- `assets/ui/styles/lobby_*.tres`: reusable `StyleBoxFlat` resources for lobby panels, team containers, player cards, and empty slots. Put padding/content margins in these resources so containers do not hug their contents or surrounding edges.
+- `assets/ui/start_match.svg`: start-match button icon.
+- `assets/ui/config_connection.svg`, `config_biome.svg`, `config_structure.svg`, and `config_game.svg`: Match Config category/action icons.
+- `assets/ui/biome_plains.svg`, `biome_arena.svg`, and `structure_arena.svg`: option icons used by the map setup selector overlay and selected map setup buttons.
+- `assets/ui/styles/lobby_config_category.tres`, `lobby_apply_button.tres`, and `lobby_revert_button.tres`: Match Config section and action-button styles.
+
+Do not rebuild team containers, player cards, or empty slots entirely in `MatchLobby.cs`; use the scenes above and keep `MatchLobby.cs` responsible for data binding and lobby actions.
+
+Team visuals are centralized in `scripts/ui/TeamVisuals.cs`. The first shared team palette is:
+
+- Team 1: red, `Color(0.95, 0.22, 0.26)`.
+- Team 2: blue, `Color(0.20, 0.55, 1.00)`.
+- Team 3: green, `Color(0.22, 0.78, 0.38)`.
+- Team 4: amber, `Color(1.00, 0.72, 0.18)`.
+
+Auto-assign is not rendered as a team container. It is a separate lobby action that requests the default team behavior (`Team 0`) for the local device/peer.
 
 ## LAN Host Port Behavior
 
-- LAN/server hosting no longer hard-locks to port `7777`.
-- Hosting now scans from `7700` through `8700` and binds to the first available port.
+- LAN/server hosting no longer hard-locks to a single fixed port.
+- Hosting now starts at port `12000`, scans outward within `11000` through `13000`, and binds to the first available port.
 - The selected port is written back into setup state and used for LAN discovery responses and direct joins.
 - TODO later: allow choosing and preferring a specific port before falling back to the auto-increment scan.
 
@@ -133,13 +159,25 @@ Match setup should be resource-driven. `SetupConfig` owns the selected/available
 
 Game modes are represented as `GameModeConfig` resources in an array so multiple modes can be enabled for voting, rotation, quickmatch filtering, or future playlist logic. Map and biome setup are separate resources so procedural generation can grow without turning `SetupConfig` into a large flat object.
 
-The match lobby config UI should edit these resources directly through grouped sections for internet settings, map/biome settings, and game settings.
+The match lobby config UI should edit these resources directly through grouped sections for internet settings, map/biome settings, and game settings. For the MVP lobby, map seeds are always random and the seed picker is intentionally hidden. `MapGenerationConfig` still keeps seed fields for later debug/custom-match flows, but the normal match lobby should normalize `SelectedSeedMode` to `AlwaysRandom`.
+
+MVP map setup should stay intentionally narrow while the first playable slice is being chased:
+
+- Structures: only `Arena` is exposed in the match lobby.
+- Biomes: only `Plains` and `Arena` are exposed in the match lobby.
+- The structure and biome enums should only contain implemented/actively targeted values. Add new enum values one at a time when the corresponding map generation/content work starts.
+- The structure/biome selector overlay should show option icons, include `All` and `None` actions, and keep `Close` disabled until at least one option is selected.
+- Match Config map option buttons show the category label above the icon and the selected value below it. They use the generic category icon for multi-selection/all states, and switch to the selected option icon when exactly one biome or structure is selected.
+- The selector overlay action order is `Back`, `Clear`, `All`. `Clear` and game-mode playlist `Clear` use `assets/ui/reset_revert.svg`. `All` uses `assets/ui/select_all.svg`. Back-style overlay actions use `assets/ui/back_arrow.svg`.
+- The main menu Reset Players action also uses `assets/ui/reset_revert.svg` so reset/remove-all actions share one visual language.
 
 ## Overlay UI
 
 Overlay UI should be managed through a reusable `SceneOverlay` scene, and it is not an autoload in this project. Instead, game code should call `SceneOverlay.GetOrCreate(context)` so the overlay layer is created inside the current room/current scene only when needed.
 
 `SceneOverlay` can add overlays from a `Control` instance or `PackedScene`, close the top overlay, close all overlays, and optionally enable a blur backdrop for any overlay, not just popup panels.
+
+Join IP uses the reusable `SceneOverlay` blur backdrop when its address panel is open.
 
 ## RPC Update Methods
 

@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/LobbyEmptyPlayerSlot.cs" id="1_emptyplayerslot"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_empty_player_slot.tres" id="2_empty_slot_style"]
+
+[node name="LobbyEmptyPlayerSlot" type="PanelContainer"]
+custom_minimum_size = Vector2(74, 96)
+script = ExtResource("1_emptyplayerslot")
+theme_override_styles/panel = ExtResource("2_empty_slot_style")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+modulate = Color(1, 1, 1, 0.48)
+text = "Open"
+horizontal_alignment = 1
+vertical_alignment = 1

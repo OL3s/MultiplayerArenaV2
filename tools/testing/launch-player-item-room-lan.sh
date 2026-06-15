@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GODOT_BIN="${GODOT_BIN:-godot}"
 ADDRESS="${ADDRESS:-127.0.0.1}"
-PORT="${PORT:-7700}"
+PORT="${PORT:-12000}"
 CLIENTS="${CLIENTS:-2}"
 START_DELAY="${START_DELAY:-2}"
 SCENE="res://scenes/tests/test_player_item_room_lan.tscn"

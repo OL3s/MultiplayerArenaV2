@@ -14,6 +14,10 @@ public partial class JoinGameMenu : Control {
     private const string BackIconPath = "res://assets/ui/back_arrow.svg";
 
     private PackedScene _serverBrowserOverlayScene;
+    private Control _joinAddressPopup;
+    private Node _joinAddressPopupOriginalParent;
+    private int _joinAddressPopupOriginalIndex;
+    private LineEdit _joinAddressInput;
 
     public override void _Ready() {
         UiInputActions.EnsureConfigured();
@@ -23,9 +27,13 @@ public partial class JoinGameMenu : Control {
         GetNode<Button>("MainLayout/Actions/BrowseOnlineButton").Pressed += OnBrowseServersPressed;
         GetNode<Button>("MainLayout/Actions/JoinIpButton").Pressed += OnJoinIpPressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
+        _joinAddressPopup = GetNode<Control>("JoinAddressPopup");
+        _joinAddressPopupOriginalParent = _joinAddressPopup.GetParent();
+        _joinAddressPopupOriginalIndex = _joinAddressPopup.GetIndex();
+        _joinAddressInput = GetNode<LineEdit>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/AddressInput");
         GetNode<Button>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/Actions/CancelButton").Pressed += HideJoinAddressPopup;
         GetNode<Button>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/Actions/JoinButton").Pressed += OnJoinAddressPressed;
-        GetNode<LineEdit>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/AddressInput").TextSubmitted += _ => OnJoinAddressPressed();
+        _joinAddressInput.TextSubmitted += _ => OnJoinAddressPressed();
         ApplyButtonIcons();
         CallDeferred(MethodName.FocusDefaultButton);
     }
@@ -35,7 +43,7 @@ public partial class JoinGameMenu : Control {
             return;
 
         GetViewport().SetInputAsHandled();
-        if (GetNode<Control>("JoinAddressPopup").Visible) {
+        if (_joinAddressPopup.Visible) {
             HideJoinAddressPopup();
             return;
         }
@@ -79,17 +87,24 @@ public partial class JoinGameMenu : Control {
     }
 
     private void OnJoinIpPressed() {
-        var popup = GetNode<Control>("JoinAddressPopup");
-        var addressInput = GetNode<LineEdit>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/AddressInput");
-        popup.Visible = true;
-        addressInput.SelectAll();
-        addressInput.GrabFocus();
+        var overlay = SceneOverlay.GetOrCreate(this);
+        if (overlay == null)
+            return;
+
+        if (_joinAddressPopup.GetParent() != overlay) {
+            _joinAddressPopup.GetParent()?.RemoveChild(_joinAddressPopup);
+            overlay.AddOverlay(_joinAddressPopup, true);
+        }
+
+        _joinAddressPopup.Visible = true;
+        _joinAddressInput.SelectAll();
+        _joinAddressInput.GrabFocus();
     }
 
     private void OnJoinAddressPressed() {
-        var addressInput = GetNode<LineEdit>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/AddressInput").Text;
+        var addressInput = _joinAddressInput.Text;
         if (!TryParseAddress(addressInput, out var address, out var port)) {
-            ShowMessageOverlay("Join Failed", "Enter a valid address like 127.0.0.1:7777.");
+            ShowMessageOverlay("Join Failed", "Enter a valid address like 127.0.0.1:12000.");
             return;
         }
 
@@ -102,7 +117,13 @@ public partial class JoinGameMenu : Control {
     }
 
     private void HideJoinAddressPopup() {
-        GetNode<Control>("JoinAddressPopup").Visible = false;
+        _joinAddressPopup.Visible = false;
+        if (_joinAddressPopup.GetParent() != _joinAddressPopupOriginalParent) {
+            _joinAddressPopup.GetParent()?.RemoveChild(_joinAddressPopup);
+            _joinAddressPopupOriginalParent.AddChild(_joinAddressPopup);
+            _joinAddressPopupOriginalParent.MoveChild(_joinAddressPopup, _joinAddressPopupOriginalIndex);
+        }
+
         GetNode<Button>("MainLayout/Actions/JoinIpButton").GrabFocus();
     }
 
@@ -156,7 +177,7 @@ public partial class JoinGameMenu : Control {
 
     private static bool TryParseAddress(string input, out string address, out int port) {
         address = string.Empty;
-        port = 7777;
+        port = 12000;
 
         if (string.IsNullOrWhiteSpace(input))
             return false;

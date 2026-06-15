@@ -77,14 +77,14 @@ Destruction LAN host/client without the helper script:
 
 ```bash
 godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role host & \
-godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
 Player/item LAN host/client without the helper script:
 
 ```bash
 godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host & \
-godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
 Keep detailed test scene notes in `docs/test-scenes.md`.

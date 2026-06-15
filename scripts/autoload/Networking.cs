@@ -6,8 +6,9 @@ using Godot;
 
 public partial class Networking : Node {
     private const int ServerPeerId = 1;
-    private const int DefaultServerPort = 7700;
-    private const int MaxServerPort = 8700;
+    private const int DefaultServerPort = 12000;
+    private const int MinServerPort = 11000;
+    private const int MaxServerPort = 13000;
     private const int DiscoveryPort = 7778;
     private const int MaxClients = 8;
     private const string DiscoveryRequestMessage = "MULTIPLAYERARENA_DISCOVER";
@@ -283,8 +284,8 @@ public partial class Networking : Node {
             : $"Network mode: {CurrentMode}";
 
         if (_networkModeDebugPeerLabel != null) {
-            _networkModeDebugPeerLabel.Visible = CurrentMode is NetworkMode.Lan or NetworkMode.Online;
-            _networkModeDebugPeerLabel.Text = $"Peers: {GetConnectedPeerCount()}";
+            _networkModeDebugPeerLabel.Visible = HasSelectedMode;
+            _networkModeDebugPeerLabel.Text = $"Peers: {GetConnectedPeerCount()}\nPlayers: {MultiplayerData.Players.Count}";
         }
     }
 
@@ -380,7 +381,7 @@ public partial class Networking : Node {
         var peer = new ENetMultiplayerPeer();
         var port = FindAvailableServerPort(peer);
         if (port == -1) {
-            LastConnectionError = $"Could not find an available server port between {DefaultServerPort} and {MaxServerPort}.";
+            LastConnectionError = $"Could not find an available server port from {DefaultServerPort} outward between {MinServerPort} and {MaxServerPort}.";
             ConnectionStatusText = "Status: Failed to start server.";
             EmitConnectionStateChanged();
             return false;
@@ -1246,13 +1247,21 @@ public partial class Networking : Node {
     }
 
     private static int FindAvailableServerPort(ENetMultiplayerPeer peer) {
-        for (var port = DefaultServerPort; port <= MaxServerPort; port++) {
-            var error = peer.CreateServer(port, MaxClients);
-            if (error == Error.Ok)
-                return port;
+        for (var offset = 0; offset <= MaxServerPort - MinServerPort; offset++) {
+            var lowerPort = DefaultServerPort - offset;
+            if (lowerPort >= MinServerPort && TryCreateServer(peer, lowerPort))
+                return lowerPort;
+
+            var upperPort = DefaultServerPort + offset;
+            if (offset > 0 && upperPort <= MaxServerPort && TryCreateServer(peer, upperPort))
+                return upperPort;
         }
 
         return -1;
+    }
+
+    private static bool TryCreateServer(ENetMultiplayerPeer peer, int port) {
+        return peer.CreateServer(port, MaxClients) == Error.Ok;
     }
 
     private string GetAdvertisedServerAddress() {
@@ -1323,6 +1332,7 @@ public partial class Networking : Node {
     }
 
     private void EmitLobbyStateChanged() {
+        UpdateNetworkModeDebugIcon();
         EmitSignal(SignalName.LobbyStateChanged);
     }
 
