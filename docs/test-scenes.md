@@ -65,6 +65,7 @@ Scene: `scenes/tests/test_player_item_room_lan.tscn`
 Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 
 - Dedicated player/item/action LAN test scene.
+- Uses `TestPlayerItemRoomLAN.cs` as a thin test wrapper around the shared `scripts/data/gameplay/ArenaMatch.cs` runtime. The wrapper enables direct LAN-test bootstrap plus square/fixed-seed test overrides; lobby-started gameplay uses `scenes/gameplay/arena_match.tscn` directly.
 - Builds a simple square floor/wall room with one center barrel prop.
 - Spawns players through the structure-driven `GameplaySpawnManager`; team assignment decides which team spawn tiles are used.
 - Uses the same `DamageTestPlayer.GlobalId -> PlayerData` ownership lookup pattern as the old LAN player test path.

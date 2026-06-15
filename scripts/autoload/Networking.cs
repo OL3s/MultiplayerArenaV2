@@ -555,6 +555,29 @@ public partial class Networking : Node {
         return true;
     }
 
+    public bool StartMatchScene(string matchScenePath) {
+        if (!IsHostAuthority) {
+            PrintMultiplayerLog(GameLogType.Authority, "StartMatchSceneRejected", "reason=notHostAuthority");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(matchScenePath)) {
+            PrintMultiplayerLog(GameLogType.Validation, "StartMatchSceneRejected", "reason=emptyScenePath");
+            return false;
+        }
+
+        PrepareAuthoritativeMapSeed(MultiplayerData.SetupConfig);
+        SyncCachedSetupConfig();
+        PrintMultiplayerLog(GameLogType.StateChange, "StartMatchScene", $"scene={matchScenePath} seed={MultiplayerData.SetupConfig.MapConfig?.FixedSeed ?? 0}");
+
+        if (IsNetworkedSession)
+            Rpc(nameof(RpcLoadMatchScene), matchScenePath);
+        else
+            RpcLoadMatchScene(matchScenePath);
+
+        return true;
+    }
+
     public void RegisterLocalLobbyPlayers() {
         var peerId = GetLocalPeerId();
         if (peerId == -1) {
@@ -977,6 +1000,17 @@ public partial class Networking : Node {
         LastConfigApplyMessage = appliedMessage;
         Rpc(nameof(RpcNotifyConfigApplied), appliedMessage);
         EmitConfigApplyStateChanged();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcLoadMatchScene(string matchScenePath) {
+        if (string.IsNullOrWhiteSpace(matchScenePath)) {
+            PrintMultiplayerLog(GameLogType.Validation, "RpcLoadMatchSceneRejected", "reason=emptyScenePath");
+            return;
+        }
+
+        PrintMultiplayerLog(GameLogType.RpcReceive, "RpcLoadMatchScene", $"scene={matchScenePath}");
+        GetTree().ChangeSceneToFile(matchScenePath);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]

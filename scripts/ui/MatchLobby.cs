@@ -4,6 +4,7 @@ using Godot;
 
 public partial class MatchLobby : Control {
     private const string MainMenuScenePath = "res://scenes/ui/menus/main_menu.tscn";
+    private const string MatchScenePath = "res://scenes/gameplay/arena_match.tscn";
     private const string LobbyTeamContainerScenePath = "res://scenes/ui/lobby/lobby_team_container.tscn";
     private const string LobbyPlayerCardScenePath = "res://scenes/ui/lobby/lobby_player_card.tscn";
     private const string LobbyEmptyPlayerSlotScenePath = "res://scenes/ui/lobby/lobby_empty_player_slot.tscn";
@@ -691,8 +692,8 @@ public partial class MatchLobby : Control {
             return;
         }
 
-        GameLog.Warn(GameLogScope.MatchSetup, "StartMatchNotImplemented", "reason=matchSceneFlowMissing");
-        ShowMessageOverlay("Start Match", "Starting the actual match scene is not implemented yet.");
+        if (!networking.StartMatchScene(MatchScenePath))
+            ShowMessageOverlay("Cannot Start Match", "The host could not start the match scene.");
     }
 
     private static bool CanStartMatchNow(Networking networking, SetupConfig setupConfig) {
