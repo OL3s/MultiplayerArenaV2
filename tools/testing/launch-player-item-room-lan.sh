@@ -7,7 +7,7 @@ ADDRESS="${ADDRESS:-127.0.0.1}"
 PORT="${PORT:-12000}"
 CLIENTS="${CLIENTS:-1}"
 START_DELAY="${START_DELAY:-2}"
-SCENE="res://scenes/tests/test_player_item_room_lan.tscn"
+SCENE="${SCENE:-res://scenes/tests/test_player_item_room_lan.tscn}"
 LOG_DIR="$ROOT_DIR/.tmp/test-logs"
 
 mkdir -p "$LOG_DIR"
@@ -26,6 +26,7 @@ echo "Launching player/item LAN test from $ROOT_DIR"
 echo "Godot: $GODOT_BIN"
 echo "Server: $ADDRESS:$PORT"
 echo "Clients: $CLIENTS"
+echo "Scene: $SCENE"
 echo "Logs: $LOG_DIR"
 
 "$GODOT_BIN" --path "$ROOT_DIR" "$SCENE" -- --role host --port "$PORT" > "$LOG_DIR/player-item-host.log" 2>&1 &

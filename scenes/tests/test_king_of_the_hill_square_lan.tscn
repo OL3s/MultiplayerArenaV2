@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/TestPlayerItemRoomLAN.cs" id="1_playeritemroom"]
+[ext_resource type="Script" path="res://scripts/data/map/ArenaTileLayerRenderer.cs" id="2_renderer"]
+[ext_resource type="TileSet" path="res://assets/tiles/tilesets/FloorTileset.tres" id="3_floor_tileset"]
+[ext_resource type="TileSet" path="res://assets/tiles/tilesets/WallTileset.tres" id="4_wall_tileset"]
+[ext_resource type="TileSet" path="res://assets/tiles/tilesets/WallDamagedTileset.tres" id="5_wall_damage_tileset"]
+
+[node name="TestKingOfTheHillSquareLAN" type="Node2D"]
+script = ExtResource("1_playeritemroom")
+GameModeOverride = 2
+
+[node name="ArenaTileLayerRenderer" type="Node2D" parent="."]
+script = ExtResource("2_renderer")
+
+[node name="FloorLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer"]
+tile_set = ExtResource("3_floor_tileset")
+
+[node name="WallLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer"]
+tile_set = ExtResource("4_wall_tileset")
+
+[node name="WallDamageLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer"]
+tile_set = ExtResource("5_wall_damage_tileset")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(224, 160)
+zoom = Vector2(2, 2)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 900.0
+offset_bottom = 104.0
+theme_override_font_sizes/font_size = 18
+text = "Waiting for connection..."

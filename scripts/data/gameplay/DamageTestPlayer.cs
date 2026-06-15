@@ -359,7 +359,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
             _localPlayerMarker.Visible = visible;
         if (_localPlayerLabel != null) {
             _localPlayerLabel.Visible = visible;
-            _localPlayerLabel.Text = _localPlayerId >= 0 ? $"L{_localPlayerId}" : "L?";
+            _localPlayerLabel.Text = _localPlayerId >= 0 ? $"L{_localPlayerId + 1}" : "L?";
         }
     }
 

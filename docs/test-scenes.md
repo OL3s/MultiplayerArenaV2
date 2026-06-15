@@ -84,7 +84,7 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Future secondary neutral objectives should use the same neutral objective scene but be placed at spread-out structure-generated spots. These are candidate/random objective points for modes such as future hold-the-zone behavior, not active by default.
 - Player death currently runs through a first respawn flow: 1-second dead timer, reset health/ammo/recovery, teleport to team spawn, 1-second immobilized invulnerable spawn state, then normal gameplay.
 - The room detects team wipes through a first `TeamWiped` event/log hook. Actual game-mode-specific wipe behavior is still deferred.
-- Players controlled by the local process show a yellow SVG arrow marker above the body and an `L#` label, where `#` is the backend local player id `0-3`.
+- Players controlled by the local process show a yellow SVG arrow marker above the body and an `L#` label, where `#` displays the backend local player id `0-3` as `1-4`.
 - The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
 - Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 
@@ -125,6 +125,22 @@ Player/item room with one host/server and one client, one peer per test team:
 ./tools/testing/launch-player-item-room-lan.sh
 ```
 
+Mode-specific square LAN tests also use one host/server and one client:
+
+```bash
+./tools/testing/launch-deathmatch-square-lan.sh
+./tools/testing/launch-capture-the-flag-square-lan.sh
+./tools/testing/launch-king-of-the-hill-square-lan.sh
+./tools/testing/launch-headquarters-square-lan.sh
+```
+
+These scripts open:
+
+- `scenes/tests/test_deathmatch_square_lan.tscn`
+- `scenes/tests/test_capture_the_flag_square_lan.tscn`
+- `scenes/tests/test_king_of_the_hill_square_lan.tscn`
+- `scenes/tests/test_headquarters_square_lan.tscn`
+
 Destruction room with one host/server and two clients:
 
 ```bash
@@ -137,6 +153,7 @@ Script defaults:
 - `ADDRESS=127.0.0.1`
 - `PORT=12000`
 - `CLIENTS=1` for `launch-player-item-room-lan.sh`.
+- `CLIENTS=1` for each mode-specific square LAN launcher.
 - `CLIENTS=2` for `launch-destruction-lan.sh`.
 - `START_DELAY=2`
 

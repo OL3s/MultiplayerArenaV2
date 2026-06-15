@@ -151,6 +151,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     [Export]
     public int ClientPort { get; set; } = 12000;
 
+    [Export]
+    public GameModeConfig.GameModeType GameModeOverride { get; set; } = GameModeConfig.GameModeType.Deathmatch;
+
     public event Action<int> TeamWiped;
 
     public override void _Ready() {
@@ -231,7 +234,45 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     private void TryStartHost() {
         var started = _networking.BeginHostingSession();
+        if (started)
+            ApplyTestGameModeOverride();
+
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "HostStartResult", $"started={started} port={_networking.CurrentServerPort}");
+    }
+
+    private void ApplyTestGameModeOverride() {
+        if (_networking?.MultiplayerData?.SetupConfig == null)
+            return;
+
+        var setupConfig = _networking.MultiplayerData.SetupConfig;
+        setupConfig.GameModes.Clear();
+        setupConfig.GameModes.Add(new GameModeConfig {
+            ModeType = GameModeOverride,
+            DisplayName = GetGameModeDisplayName(GameModeOverride),
+            IsEnabled = true,
+        });
+        setupConfig.GameModeId = GetGameModeId(GameModeOverride);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "TestGameModeOverrideApplied", $"mode={GameModeOverride} id={setupConfig.GameModeId}");
+    }
+
+    private static string GetGameModeDisplayName(GameModeConfig.GameModeType modeType) {
+        return modeType switch {
+            GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
+            GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
+            GameModeConfig.GameModeType.KingOfTheHill => "King of the Hill",
+            GameModeConfig.GameModeType.Headquarters => "Headquarters",
+            _ => modeType.ToString(),
+        };
+    }
+
+    private static string GetGameModeId(GameModeConfig.GameModeType modeType) {
+        return modeType switch {
+            GameModeConfig.GameModeType.Deathmatch => "deathmatch",
+            GameModeConfig.GameModeType.CaptureTheFlag => "capture_the_flag",
+            GameModeConfig.GameModeType.KingOfTheHill => "king_of_the_hill",
+            GameModeConfig.GameModeType.Headquarters => "headquarters",
+            _ => modeType.ToString().ToLowerInvariant(),
+        };
     }
 
     private void TryStartClient() {
