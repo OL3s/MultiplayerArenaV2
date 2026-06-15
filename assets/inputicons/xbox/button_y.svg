@@ -1,14 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <title>Y button icon</title>
-  <circle cx="64" cy="64" r="50" fill="#CA8A04" stroke="#E8EDF2" stroke-width="8"/>
-  <rect x="50.43" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="72.14" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="50.43" y="50.43" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="72.14" y="50.43" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="55.86" y="55.86" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="66.71" y="55.86" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="61.29" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="61.29" y="66.71" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="61.29" y="72.14" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="61.29" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <circle cx="64" cy="64" r="50" fill="#FACC15" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="6.0" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 0L5 7L9 0" transform="translate(50.43 45.00) scale(2.7143)"/>
+    <path d="M5 7V14" transform="translate(50.43 45.00) scale(2.7143)"/>
+  </g>
 </svg>

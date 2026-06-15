@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using Godot;
 
 public partial class MatchLobby : Control {
-    private const string MainMenuScenePath = "res://scenes/ui/main_menu.tscn";
-    private const string LobbyPlayerCardScenePath = "res://scenes/ui/lobby_player_card.tscn";
-    private const string ConfigSelectionOverlayScenePath = "res://scenes/ui/config_selection_overlay.tscn";
-    private const string GameModePlaylistOverlayScenePath = "res://scenes/ui/game_mode_playlist_overlay.tscn";
-    private const string ConfirmationOverlayScenePath = "res://scenes/ui/confirmation_overlay.tscn";
+    private const string MainMenuScenePath = "res://scenes/ui/menus/main_menu.tscn";
+    private const string LobbyPlayerCardScenePath = "res://scenes/ui/lobby/lobby_player_card.tscn";
+    private const string ConfigSelectionOverlayScenePath = "res://scenes/ui/overlays/config_selection_overlay.tscn";
+    private const string GameModePlaylistOverlayScenePath = "res://scenes/ui/overlays/game_mode_playlist_overlay.tscn";
+    private const string ConfirmationOverlayScenePath = "res://scenes/ui/overlays/confirmation_overlay.tscn";
     private static readonly int[] DefaultTeamIds = { 0, 1, 2, 3, 4 };
     private static readonly GameModeConfig.GameModeType[] AvailableGameModes = {
         GameModeConfig.GameModeType.Deathmatch,

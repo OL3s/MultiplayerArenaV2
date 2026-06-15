@@ -4,24 +4,28 @@ using System.Threading.Tasks;
 using Godot;
 
 public partial class JoinGameMenu : Control {
-    private const string MatchLobbyScenePath = "res://scenes/ui/match_lobby.tscn";
-    private const string MainMenuScenePath = "res://scenes/ui/main_menu.tscn";
-    private const string ServerBrowserOverlayScenePath = "res://scenes/ui/server_browser_overlay.tscn";
+    private const string MatchLobbyScenePath = "res://scenes/ui/lobby/match_lobby.tscn";
+    private const string MainMenuScenePath = "res://scenes/ui/menus/main_menu.tscn";
+    private const string ServerBrowserOverlayScenePath = "res://scenes/ui/overlays/server_browser_overlay.tscn";
     private const string NetworkIconLocalPath = "res://assets/network/networkmodes/network_lan.svg";
     private const string NetworkIconOnlinePath = "res://assets/network/networkmodes/network_online.svg";
     private const string NetworkIconClientPath = "res://assets/network/networkmodes/network_client.svg";
     private const string NetworkIconAnyPath = "res://assets/network/networkmodes/network_not_selected.svg";
+    private const string BackIconPath = "res://assets/ui/back_arrow.svg";
 
     private PackedScene _serverBrowserOverlayScene;
 
     public override void _Ready() {
         UiInputActions.EnsureConfigured();
         _serverBrowserOverlayScene = GD.Load<PackedScene>(ServerBrowserOverlayScenePath);
-        GetNode<Button>("MainLayout/SecondaryActions/BrowseLocalButton").Pressed += OnBrowseLocalPressed;
-        GetNode<Button>("MainLayout/SecondaryActions/BrowseServersButton").Pressed += OnBrowseServersPressed;
-        GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").Pressed += OnQuickmatchPressed;
-        GetNode<Button>("MainLayout/JoinByAddress/JoinAddressButton").Pressed += OnJoinAddressPressed;
+        GetNode<Button>("MainLayout/Actions/QuickmatchButton").Pressed += OnQuickmatchPressed;
+        GetNode<Button>("MainLayout/Actions/BrowseLocalButton").Pressed += OnBrowseLocalPressed;
+        GetNode<Button>("MainLayout/Actions/BrowseOnlineButton").Pressed += OnBrowseServersPressed;
+        GetNode<Button>("MainLayout/Actions/JoinIpButton").Pressed += OnJoinIpPressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
+        GetNode<Button>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/Actions/CancelButton").Pressed += HideJoinAddressPopup;
+        GetNode<Button>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/Actions/JoinButton").Pressed += OnJoinAddressPressed;
+        GetNode<LineEdit>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/AddressInput").TextSubmitted += _ => OnJoinAddressPressed();
         ApplyButtonIcons();
         CallDeferred(MethodName.FocusDefaultButton);
     }
@@ -31,6 +35,11 @@ public partial class JoinGameMenu : Control {
             return;
 
         GetViewport().SetInputAsHandled();
+        if (GetNode<Control>("JoinAddressPopup").Visible) {
+            HideJoinAddressPopup();
+            return;
+        }
+
         OnBackPressed();
     }
 
@@ -69,8 +78,16 @@ public partial class JoinGameMenu : Control {
         ShowMessageOverlay("Quickplay", "No local or online matches found.");
     }
 
+    private void OnJoinIpPressed() {
+        var popup = GetNode<Control>("JoinAddressPopup");
+        var addressInput = GetNode<LineEdit>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/AddressInput");
+        popup.Visible = true;
+        addressInput.SelectAll();
+        addressInput.GrabFocus();
+    }
+
     private void OnJoinAddressPressed() {
-        var addressInput = GetNode<LineEdit>("MainLayout/JoinByAddress/AddressInput").Text;
+        var addressInput = GetNode<LineEdit>("JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/AddressInput").Text;
         if (!TryParseAddress(addressInput, out var address, out var port)) {
             ShowMessageOverlay("Join Failed", "Enter a valid address like 127.0.0.1:7777.");
             return;
@@ -82,6 +99,11 @@ public partial class JoinGameMenu : Control {
         }
 
         OpenMatchLobby();
+    }
+
+    private void HideJoinAddressPopup() {
+        GetNode<Control>("JoinAddressPopup").Visible = false;
+        GetNode<Button>("MainLayout/Actions/JoinIpButton").GrabFocus();
     }
 
     private void OnBackPressed() {
@@ -160,13 +182,14 @@ public partial class JoinGameMenu : Control {
     }
 
     private void FocusDefaultButton() {
-        GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").GrabFocus();
+        GetNode<Button>("MainLayout/Actions/QuickmatchButton").GrabFocus();
     }
 
     private void ApplyButtonIcons() {
-        GetNode<Button>("MainLayout/PrimaryAction/QuickmatchButton").Icon = GD.Load<Texture2D>(NetworkIconAnyPath);
-        GetNode<Button>("MainLayout/SecondaryActions/BrowseLocalButton").Icon = GD.Load<Texture2D>(NetworkIconLocalPath);
-        GetNode<Button>("MainLayout/SecondaryActions/BrowseServersButton").Icon = GD.Load<Texture2D>(NetworkIconOnlinePath);
-        GetNode<Button>("MainLayout/JoinByAddress/JoinAddressButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
+        GetNode<Button>("MainLayout/Actions/QuickmatchButton").Icon = GD.Load<Texture2D>(NetworkIconAnyPath);
+        GetNode<Button>("MainLayout/Actions/BrowseLocalButton").Icon = GD.Load<Texture2D>(NetworkIconLocalPath);
+        GetNode<Button>("MainLayout/Actions/BrowseOnlineButton").Icon = GD.Load<Texture2D>(NetworkIconOnlinePath);
+        GetNode<Button>("MainLayout/Actions/JoinIpButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
+        GetNode<Button>("MainLayout/BackButton").Icon = GD.Load<Texture2D>(BackIconPath);
     }
 }

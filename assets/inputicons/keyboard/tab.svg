@@ -1,53 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <title>TAB button icon</title>
-  <rect x="10" y="30" width="108" height="68" rx="34" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
-  <rect x="27.57" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="31.86" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="40.43" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="44.71" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="53.29" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="57.57" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="66.14" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="70.43" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="57.57" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="61.86" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="66.14" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="53.29" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="53.29" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="57.57" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="57.57" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="57.57" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="61.86" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="66.14" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="66.14" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="66.14" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="70.43" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="70.43" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="83.29" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="87.57" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="91.86" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="53.29" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="96.14" y="53.29" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="57.57" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="96.14" y="57.57" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="83.29" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="87.57" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="91.86" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="66.14" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="96.14" y="66.14" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="70.43" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="96.14" y="70.43" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="83.29" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="87.57" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="91.86" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
+  <title>TAB key icon</title>
+  <rect x="8" y="34" width="112" height="60" rx="24" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 0H9" transform="translate(27.57 49.00) scale(2.1429)"/>
+    <path d="M5 0V14" transform="translate(27.57 49.00) scale(2.1429)"/>
+    <path d="M1 14L5 0L9 14" transform="translate(53.29 49.00) scale(2.1429)"/>
+    <path d="M2.4 9H7.6" transform="translate(53.29 49.00) scale(2.1429)"/>
+    <path d="M2 0V14" transform="translate(79.00 49.00) scale(2.1429)"/>
+    <path d="M2 0H6.2Q9 0 9 3.4Q9 6.6 6.2 6.8H2" transform="translate(79.00 49.00) scale(2.1429)"/>
+    <path d="M2 6.8H6.6Q9.5 6.8 9.5 10.4Q9.5 14 6.4 14H2" transform="translate(79.00 49.00) scale(2.1429)"/>
+  </g>
 </svg>

@@ -103,7 +103,7 @@ Current implementation note:
 
 ## Settings Menu
 
-- `scenes/ui/settings_menu.tscn` is the current settings entry point from the main menu.
+- `scenes/ui/menus/settings_menu.tscn` is the current settings entry point from the main menu.
 - `SettingsConfig` is the shared settings resource owned by the `Networking` autoload for now.
 - `SettingsConfig.LoadOrCreate()` loads `user://settings_config.tres` or returns defaults, and `SettingsConfig.Save()` persists the current resource to the same path.
 - The settings menu currently has placeholder tabs for `Video`, `Sound`, `Controls`, and `Gameplay`, plus an `Online` tab with the network debug overlay toggle and Apply button.

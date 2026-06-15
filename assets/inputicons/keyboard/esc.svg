@@ -1,50 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <title>ESC button icon</title>
-  <rect x="10" y="30" width="108" height="68" rx="34" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
-  <rect x="27.57" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="31.86" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="40.43" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="44.71" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="27.57" y="53.29" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="27.57" y="57.57" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="27.57" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="31.86" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="40.43" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="27.57" y="66.14" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="27.57" y="70.43" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="27.57" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="31.86" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="36.14" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="40.43" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="44.71" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="57.57" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="61.86" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="66.14" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="53.29" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="57.57" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="57.57" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="61.86" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="66.14" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="66.14" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="70.43" y="70.43" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="53.29" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="57.57" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="61.86" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="66.14" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="83.29" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="87.57" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="91.86" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="96.14" y="49.00" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="53.29" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="57.57" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="61.86" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="66.14" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="79.00" y="70.43" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="83.29" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="87.57" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="91.86" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
-  <rect x="96.14" y="74.71" width="3.69" height="3.69" rx="0.60" fill="#E8EDF2"/>
+  <title>ESC key icon</title>
+  <rect x="14" y="22" width="100" height="84" rx="16" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.5 0H2V14H8.5" transform="translate(30.00 50.00) scale(2.0000)"/>
+    <path d="M2 7H7.5" transform="translate(30.00 50.00) scale(2.0000)"/>
+    <path d="M8.5 2Q7.2 0 4.8 0Q2 0 2 3.5Q2 6 5 7Q8 8 8 10.8Q8 14 4.8 14Q2.4 14 1.3 12" transform="translate(54.00 50.00) scale(2.0000)"/>
+    <path d="M9 2Q7.5 0 5 0Q1.5 0 1.5 7Q1.5 14 5 14Q7.5 14 9 12" transform="translate(78.00 50.00) scale(2.0000)"/>
+  </g>
 </svg>

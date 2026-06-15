@@ -1,19 +1,21 @@
 using Godot;
 
 public partial class HostServerMenu : Control {
-    private const string MatchLobbyScenePath = "res://scenes/ui/match_lobby.tscn";
-    private const string MainMenuScenePath = "res://scenes/ui/main_menu.tscn";
+    private const string MatchLobbyScenePath = "res://scenes/ui/lobby/match_lobby.tscn";
+    private const string MainMenuScenePath = "res://scenes/ui/menus/main_menu.tscn";
     private const string NetworkIconLocalPath = "res://assets/network/networkmodes/network_local.svg";
     private const string NetworkIconLanPath = "res://assets/network/networkmodes/network_lan.svg";
     private const string NetworkIconOnlinePath = "res://assets/network/networkmodes/network_online.svg";
+    private const string BackIconPath = "res://assets/ui/back_arrow.svg";
 
     public override void _Ready() {
         UiInputActions.EnsureConfigured();
-        GetNode<Button>("MainLayout/SecondaryActions/LocalButton").Pressed += OnLocalPressed;
-        GetNode<Button>("MainLayout/PrimaryAction/LanButton").Pressed += OnLanPressed;
-        GetNode<Button>("MainLayout/SecondaryActions/OnlineButton").Pressed += OnOnlinePressed;
+        GetNode<Button>("MainLayout/Actions/LocalButton").Pressed += OnLocalPressed;
+        GetNode<Button>("MainLayout/Actions/LanButton").Pressed += OnLanPressed;
+        GetNode<Button>("MainLayout/Actions/OnlineButton").Pressed += OnOnlinePressed;
         GetNode<Button>("MainLayout/BackButton").Pressed += OnBackPressed;
         ApplyButtonIcons();
+        RefreshActionAvailability();
         CallDeferred(MethodName.FocusDefaultButton);
     }
 
@@ -26,6 +28,9 @@ public partial class HostServerMenu : Control {
     }
 
     private void OnLocalPressed() {
+        if (GetActiveLocalPlayerCount() < 2)
+            return;
+
         GetNetworking().SetLocal();
         OpenMatchLobby();
     }
@@ -54,13 +59,34 @@ public partial class HostServerMenu : Control {
     }
 
     private void FocusDefaultButton() {
-        GetNode<Button>("MainLayout/PrimaryAction/LanButton").GrabFocus();
+        var localButton = GetNode<Button>("MainLayout/Actions/LocalButton");
+        if (!localButton.Disabled) {
+            localButton.GrabFocus();
+            return;
+        }
+
+        GetNode<Button>("MainLayout/Actions/LanButton").GrabFocus();
+    }
+
+    private void RefreshActionAvailability() {
+        GetNode<Button>("MainLayout/Actions/LocalButton").Disabled = GetActiveLocalPlayerCount() < 2;
+    }
+
+    private int GetActiveLocalPlayerCount() {
+        var count = 0;
+        foreach (var localPlayer in GetNetworking().LocalLobbyData.LocalPlayers) {
+            if (localPlayer.IsActive)
+                count++;
+        }
+
+        return count;
     }
 
     private void ApplyButtonIcons() {
-        GetNode<Button>("MainLayout/SecondaryActions/LocalButton").Icon = GD.Load<Texture2D>(NetworkIconLocalPath);
-        GetNode<Button>("MainLayout/PrimaryAction/LanButton").Icon = GD.Load<Texture2D>(NetworkIconLanPath);
-        GetNode<Button>("MainLayout/SecondaryActions/OnlineButton").Icon = GD.Load<Texture2D>(NetworkIconOnlinePath);
+        GetNode<Button>("MainLayout/Actions/LocalButton").Icon = GD.Load<Texture2D>(NetworkIconLocalPath);
+        GetNode<Button>("MainLayout/Actions/LanButton").Icon = GD.Load<Texture2D>(NetworkIconLanPath);
+        GetNode<Button>("MainLayout/Actions/OnlineButton").Icon = GD.Load<Texture2D>(NetworkIconOnlinePath);
+        GetNode<Button>("MainLayout/BackButton").Icon = GD.Load<Texture2D>(BackIconPath);
     }
 
     private Networking GetNetworking() {

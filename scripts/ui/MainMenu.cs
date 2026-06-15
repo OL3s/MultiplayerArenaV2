@@ -2,19 +2,22 @@ using Godot;
 
 public partial class MainMenu : Control {
     private const int LocalLobbySlotCount = 4;
-    private const string HostServerMenuScenePath = "res://scenes/ui/host_server_menu.tscn";
-    private const string JoinGameMenuScenePath = "res://scenes/ui/join_game_menu.tscn";
-    private const string SettingsMenuScenePath = "res://scenes/ui/settings_menu.tscn";
-    private const string ConfirmationOverlayScenePath = "res://scenes/ui/confirmation_overlay.tscn";
+    private const string HostServerMenuScenePath = "res://scenes/ui/menus/host_server_menu.tscn";
+    private const string JoinGameMenuScenePath = "res://scenes/ui/menus/join_game_menu.tscn";
+    private const string SettingsMenuScenePath = "res://scenes/ui/menus/settings_menu.tscn";
+    private const string ConfirmationOverlayScenePath = "res://scenes/ui/overlays/confirmation_overlay.tscn";
     private const string XboxButtonXIconPath = "res://assets/inputicons/xbox/button_x.svg";
-    private const string XboxButtonYIconPath = "res://assets/inputicons/xbox/button_y.svg";
     private const string KeyboardEnterIconPath = "res://assets/inputicons/keyboard/enter.svg";
-    private const string KeyboardEscIconPath = "res://assets/inputicons/keyboard/esc.svg";
-    private const string KeyboardBackspaceIconPath = "res://assets/inputicons/keyboard/backspace.svg";
+    private const string DeviceKeyboardMouseIconPath = "res://assets/inputicons/device_keyboard_mouse.svg";
+    private const string DeviceGamepadIconPath = "res://assets/inputicons/device_gamepad.svg";
     private const string NetworkIconLanPath = "res://assets/network/networkmodes/network_lan.svg";
     private const string NetworkIconClientPath = "res://assets/network/networkmodes/network_client.svg";
+    private const string SettingsIconPath = "res://assets/ui/settings_cog.svg";
+    private const string ExitIconPath = "res://assets/ui/exit_power.svg";
 
     private PackedScene _confirmationOverlayScene;
+    private double _joinPromptIconElapsed;
+    private bool _showKeyboardJoinPrompt = true;
 
     private LocalLobbyData LocalLobbyData => GetNetworking().LocalLobbyData;
 
@@ -25,6 +28,7 @@ public partial class MainMenu : Control {
         GetNode<Button>("TopRightButtons/ExitGameButton").Pressed += OnExitGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Pressed += OnHostGamePressed;
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Pressed += OnJoinGamePressed;
+        GetNode<Button>("MainLayout/ActionButtons/ResetPlayersButton").Pressed += OnResetPlayersPressed;
         ApplyButtonIcons();
         EnsureDefaultLocalLobby();
         RefreshLocalLobbySlots();
@@ -41,27 +45,25 @@ public partial class MainMenu : Control {
             return;
         }
 
-        if (inputEvent is InputEventKey { Pressed: true, Echo: false } leaveKeyEvent
-            && (leaveKeyEvent.Keycode == Key.Escape || leaveKeyEvent.Keycode == Key.Backspace)) {
-            if (TryLeaveKeyboardPlayer())
-                GetViewport().SetInputAsHandled();
-
-            return;
-        }
-
         if (inputEvent is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.X } joypadButtonEvent) {
             if (TryJoinGamepadPlayer(joypadButtonEvent.Device))
                 GetViewport().SetInputAsHandled();
 
             return;
         }
+    }
 
-        if (inputEvent is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.Y } leaveJoypadButtonEvent) {
-            if (TryLeaveGamepadPlayer(leaveJoypadButtonEvent.Device))
-                GetViewport().SetInputAsHandled();
-
+    public override void _Process(double delta) {
+        if (HasKeyboardPlayer())
             return;
-        }
+
+        _joinPromptIconElapsed += delta;
+        if (_joinPromptIconElapsed < 1.0)
+            return;
+
+        _joinPromptIconElapsed = 0.0;
+        _showKeyboardJoinPrompt = !_showKeyboardJoinPrompt;
+        RefreshLocalLobbySlots();
     }
 
     public void ConfigureKeyboardPlayer(int slotIndex) {
@@ -70,15 +72,6 @@ public partial class MainMenu : Control {
 
     public void ConfigureGamepadPlayer(int slotIndex, int deviceId) {
         ConfigureLocalPlayer(slotIndex, LocalPlayerData.LocalInputType.Gamepad, deviceId);
-    }
-
-    public void ClearLocalPlayerSlot(int slotIndex) {
-        var localPlayer = GetLocalPlayer(slotIndex);
-        localPlayer.IsActive = false;
-        localPlayer.InputType = LocalPlayerData.LocalInputType.None;
-        localPlayer.DeviceId = -1;
-        RefreshLocalLobbySlots();
-        RefreshActionButtonsVisibility();
     }
 
     private void ConfigureLocalPlayer(int slotIndex, LocalPlayerData.LocalInputType inputType, int deviceId) {
@@ -112,15 +105,6 @@ public partial class MainMenu : Control {
         return true;
     }
 
-    private bool TryLeaveKeyboardPlayer() {
-        var slotIndex = GetKeyboardPlayerSlotIndex();
-        if (slotIndex == -1)
-            return false;
-
-        ClearLocalPlayerSlot(slotIndex);
-        return true;
-    }
-
     private bool TryJoinGamepadPlayer(int deviceId) {
         if (HasGamepadPlayer(deviceId))
             return false;
@@ -130,15 +114,6 @@ public partial class MainMenu : Control {
             return false;
 
         ConfigureGamepadPlayer(slotIndex, deviceId);
-        return true;
-    }
-
-    private bool TryLeaveGamepadPlayer(int deviceId) {
-        var slotIndex = GetGamepadPlayerSlotIndex(deviceId);
-        if (slotIndex == -1)
-            return false;
-
-        ClearLocalPlayerSlot(slotIndex);
         return true;
     }
 
@@ -194,14 +169,15 @@ public partial class MainMenu : Control {
     private void RefreshLocalLobbySlots() {
         var hasKeyboardPlayer = HasKeyboardPlayer();
         var nextOpenSlotIndex = GetFirstOpenSlotIndex();
-        GetNode<Label>("MainLayout/LobbyPanel/LobbyHelpLabel").Text = "Use stick or d-pad to navigate. Select and cancel with the shown controller buttons.";
 
         for (var slotIndex = 0; slotIndex < LocalLobbySlotCount; slotIndex++) {
             var localPlayer = GetLocalPlayer(slotIndex);
-            var slotPanel = GetNode<PanelContainer>($"MainLayout/LobbyPanel/LobbySlots/Slot{slotIndex + 1}");
+            var slot = GetNode<Control>($"MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot{slotIndex + 1}");
+            var slotPanel = slot.GetNode<PanelContainer>("CardPanel");
             var isNextOpenSlot = slotIndex == nextOpenSlotIndex;
-            slotPanel.Modulate = GetSlotColor(localPlayer, isNextOpenSlot);
-            ReplaceSlotContent(slotPanel, CreateSlotContent(localPlayer, hasKeyboardPlayer, isNextOpenSlot));
+            slot.Visible = localPlayer.IsActive || isNextOpenSlot;
+
+            ReplaceSlotContent(slot, slotPanel, CreateSlotContent(localPlayer, hasKeyboardPlayer, isNextOpenSlot), GetSlotBadgeText(localPlayer, isNextOpenSlot));
         }
     }
 
@@ -213,8 +189,6 @@ public partial class MainMenu : Control {
         };
         content.AddThemeConstantOverride("separation", 5);
 
-        content.AddChild(CreateCenteredLabel(localPlayer.IsActive ? localPlayer.DisplayName : $"Player {localPlayer.LocalId + 1}", 18));
-
         if (!localPlayer.IsActive) {
             if (!isNextOpenSlot) {
                 content.AddChild(CreateCenteredLabel("Waiting", 16));
@@ -222,13 +196,13 @@ public partial class MainMenu : Control {
                 return content;
             }
 
-            content.AddChild(CreatePromptBlock("join", hasKeyboardPlayer ? new[] { XboxButtonXIconPath } : new[] { XboxButtonXIconPath, KeyboardEnterIconPath }));
+            content.AddChild(CreateJoinPrompt(GetJoinPromptIconPath(hasKeyboardPlayer)));
             content.AddChild(CreateCenteredLabel("Empty", 16));
             return content;
         }
 
         content.AddChild(CreateCenteredLabel(GetInputName(localPlayer), 16));
-        content.AddChild(CreatePromptBlock("leave", GetLeaveIconPaths(localPlayer)));
+        content.AddChild(CreateDeviceIcon(GetDeviceIconPath(localPlayer)));
         content.AddChild(CreateCenteredLabel("In Lobby", 16));
         return content;
     }
@@ -241,12 +215,26 @@ public partial class MainMenu : Control {
         };
     }
 
-    private static string[] GetLeaveIconPaths(LocalPlayerData localPlayer) {
+    private static string GetDeviceIconPath(LocalPlayerData localPlayer) {
         return localPlayer.InputType switch {
-            LocalPlayerData.LocalInputType.KeyboardMouse => new[] { KeyboardEscIconPath },
-            LocalPlayerData.LocalInputType.Gamepad => new[] { XboxButtonYIconPath },
-            _ => System.Array.Empty<string>(),
+            LocalPlayerData.LocalInputType.KeyboardMouse => DeviceKeyboardMouseIconPath,
+            LocalPlayerData.LocalInputType.Gamepad => DeviceGamepadIconPath,
+            _ => string.Empty,
         };
+    }
+
+    private string GetJoinPromptIconPath(bool hasKeyboardPlayer) {
+        if (hasKeyboardPlayer)
+            return XboxButtonXIconPath;
+
+        return _showKeyboardJoinPrompt ? KeyboardEnterIconPath : XboxButtonXIconPath;
+    }
+
+    private static string GetSlotBadgeText(LocalPlayerData localPlayer, bool isNextOpenSlot) {
+        if (localPlayer.IsActive)
+            return $"P{localPlayer.LocalId + 1}";
+
+        return isNextOpenSlot ? "Unassigned" : string.Empty;
     }
 
     private static Label CreateCenteredLabel(string text, int fontSize) {
@@ -259,50 +247,83 @@ public partial class MainMenu : Control {
         return label;
     }
 
-    private static VBoxContainer CreatePromptBlock(string action, string[] iconPaths) {
+    private static PanelContainer CreateSlotBadge(string text) {
+        var badge = new PanelContainer {
+            CustomMinimumSize = text.Length <= 2 ? new Vector2(42.0f, 28.0f) : new Vector2(104.0f, 28.0f),
+        };
+        var style = new StyleBoxFlat {
+            BgColor = new Color(0.16f, 0.19f, 0.24f),
+            BorderColor = new Color(0.73f, 0.79f, 0.86f),
+            BorderWidthLeft = 2,
+            BorderWidthTop = 2,
+            BorderWidthRight = 2,
+            BorderWidthBottom = 2,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
+        };
+        badge.AddThemeStyleboxOverride("panel", style);
+
+        var label = new Label {
+            Text = text,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        label.AddThemeFontSizeOverride("font_size", text.Length <= 2 ? 15 : 13);
+        badge.AddChild(label);
+        return badge;
+    }
+
+    private static VBoxContainer CreateJoinPrompt(string iconPath) {
         var prompt = new VBoxContainer {
             Alignment = BoxContainer.AlignmentMode.Center,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        prompt.AddThemeConstantOverride("separation", 2);
+        prompt.AddThemeConstantOverride("separation", 3);
         prompt.AddChild(CreateCenteredLabel("Press", 15));
-
-        var icons = new HBoxContainer {
-            Alignment = BoxContainer.AlignmentMode.Center,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        };
-        icons.AddThemeConstantOverride("separation", 6);
-        foreach (var iconPath in iconPaths)
-            icons.AddChild(CreatePromptIcon(iconPath));
-
-        prompt.AddChild(icons);
-        prompt.AddChild(CreateCenteredLabel($"to {action}", 15));
+        prompt.AddChild(CreatePromptIcon(iconPath, 18.0f));
         return prompt;
     }
 
-    private static TextureRect CreatePromptIcon(string iconPath) {
+    private static TextureRect CreatePromptIcon(string iconPath, float size = 30.0f) {
         return new TextureRect {
             Texture = GD.Load<Texture2D>(iconPath),
-            CustomMinimumSize = new Vector2(34.0f, 34.0f),
+            CustomMinimumSize = new Vector2(size, size),
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
     }
 
-    private static void ReplaceSlotContent(PanelContainer slotPanel, Control content) {
+    private static TextureRect CreateDeviceIcon(string iconPath) {
+        return new TextureRect {
+            Texture = string.IsNullOrWhiteSpace(iconPath) ? null : GD.Load<Texture2D>(iconPath),
+            CustomMinimumSize = new Vector2(54.0f, 38.0f),
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+    }
+
+    private static void ReplaceSlotContent(Control slot, PanelContainer slotPanel, Control content, string badgeText) {
+        var badgeSlot = slot.GetNode<CenterContainer>("PlayerIdBadgeSlot");
+        badgeSlot.Visible = false;
+        foreach (var badgeChild in badgeSlot.GetChildren()) {
+            badgeSlot.RemoveChild(badgeChild);
+            badgeChild.QueueFree();
+        }
+
         foreach (var child in slotPanel.GetChildren()) {
             slotPanel.RemoveChild(child);
             child.QueueFree();
         }
 
         slotPanel.AddChild(content);
-    }
 
-    private static Color GetSlotColor(LocalPlayerData localPlayer, bool isNextOpenSlot) {
-        if (localPlayer.IsActive)
-            return new Color(0.55f, 1.0f, 0.6f);
+        if (string.IsNullOrWhiteSpace(badgeText))
+            return;
 
-        return isNextOpenSlot ? Colors.White : new Color(0.42f, 0.42f, 0.42f);
+        badgeSlot.Visible = true;
+        badgeSlot.AddChild(CreateSlotBadge(badgeText));
     }
 
     private void OnExitGamePressed() {
@@ -332,16 +353,31 @@ public partial class MainMenu : Control {
         GetTree().ChangeSceneToFile(JoinGameMenuScenePath);
     }
 
+    private void OnResetPlayersPressed() {
+        foreach (var localPlayer in LocalLobbyData.LocalPlayers) {
+            localPlayer.IsActive = false;
+            localPlayer.InputType = LocalPlayerData.LocalInputType.None;
+            localPlayer.DeviceId = -1;
+        }
+
+        RefreshLocalLobbySlots();
+        RefreshActionButtonsVisibility();
+    }
+
     private void RefreshActionButtonsVisibility() {
         var hasActiveLocalPlayer = HasActiveLocalPlayer();
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Visible = hasActiveLocalPlayer;
 
         var joinGameButton = GetNode<Button>("MainLayout/ActionButtons/JoinGameButton");
         joinGameButton.Visible = hasActiveLocalPlayer;
+
+        GetNode<Button>("MainLayout/ActionButtons/ResetPlayersButton").Visible = hasActiveLocalPlayer;
         RefreshDefaultFocus();
     }
 
     private void ApplyButtonIcons() {
+        GetNode<Button>("TopRightButtons/SettingsButton").Icon = GD.Load<Texture2D>(SettingsIconPath);
+        GetNode<Button>("TopRightButtons/ExitGameButton").Icon = GD.Load<Texture2D>(ExitIconPath);
         GetNode<Button>("MainLayout/ActionButtons/HostGameButton").Icon = GD.Load<Texture2D>(NetworkIconLanPath);
         GetNode<Button>("MainLayout/ActionButtons/JoinGameButton").Icon = GD.Load<Texture2D>(NetworkIconClientPath);
     }

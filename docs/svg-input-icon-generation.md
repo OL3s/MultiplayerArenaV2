@@ -1,82 +1,61 @@
 # SVG Input Icon Generation
 
-Godot's SVG importer does not reliably render SVG `<text>` elements. SVGs that preview correctly in VS Code or a browser can import in Godot with the text missing.
+Godot's SVG importer does not reliably render SVG `<text>` elements. SVGs that preview correctly in VS Code, Inkscape, or a browser can import in Godot with the text missing.
 
-For input button icons, do not use SVG `<text>`. Generate labels as real vector geometry instead.
+For input button icons, do not use SVG `<text>`. Make labels as real vector shapes instead.
 
 ## Current Approach
 
-The generated icons in `assets/inputicons/` use a small pixel-font map in Python. Each label character is defined as a 5x7 bitmap, then written into the SVG as many small `<rect>` elements.
+Icon labels should be drawn or converted into vector paths before export. In practice, create the label visually in Inkscape, then convert the text to paths so the SVG contains shape geometry instead of font-dependent text.
 
 This keeps the files as SVGs, but avoids font resolution entirely:
 
 - Works in Godot after import.
 - Does not depend on system fonts.
 - Looks consistent across editor, game, and source previews.
-- Keeps labels editable by changing the Python glyph map and regenerating.
+- Lets labels look intentionally designed instead of generated from blocky placeholder glyphs.
 
-## Minimal Pattern
+## Inkscape Text Workflow
 
-Use this pattern when generating new labeled SVG buttons:
+Use this workflow when making a labeled SVG icon:
 
-```python
-GLYPHS = {
-    "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
-    "B": ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
-    "X": ["10001", "10001", "01010", "00100", "01010", "10001", "10001"],
-}
+1. Open or create the icon in Inkscape.
+2. Add the label with the text tool while designing.
+3. Choose the final font, size, weight, spacing, and alignment.
+4. Select the text object.
+5. Convert it to geometry with `Path > Object to Path`.
+6. If the letters need to act as one object, use `Path > Union` after converting.
+7. Save as plain SVG.
+8. Confirm the saved SVG does not contain `<text>` elements.
+9. Reimport the asset in Godot.
 
-def pixel_label(label, center_x=64, center_y=64, max_width=72, max_height=36, fill="#E8EDF2"):
-    glyphs = [GLYPHS[ch] for ch in label.upper() if ch in GLYPHS]
-    cols = len(glyphs) * 5 + max(0, len(glyphs) - 1)
-    rows = 7
-    cell = min(max_width / cols, max_height / rows)
-    start_x = center_x - (cols * cell) / 2
-    start_y = center_y - (rows * cell) / 2
-    rects = []
-    cursor = 0
+## Shape-Only Rule
 
-    for glyph in glyphs:
-        for row_index, row in enumerate(glyph):
-            for col_index, bit in enumerate(row):
-                if bit == "1":
-                    x = start_x + (cursor + col_index) * cell
-                    y = start_y + row_index * cell
-                    rects.append(
-                        f'<rect x="{x:.2f}" y="{y:.2f}" '
-                        f'width="{cell * 0.86:.2f}" height="{cell * 0.86:.2f}" '
-                        f'rx="{cell * 0.14:.2f}" fill="{fill}"/>'
-                    )
-        cursor += 6
+The exported SVG should contain paths, polygons, circles, rectangles, and other supported shapes. It should not contain live text objects like this:
 
-    return "\n  ".join(rects)
+```xml
+<text>ABC</text>
 ```
 
-Then insert the returned string into the SVG body:
+Prefer converted path data like this:
 
-```python
-label_geometry = pixel_label("X")
-
-svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <title>X button icon</title>
-  <circle cx="64" cy="64" r="50" fill="#2563EB" stroke="#E8EDF2" stroke-width="8"/>
-  {label_geometry}
-</svg>'''
+```xml
+<path d="..." fill="#E8EDF2"/>
 ```
 
 ## Regeneration Checklist
 
-1. Generate the SVGs with label geometry, not `<text>`.
-2. Confirm no generated icon contains SVG text:
+1. Convert all icon labels to paths or manually draw letters as shapes.
+2. Confirm no icon contains SVG text:
 
 ```bash
-rg '<text\b' assets/InputIcons
+rg '<text\b' assets/inputicons
 ```
 
 3. Reimport assets for Godot:
 
 ```bash
-godot --headless --import
+./tools/import-assets.sh
 ```
 
 4. If Godot creates unrelated `.cs.uid` files during the scan, do not include them unless the project intentionally starts tracking those files.

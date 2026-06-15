@@ -1,24 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <title>B button icon</title>
-  <circle cx="64" cy="64" r="50" fill="#DC2626" stroke="#E8EDF2" stroke-width="8"/>
-  <rect x="50.43" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="55.86" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="61.29" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="66.71" y="45.00" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="50.43" y="50.43" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="72.14" y="50.43" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="50.43" y="55.86" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="72.14" y="55.86" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="50.43" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="55.86" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="61.29" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="66.71" y="61.29" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="50.43" y="66.71" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="72.14" y="66.71" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="50.43" y="72.14" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="72.14" y="72.14" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="50.43" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="55.86" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="61.29" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
-  <rect x="66.71" y="77.57" width="4.67" height="4.67" rx="0.76" fill="#E8EDF2"/>
+  <circle cx="64" cy="64" r="50" fill="#EF4444" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="6.0" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 0V14" transform="translate(50.43 45.00) scale(2.7143)"/>
+    <path d="M2 0H6.2Q9 0 9 3.4Q9 6.6 6.2 6.8H2" transform="translate(50.43 45.00) scale(2.7143)"/>
+    <path d="M2 6.8H6.6Q9.5 6.8 9.5 10.4Q9.5 14 6.4 14H2" transform="translate(50.43 45.00) scale(2.7143)"/>
+  </g>
 </svg>

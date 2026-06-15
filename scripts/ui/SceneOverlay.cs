@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public partial class SceneOverlay : CanvasLayer {
     private const string BlurBackdropName = "BlurBackdrop";
-    private const string OverlayScenePath = "res://scenes/ui/scene_overlay.tscn";
+    private const string OverlayScenePath = "res://scenes/ui/overlays/scene_overlay.tscn";
     private const string BlurShaderPath = "res://assets/shaders/OverlayBlurBackdrop.gdshader";
 
     private static readonly PackedScene OverlayScene = ResourceLoader.Load<PackedScene>(OverlayScenePath);
