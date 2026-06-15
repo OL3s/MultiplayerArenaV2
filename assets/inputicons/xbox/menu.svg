@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>MENU button icon</title>
+  <rect x="14" y="22" width="100" height="84" rx="16" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1.5 14V0L5 7L8.5 0V14" transform="translate(20.00 50.61) scale(1.9130)"/>
+    <path d="M8.5 0H2V14H8.5" transform="translate(42.96 50.61) scale(1.9130)"/>
+    <path d="M2 7H7.5" transform="translate(42.96 50.61) scale(1.9130)"/>
+    <path d="M2 14V0L8 14V0" transform="translate(65.91 50.61) scale(1.9130)"/>
+    <path d="M2 0V10Q2 14 5 14Q8 14 8 10V0" transform="translate(88.87 50.61) scale(1.9130)"/>
+  </g>
+</svg>

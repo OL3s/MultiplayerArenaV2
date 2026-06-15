@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>Landscape touch device icon</title>
+  <rect x="12" y="30" width="104" height="68" rx="16" fill="#1F2937" stroke="#E8EDF2" stroke-width="7"/>
+  <rect x="26" y="42" width="76" height="44" rx="5" fill="#334155"/>
+  <circle cx="108" cy="64" r="4" fill="#E8EDF2"/>
+  <path d="M48 68c8-14 26-17 38-6" fill="none" stroke="#7DD3FC" stroke-width="6" stroke-linecap="round"/>
+  <path d="M75 55l12 7-10 10" fill="none" stroke="#7DD3FC" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

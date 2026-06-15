@@ -1,0 +1,317 @@
+[gd_scene load_steps=11 format=3 uid="uid://ljf73j0tqr80"]
+
+[ext_resource type="Script" uid="uid://cntbrwj3glqof" path="res://scripts/ui/MatchLobby.cs" id="1_matchlobby"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_panel.tres" id="3_lobby_panel"]
+[ext_resource type="Texture2D" path="res://assets/ui/config_connection.svg" id="5_config_connection"]
+[ext_resource type="Texture2D" path="res://assets/ui/config_biome.svg" id="6_config_biome"]
+[ext_resource type="Texture2D" path="res://assets/ui/config_structure.svg" id="7_config_structure"]
+[ext_resource type="Texture2D" path="res://assets/ui/config_game.svg" id="8_config_game"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_config_category.tres" id="9_config_category"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_apply_button.tres" id="10_apply_style"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_revert_button.tres" id="11_revert_style"]
+
+[node name="MatchLobby" type="Control" unique_id=222781379]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_matchlobby")
+
+[node name="MainLayout" type="VBoxContainer" parent="." unique_id=1328928156]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -560.0
+offset_top = -285.0
+offset_right = 560.0
+offset_bottom = 285.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout" unique_id=388979586]
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+text = "Match Lobby"
+horizontal_alignment = 1
+
+[node name="LobbyBody" type="HBoxContainer" parent="MainLayout" unique_id=485281783]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="PlayersPanel" type="PanelContainer" parent="MainLayout/LobbyBody" unique_id=313181943]
+custom_minimum_size = Vector2(760, 390)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = ExtResource("3_lobby_panel")
+
+[node name="PlayersLayout" type="VBoxContainer" parent="MainLayout/LobbyBody/PlayersPanel" unique_id=123733684]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PlayersTitleLabel" type="Label" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout" unique_id=889439991]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Players"
+horizontal_alignment = 1
+
+[node name="AutofillTeamActions" type="HBoxContainer" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Autofill2TeamsButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions"]
+custom_minimum_size = Vector2(170, 36)
+layout_mode = 2
+text = "Autofill 2 Teams"
+
+[node name="Autofill3TeamsButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions"]
+custom_minimum_size = Vector2(170, 36)
+layout_mode = 2
+text = "Autofill 3 Teams"
+
+[node name="Autofill4TeamsButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/AutofillTeamActions"]
+custom_minimum_size = Vector2(170, 36)
+layout_mode = 2
+text = "Autofill 4 Teams"
+
+[node name="LocalTeamModeActions" type="HBoxContainer" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="FfaButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions"]
+custom_minimum_size = Vector2(220, 36)
+layout_mode = 2
+text = "FFA"
+
+[node name="TeamButton" type="Button" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout/LocalTeamModeActions"]
+custom_minimum_size = Vector2(220, 36)
+layout_mode = 2
+text = "TEAM"
+
+[node name="TeamSections" type="GridContainer" parent="MainLayout/LobbyBody/PlayersPanel/PlayersLayout" unique_id=53389463]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="ConfigPanel" type="PanelContainer" parent="MainLayout/LobbyBody" unique_id=225867696]
+custom_minimum_size = Vector2(360, 390)
+layout_mode = 2
+theme_override_styles/panel = ExtResource("3_lobby_panel")
+
+[node name="ConfigLayout" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel" unique_id=1218761299]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout" unique_id=1308755687]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Match Config"
+horizontal_alignment = 1
+
+[node name="ConnectionSection" type="PanelContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout" unique_id=1493169210]
+layout_mode = 2
+theme_override_styles/panel = ExtResource("9_config_category")
+
+[node name="ConnectionContent" type="HBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConnectionSection"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ConnectionIcon" type="TextureRect" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConnectionSection/ConnectionContent"]
+custom_minimum_size = Vector2(34, 34)
+layout_mode = 2
+texture = ExtResource("5_config_connection")
+stretch_mode = 5
+
+[node name="ConnectionText" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConnectionSection/ConnectionContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="InternetLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConnectionSection/ConnectionContent/ConnectionText" unique_id=1607084902]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Connection"
+
+[node name="ConnectionInfoLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConnectionSection/ConnectionContent/ConnectionText" unique_id=695418661]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Online: no
+Address: 127.0.0.1
+Port: 12000"
+autowrap_mode = 3
+
+[node name="MapSection" type="PanelContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout" unique_id=1516140088]
+layout_mode = 2
+theme_override_styles/panel = ExtResource("9_config_category")
+
+[node name="MapContent" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MapLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent" unique_id=756892419]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Map"
+
+[node name="MapOptions" type="HBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BiomeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions" unique_id=917568569]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="Content" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Biome"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton/Content"]
+custom_minimum_size = Vector2(22, 22)
+layout_mode = 2
+texture = ExtResource("6_config_biome")
+mouse_filter = 2
+stretch_mode = 5
+
+[node name="ValueLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "All"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="StructureButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions" unique_id=1241476825]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="Content" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/StructureButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/StructureButton/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Structure"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/StructureButton/Content"]
+custom_minimum_size = Vector2(22, 22)
+layout_mode = 2
+texture = ExtResource("7_config_structure")
+mouse_filter = 2
+stretch_mode = 5
+
+[node name="ValueLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/StructureButton/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "All"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="GameSection" type="PanelContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout" unique_id=806594850]
+layout_mode = 2
+theme_override_styles/panel = ExtResource("9_config_category")
+
+[node name="GameContent" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GameLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent" unique_id=949153052]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Game"
+
+[node name="GameModeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent" unique_id=358873034]
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Mode
+Custom"
+icon = ExtResource("8_config_game")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="RandomOrderCheckBox" type="CheckBox" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent" unique_id=1181391373]
+layout_mode = 2
+text = "Randomize Mode Order"
+
+[node name="FooterSpacer" type="Control" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout" unique_id=1594734142]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ConfigActions" type="HBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout" unique_id=960778569]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="ApplyConfigButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions" unique_id=566254992]
+visible = false
+custom_minimum_size = Vector2(110, 40)
+layout_mode = 2
+text = "Apply"
+theme_override_styles/normal = ExtResource("10_apply_style")
+theme_override_styles/hover = ExtResource("10_apply_style")
+theme_override_styles/pressed = ExtResource("10_apply_style")
+
+[node name="RevertConfigButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/ConfigActions" unique_id=451455036]
+visible = false
+custom_minimum_size = Vector2(110, 40)
+layout_mode = 2
+text = "Revert"
+theme_override_styles/normal = ExtResource("11_revert_style")
+theme_override_styles/hover = ExtResource("11_revert_style")
+theme_override_styles/pressed = ExtResource("11_revert_style")
+
+[node name="Actions" type="HBoxContainer" parent="MainLayout" unique_id=1354606370]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="StartButton" type="Button" parent="MainLayout/Actions" unique_id=2061317909]
+custom_minimum_size = Vector2(220, 38)
+layout_mode = 2
+text = "Start Match"
+
+[node name="BackButton" type="Button" parent="MainLayout/Actions" unique_id=1208791631]
+custom_minimum_size = Vector2(160, 38)
+layout_mode = 2
+text = "Back"

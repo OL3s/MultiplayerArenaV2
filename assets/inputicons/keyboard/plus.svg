@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>PLUS key icon</title>
+  <rect x="14" y="22" width="100" height="84" rx="16" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 2V12" transform="translate(54.00 50.00) scale(2.0000)"/>
+    <path d="M1 7H9" transform="translate(54.00 50.00) scale(2.0000)"/>
+  </g>
+</svg>

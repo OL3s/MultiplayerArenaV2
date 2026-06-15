@@ -1,0 +1,77 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/ConfigSelectionOverlay.cs" id="1_configoverlay"]
+[ext_resource type="Texture2D" path="res://assets/ui/reset_revert.svg" id="2_reset_revert"]
+[ext_resource type="Texture2D" path="res://assets/ui/back_arrow.svg" id="3_back_arrow"]
+[ext_resource type="Texture2D" path="res://assets/ui/select_all.svg" id="4_select_all"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_back_button.tres" id="5_back_style"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_revert_button.tres" id="6_clear_style"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_apply_button.tres" id="7_all_style"]
+
+[node name="ConfigSelectionOverlay" type="PanelContainer"]
+custom_minimum_size = Vector2(360, 420)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -210.0
+offset_right = 180.0
+offset_bottom = 210.0
+script = ExtResource("1_configoverlay")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Select Options"
+horizontal_alignment = 1
+
+[node name="Options" type="GridContainer" parent="Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="Actions" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="CloseButton" type="Button" parent="Content/Actions"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 40)
+text = "Back"
+icon = ExtResource("3_back_arrow")
+icon_max_width = 18
+expand_icon = true
+theme_override_styles/normal = ExtResource("7_all_style")
+theme_override_styles/hover = ExtResource("7_all_style")
+theme_override_styles/pressed = ExtResource("7_all_style")
+
+[node name="NoneButton" type="Button" parent="Content/Actions"]
+layout_mode = 2
+custom_minimum_size = Vector2(88, 40)
+text = "Clear"
+icon = ExtResource("2_reset_revert")
+icon_max_width = 18
+expand_icon = true
+theme_override_styles/normal = ExtResource("6_clear_style")
+theme_override_styles/hover = ExtResource("6_clear_style")
+theme_override_styles/pressed = ExtResource("6_clear_style")
+
+[node name="AllButton" type="Button" parent="Content/Actions"]
+layout_mode = 2
+custom_minimum_size = Vector2(88, 40)
+text = "All"
+icon = ExtResource("4_select_all")
+icon_max_width = 18
+expand_icon = true
+theme_override_styles/normal = ExtResource("5_back_style")
+theme_override_styles/hover = ExtResource("5_back_style")
+theme_override_styles/pressed = ExtResource("5_back_style")

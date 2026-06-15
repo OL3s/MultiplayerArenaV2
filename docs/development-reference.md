@@ -13,13 +13,13 @@ dotnet build MultiplayerArenaV2.csproj
 Import assets from the CLI when new Godot assets were added:
 
 ```bash
-godot --headless --path . --import
+./tools/import-assets.sh
 ```
 
 Validate that Godot can start the project without opening the editor window:
 
 ```bash
-godot --headless --path . --quit
+./tools/verify-startup.sh
 ```
 
 ## C# Code Style
@@ -40,6 +40,12 @@ private void DoThing() {
 if (a == b)
     c++;
 ```
+
+## Runtime Logging
+
+Use the shared `GameLog` API for gameplay, networking, UI, and test-scene runtime logs. Do not add direct `GD.Print()` calls for new diagnostic output unless there is a narrow temporary reason.
+
+See [Game Logging](game-logging.md) for the log format, scope/type rules, and multi-process LAN logging guidance.
 
 ## Tech
 

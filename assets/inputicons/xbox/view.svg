@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>VIEW button icon</title>
+  <rect x="14" y="22" width="100" height="84" rx="16" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 0L5 14L9 0" transform="translate(20.00 50.61) scale(1.9130)"/>
+    <path d="M2 0H8" transform="translate(42.96 50.61) scale(1.9130)"/>
+    <path d="M5 0V14" transform="translate(42.96 50.61) scale(1.9130)"/>
+    <path d="M2 14H8" transform="translate(42.96 50.61) scale(1.9130)"/>
+    <path d="M8.5 0H2V14H8.5" transform="translate(65.91 50.61) scale(1.9130)"/>
+    <path d="M2 7H7.5" transform="translate(65.91 50.61) scale(1.9130)"/>
+    <path d="M1 0L3 14L5 7L7 14L9 0" transform="translate(88.87 50.61) scale(1.9130)"/>
+  </g>
+</svg>

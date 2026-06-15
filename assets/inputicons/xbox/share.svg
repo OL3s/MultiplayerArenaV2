@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>SHARE button icon</title>
+  <rect x="14" y="22" width="100" height="84" rx="16" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.5 2Q7.2 0 4.8 0Q2 0 2 3.5Q2 6 5 7Q8 8 8 10.8Q8 14 4.8 14Q2.4 14 1.3 12" transform="translate(20.00 53.38) scale(1.5172)"/>
+    <path d="M2 0V14" transform="translate(38.21 53.38) scale(1.5172)"/>
+    <path d="M8 0V14" transform="translate(38.21 53.38) scale(1.5172)"/>
+    <path d="M2 7H8" transform="translate(38.21 53.38) scale(1.5172)"/>
+    <path d="M1 14L5 0L9 14" transform="translate(56.41 53.38) scale(1.5172)"/>
+    <path d="M2.4 9H7.6" transform="translate(56.41 53.38) scale(1.5172)"/>
+    <path d="M2 14V0H6Q9 0 9 4Q9 8 6 8H2" transform="translate(74.62 53.38) scale(1.5172)"/>
+    <path d="M5.8 8L9 14" transform="translate(74.62 53.38) scale(1.5172)"/>
+    <path d="M8.5 0H2V14H8.5" transform="translate(92.83 53.38) scale(1.5172)"/>
+    <path d="M2 7H7.5" transform="translate(92.83 53.38) scale(1.5172)"/>
+  </g>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="8" y="30" width="76" height="50" rx="8" fill="#20242b" stroke="#edf2f7" stroke-width="5"/>
+  <g fill="#edf2f7">
+    <rect x="18" y="42" width="8" height="7" rx="1"/>
+    <rect x="30" y="42" width="8" height="7" rx="1"/>
+    <rect x="42" y="42" width="8" height="7" rx="1"/>
+    <rect x="54" y="42" width="8" height="7" rx="1"/>
+    <rect x="66" y="42" width="8" height="7" rx="1"/>
+    <rect x="18" y="55" width="8" height="7" rx="1"/>
+    <rect x="30" y="55" width="8" height="7" rx="1"/>
+    <rect x="42" y="55" width="8" height="7" rx="1"/>
+    <rect x="54" y="55" width="8" height="7" rx="1"/>
+    <rect x="66" y="55" width="8" height="7" rx="1"/>
+    <rect x="24" y="68" width="44" height="6" rx="2"/>
+  </g>
+  <path d="M100 32c12 0 20 10 20 24v16c0 14-8 24-20 24S80 86 80 72V56c0-14 8-24 20-24z" fill="#20242b" stroke="#edf2f7" stroke-width="5"/>
+  <path d="M100 39v15" stroke="#edf2f7" stroke-width="4" stroke-linecap="round"/>
+  <path d="M100 32v17" stroke="#edf2f7" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>TAB key icon</title>
+  <rect x="8" y="34" width="112" height="60" rx="24" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 0H9" transform="translate(27.57 49.00) scale(2.1429)"/>
+    <path d="M5 0V14" transform="translate(27.57 49.00) scale(2.1429)"/>
+    <path d="M1 14L5 0L9 14" transform="translate(53.29 49.00) scale(2.1429)"/>
+    <path d="M2.4 9H7.6" transform="translate(53.29 49.00) scale(2.1429)"/>
+    <path d="M2 0V14" transform="translate(79.00 49.00) scale(2.1429)"/>
+    <path d="M2 0H6.2Q9 0 9 3.4Q9 6.6 6.2 6.8H2" transform="translate(79.00 49.00) scale(2.1429)"/>
+    <path d="M2 6.8H6.6Q9.5 6.8 9.5 10.4Q9.5 14 6.4 14H2" transform="translate(79.00 49.00) scale(2.1429)"/>
+  </g>
+</svg>

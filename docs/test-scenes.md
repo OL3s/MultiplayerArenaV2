@@ -2,11 +2,22 @@
 
 This document tracks current test scenes, test controls, launch commands, and runtime logging notes. Update this file when test scenes change.
 
+## Main Menu Test Scene Launcher
+
+- The main menu has a top-right test-scenes icon button to the left of Settings.
+- The button opens `scenes/ui/overlays/test_scenes_overlay.tscn`.
+- `TestScenesOverlay` scans `res://scenes/tests` recursively at runtime and creates one launch button for each `.tscn` file it finds, so the launcher updates automatically when test scenes are added or removed. Button labels use the raw `.tscn` filename because this is a developer launcher.
+- Main-menu keyboard player join uses the `C` key and `assets/inputicons/keyboard/key_c.svg` instead of Enter, leaving Enter/Space free for standard UI button activation and arrow-key navigation.
+- Empty-card join prompts rotate every 2 seconds across currently available join inputs: keyboard `C`, gamepad `X`, and touch.
+- Touching or clicking the visible empty player card in the main menu joins one local touchscreen player using `LocalPlayerData.LocalInputType.Touch` and `assets/inputicons/device_touch.svg`. Main menu lobby API guards allow at most one keyboard/mouse player and at most one touch player.
+- Local-only match lobby mode does not open a network peer or bind a server port. Its lobby UI hides connection settings, keeps map/game Match Config editable, and exposes `FFA`/`TEAM` local player team assignment buttons.
+- Non-local host lobby mode exposes `Autofill 2 Teams`, `Autofill 3 Teams`, and `Autofill 4 Teams` actions. Autofill keeps all players from the same network peer/device together on one team.
+
 ## Destruction Logic Test
 
-Scene: `Scenes/Tests/TestMapDestructionLogic.tscn`
+Scene: `scenes/tests/test_map_destruction_logic.tscn`
 
-Script: `Scripts/Data/Map/TestMapDestructionLogic.cs`
+Script: `scripts/data/map/TestMapDestructionLogic.cs`
 
 - Temporary root scene for destructible map backend testing.
 - Creates mock floor hashset data, calls `ResetWallTiles()`, then applies sample wall-damage values after normal wall generation.
@@ -17,9 +28,9 @@ Script: `Scripts/Data/Map/TestMapDestructionLogic.cs`
 
 ## LAN Destruction Test
 
-Scene: `Scenes/Tests/TestMapDestructionLogicLAN.tscn`
+Scene: `scenes/tests/test_map_destruction_logic_lan.tscn`
 
-Script: `Scripts/Data/Map/TestMapDestructionLogicLAN.cs`
+Script: `scripts/data/map/TestMapDestructionLogicLAN.cs`
 
 - Temporary LAN/RTC-focused test scene for server-authoritative wall destruction sync.
 - Uses the same scene-local map flow as `TestMapDestructionLogic`, then forwards host damage/reset RPCs to connected clients.
@@ -30,7 +41,7 @@ Script: `Scripts/Data/Map/TestMapDestructionLogicLAN.cs`
 - The client instance is a read-only viewer that applies and re-renders scene-local RPC updates sent by the host.
 - The LAN test scene currently focuses on live sync for already-connected peers. Start both peers first, then perform destruction tests from the host side.
 - Initial map construction and late-join catch-up are still not fully synchronized yet. Those are deferred follow-up tasks, not part of the current networking slice.
-- Player targets were removed from this scene. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for player movement, aim, and item/action testing.
+- Player targets were removed from this scene. Use `scenes/tests/test_player_item_room_lan.tscn` for player movement, aim, and item/action testing.
 
 ## LAN Test Controls
 
@@ -49,17 +60,22 @@ Script: `Scripts/Data/Map/TestMapDestructionLogicLAN.cs`
 
 ## LAN Player Item Room Test
 
-Scene: `Scenes/Tests/TestPlayerItemRoomLAN.tscn`
+Scene: `scenes/tests/test_player_item_room_lan.tscn`
 
-Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
+Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 
 - Dedicated player/item/action LAN test scene.
 - Builds a simple square floor/wall room with one center barrel prop.
 - Spawns the host player on one side and the client player on the other side when both peers are connected.
 - Uses the same `DamageTestPlayer.GlobalId -> PlayerData` ownership lookup pattern as the old LAN player test path.
 - Player movement is currently server-authoritative and intentionally simple: clients send movement input vectors when quantized movement state changes, only the host/server simulates movement, and clients directly apply server movement-state plus every-physics-tick moving-position updates without interpolation or local prediction.
-- Player visuals use temporary SVG player body sprites in `Assets/Players/` plus the `Pistol-T1` item image in `Assets/Items/Modern/Weapons/`.
+- Player visuals use temporary SVG player body sprites in `assets/players/` plus the `Pistol-T1` item image in `assets/items/modern/weapons/`.
 - Player held-item visuals now come from the selected modern item `.tres` resource's `HeldTexture`.
+- The temporary `B` item grid displays each item's `ShowcaseTexture` when present and falls back to `HeldTexture` for older resources.
+- The temporary `B` item grid also includes `Light Armor` and `Heavy Armor`; their buttons use store/showcase art, while selection applies the armor overlay texture on top of the player body.
+- Planned next UI slice: add reusable `scenes/ui/player_stats_panel.tscn` and `scenes/ui/local_players_hud.tscn` so the test room can display name, avatar, kills, health, selected item, armor, weapon slots, gadget slots, remaining uses, and empty slots for up to 4 local players.
+- The item room uses a simplified armor-driven loadout model. Armor decides whether a second weapon is available, how many gadget slots are available, how many weapon magazines are granted, and how many uses each gadget gets.
+- The old backstrap, inventory-provider, ammo-rig, and separate magazine-bucket model is intentionally not used.
 - The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
 - Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 
@@ -73,9 +89,9 @@ Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
 - The debug aim indicator only draws while actively aiming, and movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier` while actively aiming.
 - `B`: open or close the test item grid. Keyboard `B` and Xbox controller `B` both toggle it.
 - Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: choose an item from the grid and equip it as the local player's current test item.
+- Choosing an armor entry from the same grid equips that armor overlay on the local player instead of changing the held item.
 - While the item grid is open, the local player's gameplay input is put in `PlayerControlState.Menu`, which stops movement, aim updates, and item use until the menu closes.
-- `F`: cycle the selected item's available fire modes.
-- Left mouse button or Xbox right trigger: use the selected item through the selected fire mode and `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`.
+- Left mouse button or Xbox right trigger: use the selected item. Single-fire weapons and gadgets use once per press; full-auto weapons repeat while held after `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`. Weapon/gadget uses are consumed before execution and empty items are rejected by the host/server.
 - Item-use sync includes the exact action direction. The acting player's held item is forced toward that direction for about half a second on other peers so shots and throws read from the same aim direction that executed the action.
 - Thrown grenades now travel toward their full throw-distance target and bounce from sampled wall/prop/player collision instead of shortening the throw range to the first obstruction. The thrown visual has a ground shadow under the arc.
 - Throwables can activate when they hit the ground through `ActivateOnGroundImpact`. The explosive grenade keeps fuse-timed behavior, while incendiary and smoke grenades currently activate on ground impact.
@@ -84,44 +100,89 @@ Current player/item test-scene follow-up:
 
 - Tune and harden the generic bullet, thrown-item, and launched-projectile execution data.
 - Keep `F` fire-mode cycling and selected item recovery behavior active while expanding item execution.
+- Add a reusable local player stats HUD scene stack and wire it to the player/item room test runtime.
+- Improve the temporary equipment menu so weapon/gadget slot assignment is clearer.
 
 ## Example CLI Usage
+
+Linux/Bash helper scripts live in `tools/testing/`. They are the preferred way to launch multiple local Godot instances during LAN testing.
+
+Player/item room with one host/server and two clients:
+
+```bash
+./tools/testing/launch-player-item-room-lan.sh
+```
+
+Destruction room with one host/server and two clients:
+
+```bash
+./tools/testing/launch-destruction-lan.sh
+```
+
+Script defaults:
+
+- `GODOT_BIN=godot`
+- `ADDRESS=127.0.0.1`
+- `PORT=12000`
+- `CLIENTS=2`
+- `START_DELAY=2`
+
+Override any default inline:
+
+```bash
+CLIENTS=3 PORT=7800 START_DELAY=3 ./tools/testing/launch-player-item-room-lan.sh
+```
+
+The scripts write logs to `.tmp/test-logs/` and keep the terminal attached. Press `Ctrl+C` in that terminal to stop all spawned instances.
+
+Add `--simple` after Godot's user-argument separator when launching manually to shorten `GameLog` lines:
+
+```bash
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host --simple
+```
+
+Use the general tools for import and startup verification:
+
+```bash
+./tools/import-assets.sh
+./tools/verify-startup.sh
+```
 
 Host:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role host
 ```
 
 Client:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
 Launch destruction host and client:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role host
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
 Launch player item room host and client:
 
 ```bash
-godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role host
-godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
-If the host log says it picked a port other than `7700`, use that port for the client. This can happen if another old test instance is still holding `7700`.
+If the host log says it picked a port other than `12000`, use that port for the client. This can happen if another old test instance is still holding `12000`.
 
 Supported shared role values are `local`, `lan`, `host`, `server`, `server-local`, `client`, `online`, `online-host`, and `server-online`.
 
 ## Runtime Logging Standards
 
-- Multiplayer runtime prints should use a clear bracket prefix so multi-instance terminal output stays searchable.
-- General networking logs use `[Multiplayer][Mode=<NetworkMode>] ...` and should include the current `NetworkMode` enum value.
-- Scene-specific LAN destruction logs use `[LANDestructionTest][Mode=<NetworkMode>] ...`.
-- Scene-specific player item room logs use `[PlayerItemRoomTest][Mode=<NetworkMode>] ...`.
+- Runtime logs should use the shared `GameLog` API and the format documented in `docs/game-logging.md`.
+- Logs include sequence, timestamp, process id, role, network mode, peer id, scope, type, and event name so host/client output remains readable when multiple Godot instances write into the same terminal.
+- Scene-specific LAN destruction logs use `GameLogScope.DestructibleMap` for the existing destruction test events.
+- Scene-specific player item room logs use `GameLogScope.PlayerItemRoom` for room lifecycle, player spawn/remove, input state changes, item/armor equip, item use, and projectile spawn events.
 - Keep live gameplay prints short and event-based: host/client start, connect/fail/disconnect, peer count changes, and RPC send/apply events.
 - Do not print every frame or every `_Process()` tick.

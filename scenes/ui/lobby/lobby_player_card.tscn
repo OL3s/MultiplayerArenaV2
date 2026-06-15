@@ -1,0 +1,40 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/LobbyPlayerCard.cs" id="1_playercard"]
+[ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_player_card.tres" id="3_player_card_style"]
+
+[node name="LobbyPlayerCard" type="PanelContainer"]
+custom_minimum_size = Vector2(74, 96)
+script = ExtResource("1_playercard")
+theme_override_styles/panel = ExtResource("3_player_card_style")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="Info" type="VBoxContainer" parent="Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="Content/Info"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Player"
+horizontal_alignment = 1
+text_overrun_behavior = 3
+
+[node name="DetailLabel" type="Label" parent="Content/Info"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "P1 | Slot 1"
+horizontal_alignment = 1
+
+[node name="DeviceLabel" type="Label" parent="Content/Info"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+modulate = Color(1, 1, 1, 0.68)
+text = "Local Device"
+horizontal_alignment = 1

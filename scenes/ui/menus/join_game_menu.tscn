@@ -1,0 +1,150 @@
+[gd_scene format=3 uid="uid://caocns3y8vih7"]
+
+[ext_resource type="Script" uid="uid://bnpwgh8saxi1g" path="res://scripts/ui/JoinGameMenu.cs" id="1_joingame"]
+[ext_resource type="Texture2D" uid="uid://br73vluk3stln" path="res://assets/network/networkmodes/network_not_selected.svg" id="2_network_any"]
+[ext_resource type="Texture2D" uid="uid://boqnysulqxwin" path="res://assets/network/networkmodes/network_lan.svg" id="3_network_lan"]
+[ext_resource type="Texture2D" uid="uid://2gpufkn1jkih" path="res://assets/network/networkmodes/network_online.svg" id="4_network_online"]
+[ext_resource type="Texture2D" uid="uid://bnkssvlrb0114" path="res://assets/network/networkmodes/network_client.svg" id="5_network_client"]
+[ext_resource type="Texture2D" uid="uid://gx3hs38p8aox" path="res://assets/ui/back_arrow.svg" id="6_back_arrow"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_popup_backdrop"]
+bg_color = Color(0, 0, 0, 0.45)
+
+[node name="JoinGameMenu" type="Control" unique_id=983998047]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_joingame")
+
+[node name="MainLayout" type="VBoxContainer" parent="." unique_id=1283812596]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -430.0
+offset_top = -320.0
+offset_right = 430.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 22
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout" unique_id=1169485745]
+layout_mode = 2
+theme_override_font_sizes/font_size = 44
+text = "Join Game"
+horizontal_alignment = 1
+
+[node name="Actions" type="HBoxContainer" parent="MainLayout" unique_id=630691388]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="QuickmatchButton" type="Button" parent="MainLayout/Actions" unique_id=396291002]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+text = "Quickmatch"
+icon = ExtResource("2_network_any")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="BrowseLocalButton" type="Button" parent="MainLayout/Actions" unique_id=410555763]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+text = "Local"
+icon = ExtResource("3_network_lan")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="BrowseOnlineButton" type="Button" parent="MainLayout/Actions" unique_id=951788011]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+text = "Online"
+icon = ExtResource("4_network_online")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="JoinIpButton" type="Button" parent="MainLayout/Actions" unique_id=58353763]
+custom_minimum_size = Vector2(160, 160)
+layout_mode = 2
+text = "Join IP"
+icon = ExtResource("5_network_client")
+icon_alignment = 1
+vertical_icon_alignment = 0
+expand_icon = true
+
+[node name="BackButton" type="Button" parent="MainLayout" unique_id=447274338]
+custom_minimum_size = Vector2(156, 52)
+layout_mode = 2
+text = "Back"
+icon = ExtResource("6_back_arrow")
+expand_icon = true
+
+[node name="JoinAddressPopup" type="PanelContainer" parent="." unique_id=565039378]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_popup_backdrop")
+
+[node name="CenterContainer" type="CenterContainer" parent="JoinAddressPopup" unique_id=1943164205]
+layout_mode = 2
+
+[node name="PopupPanel" type="PanelContainer" parent="JoinAddressPopup/CenterContainer" unique_id=692018651]
+custom_minimum_size = Vector2(560, 240)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="JoinAddressPopup/CenterContainer/PopupPanel" unique_id=531084469]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 22
+
+[node name="Content" type="VBoxContainer" parent="JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer" unique_id=209228835]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="TitleLabel" type="Label" parent="JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content" unique_id=139410267]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Join IP"
+horizontal_alignment = 1
+
+[node name="MessageLabel" type="Label" parent="JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content" unique_id=993887899]
+layout_mode = 2
+text = "Enter an address or address:port. Default port is 12000."
+horizontal_alignment = 1
+
+[node name="AddressInput" type="LineEdit" parent="JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content" unique_id=323653080]
+custom_minimum_size = Vector2(480, 54)
+layout_mode = 2
+placeholder_text = "127.0.0.1:12000"
+
+[node name="Actions" type="HBoxContainer" parent="JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content" unique_id=606924779]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/Actions" unique_id=1432206001]
+custom_minimum_size = Vector2(180, 54)
+layout_mode = 2
+text = "Back"
+
+[node name="JoinButton" type="Button" parent="JoinAddressPopup/CenterContainer/PopupPanel/MarginContainer/Content/Actions" unique_id=9676131]
+custom_minimum_size = Vector2(180, 54)
+layout_mode = 2
+text = "Join"

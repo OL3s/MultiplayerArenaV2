@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>BACKSPACE key icon</title>
+  <rect x="8" y="34" width="112" height="60" rx="24" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 0V14" transform="translate(20.00 50.61) scale(1.9130)"/>
+    <path d="M2 0H6.2Q9 0 9 3.4Q9 6.6 6.2 6.8H2" transform="translate(20.00 50.61) scale(1.9130)"/>
+    <path d="M2 6.8H6.6Q9.5 6.8 9.5 10.4Q9.5 14 6.4 14H2" transform="translate(20.00 50.61) scale(1.9130)"/>
+    <path d="M1 14L5 0L9 14" transform="translate(42.96 50.61) scale(1.9130)"/>
+    <path d="M2.4 9H7.6" transform="translate(42.96 50.61) scale(1.9130)"/>
+    <path d="M9 2Q7.5 0 5 0Q1.5 0 1.5 7Q1.5 14 5 14Q7.5 14 9 12" transform="translate(65.91 50.61) scale(1.9130)"/>
+    <path d="M2 0V14" transform="translate(88.87 50.61) scale(1.9130)"/>
+    <path d="M8.5 0L2.5 7L8.8 14" transform="translate(88.87 50.61) scale(1.9130)"/>
+  </g>
+</svg>

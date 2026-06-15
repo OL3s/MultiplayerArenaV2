@@ -36,13 +36,13 @@ private readonly Dictionary<Vector2I, WallDamageData> _hitWallTiles = new();
 
 ## Debug Tile Assets
 
-- `Assets/Tiles/debug_floor_wall_atlas.svg` is a temporary SVG atlas with `32x16` debug tiles.
+- `assets/tiles/debug_floor_wall_atlas.svg` is a temporary SVG atlas with `32x16` debug tiles.
 - The top tile is floor at atlas coordinate `(0, 0)`.
 - The bottom tile is wall at atlas coordinate `(0, 1)`.
-- `Assets/Tiles/debug_wall_damage_overlay.svg` is a temporary separate SVG atlas for wall-damage overlay visuals.
+- `assets/tiles/debug_wall_damage_overlay.svg` is a temporary separate SVG atlas for wall-damage overlay visuals.
 - The top tile is a light damage overlay at atlas coordinate `(0, 0)`.
 - The bottom tile is a heavy damage overlay at atlas coordinate `(0, 1)`.
-- Layer TileSet resources live in `Assets/Tiles/TileSets/` as separate `.tres` files for floor, wall, and wall-damage overlay rendering.
+- Layer TileSet resources live in `assets/tiles/tilesets/` as separate `.tres` files for floor, wall, and wall-damage overlay rendering.
 
 ## Current Map Data Classes
 
@@ -71,7 +71,7 @@ private readonly Dictionary<Vector2I, WallDamageData> _hitWallTiles = new();
 - `LevelPropData` defines prop type, visual path, hitbox size, health, and armor.
 - `LevelProp` is the temporary runtime prop node used in test scenes.
 - `LevelPropType` currently supports `Barrel`, `Rock`, and `Tree`.
-- Prop SVG assets live in `Assets/Props/` and are horizontal three-frame damage atlases: perfect, touched, and close-to-broken.
+- Prop SVG assets live in `assets/props/` and are horizontal three-frame damage atlases: perfect, touched, and close-to-broken.
 - Barrel and rock are `16x16`; tree is `16x32`.
 - Props use the same `HealthContainer` and `DamageContainer` path as players and walls.
 - Prop damage stages use the same health-ratio thresholds as wall damage overlays: perfect above or at 90% health, touched below 90%, and close-to-broken below 50%.

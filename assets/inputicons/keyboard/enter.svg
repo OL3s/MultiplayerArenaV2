@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>ENTER key icon</title>
+  <path d="M16 32H100Q112 32 112 44V84Q112 96 100 96H28Q16 96 16 84V32Z" fill="#1F2937" stroke="#E8EDF2" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M84 46V63Q84 72 75 72H45" fill="none" stroke="#E8EDF2" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M55 58L41 72L55 86" fill="none" stroke="#E8EDF2" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

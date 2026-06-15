@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>CTRL key icon</title>
+  <rect x="8" y="34" width="112" height="60" rx="24" fill="#1F2937" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 2Q7.5 0 5 0Q1.5 0 1.5 7Q1.5 14 5 14Q7.5 14 9 12" transform="translate(21.00 50.91) scale(1.8696)"/>
+    <path d="M1 0H9" transform="translate(43.43 50.91) scale(1.8696)"/>
+    <path d="M5 0V14" transform="translate(43.43 50.91) scale(1.8696)"/>
+    <path d="M2 14V0H6Q9 0 9 4Q9 8 6 8H2" transform="translate(65.87 50.91) scale(1.8696)"/>
+    <path d="M5.8 8L9 14" transform="translate(65.87 50.91) scale(1.8696)"/>
+    <path d="M2 0V14H8.5" transform="translate(88.30 50.91) scale(1.8696)"/>
+  </g>
+</svg>

@@ -16,12 +16,29 @@ The player model should be dynamic. A network peer is a device/connection, not n
 
 The main menu should include a lobby system where local players are selected before hosting or joining. The local lobby target is 4 slots per device.
 
+The main menu Host action should always be visible and usable so a device can start a host/server lobby without local players. Join Game and Reset Players should only appear after at least one local player is active in the local lobby config.
+
 On PC, supported local lobby setups should include:
 
 - 1 keyboard/mouse player and up to 3 gamepad players.
 - Up to 4 gamepad players.
+- 1 touchscreen player by touching/clicking the visible empty player card in the main menu.
+
+Main menu local-player configuration guards enforce at most one keyboard/mouse player and at most one touchscreen player per device. Gamepad uniqueness is still per gamepad device id.
 
 Local lobby slots should be stored as `LocalPlayerData` resources inside `LocalLobbyData`. This keeps local input ownership separate from online player replication and makes it possible for one peer/device to request several in-game players.
+
+In-match local player HUD should follow the same model. UI panels should be created per local player on the current device, up to 4 panels, rather than per network peer. Each panel should use `PlayerData.GlobalId` for runtime gameplay lookup and `PlayerData.LocalId` for local layout/input identity.
+
+## Team Autofill
+
+Non-local host lobbies expose autofill actions for 2, 3, and 4 teams. Autofill assignment is server-authoritative: clients may request autofill through RPC, but only the authoritative server applies the assignment and syncs the resulting peer team updates back to peers.
+
+Autofill assigns whole peer/device groups, not individual players, so all split-screen players from the same peer stay on the same team.
+
+The current autofill algorithm groups players by `PeerId`, sorts larger peer groups first, then places each group onto the team with the lowest assigned player count. Ties prefer the team with fewer peer groups, then the lowest team id. This keeps team sizes as balanced as possible while preserving peer grouping.
+
+Local-only lobbies keep their separate `FFA` and `TEAM` buttons because local-only can intentionally split players from the same process across teams without network peer ownership concerns.
 
 ## Identity Rules
 
@@ -68,6 +85,8 @@ The host menu should expose `Local`, `Lan`, and `Online`. A separate dedicated-s
 Current mode distinction:
 
 - `Local` means the match is contained inside this one running process. It is not LAN and should not create a network peer or open a port.
+- The Local lobby hides connection settings but keeps map/game Match Config available. It uses local-only team mode buttons instead of peer/team assignment: `FFA` assigns each local player to their own team, while `TEAM` assigns local player slots 1 and 3 to Team 1 and slots 2 and 4 to Team 2.
+- Entering a Local lobby applies `FFA` immediately so local players do not initially appear stacked on Team 1.
 - `Lan` and `Online` are both real network modes. For now they use the same direct host/client transport behavior.
 - `Lan` is the default private/direct mode.
 - `Online` is reserved for public/internet-facing host flow.
@@ -91,8 +110,8 @@ Current implementation note:
 ## Runtime Network Debug UI
 
 - The `Networking` autoload creates a small always-on-top network mode icon in the top-left corner for debug builds/runs.
-- The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `Assets/Network/NetworkModes/`.
-- Non-client modes also show a small peer-count label beside the icon so host/server peer state is readable while developing.
+- The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `assets/network/networkmodes/`.
+- The debug overlay shows the current peer count and accepted player count beside the network-mode icon so host/server lobby state is readable while developing.
 - `SettingsConfig.ShowNetworkDebugOverlay` controls whether the network debug overlay is visible.
 - The setting is exposed in the main menu Settings screen under the `Online` tab.
 - A separate connection-lost icon is shown when a client connection fails or an already-connected client loses the server. This is a debug/display state exposed through `Networking.HasLostConnection`, not a separate `NetworkMode`.
@@ -101,7 +120,7 @@ Current implementation note:
 
 ## Settings Menu
 
-- `Scenes/UI/SettingsMenu.tscn` is the current settings entry point from the main menu.
+- `scenes/ui/menus/settings_menu.tscn` is the current settings entry point from the main menu.
 - `SettingsConfig` is the shared settings resource owned by the `Networking` autoload for now.
 - `SettingsConfig.LoadOrCreate()` loads `user://settings_config.tres` or returns defaults, and `SettingsConfig.Save()` persists the current resource to the same path.
 - The settings menu currently has placeholder tabs for `Video`, `Sound`, `Controls`, and `Gameplay`, plus an `Online` tab with the network debug overlay toggle and Apply button.
@@ -116,12 +135,36 @@ Important identity rule: `PlayerData` is looked up by `(PeerId, LocalId)`, not b
 
 Real team ids currently run from `1` to `4`. Team `0` is treated as an auto-assign request, not a persistent gameplay team. Team resolution is peer-based for the current lobby model.
 
-The match lobby shows a small top-left setup summary, a centered players section, and a right-side config section. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped under clickable team headers like `[Auto-Assign]`, `[Team 1]`, `[Team 2]`, `[Team 3]`, and `[Team 4]`.
+The match lobby shows a centered players section and a right-side config section. The network-mode debug overlay owns mode/peer/player summary display, so the match lobby should not duplicate that summary panel. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped into reusable `LobbyTeamContainer` scene instances for `Team 1` through `Team 4`. The team section uses a generic 2x2 grid so the default 16:9 lobby fits all four teams without vertical scrolling. Each team container represents the current 4-player-per-team cap with a horizontal row of four player slots. Occupied slots use player cards; empty slots use `LobbyEmptyPlayerSlot` scene instances and stay visible as open capacity.
+
+When the host Start Match action is visually grayed out, it should remain clickable and show a popup explaining the blocking reason instead of silently doing nothing. Current blocking reasons include pending config changes, no selected mode, missing biomes, missing structures, or no game modes.
+
+Lobby team UI should stay scene-driven for easier iteration in the Godot editor:
+
+- `scenes/ui/lobby/lobby_team_container.tscn`: one team container, compact team label, small assign action, and player-slot row.
+- `scenes/ui/lobby/lobby_player_card.tscn`: one occupied player slot.
+- `scenes/ui/lobby/lobby_empty_player_slot.tscn`: one open player slot.
+- `assets/ui/styles/lobby_*.tres`: reusable `StyleBoxFlat` resources for lobby panels, team containers, player cards, and empty slots. Put padding/content margins in these resources so containers do not hug their contents or surrounding edges.
+- `assets/ui/start_match.svg`: start-match button icon.
+- `assets/ui/config_connection.svg`, `config_biome.svg`, `config_structure.svg`, and `config_game.svg`: Match Config category/action icons.
+- `assets/ui/biome_plains.svg`, `biome_arena.svg`, and `structure_arena.svg`: option icons used by the map setup selector overlay and selected map setup buttons.
+- `assets/ui/styles/lobby_config_category.tres`, `lobby_apply_button.tres`, and `lobby_revert_button.tres`: Match Config section and action-button styles.
+
+Do not rebuild team containers, player cards, or empty slots entirely in `MatchLobby.cs`; use the scenes above and keep `MatchLobby.cs` responsible for data binding and lobby actions.
+
+Team visuals are centralized in `scripts/ui/TeamVisuals.cs`. The first shared team palette is:
+
+- Team 1: red, `Color(0.95, 0.22, 0.26)`.
+- Team 2: blue, `Color(0.20, 0.55, 1.00)`.
+- Team 3: green, `Color(0.22, 0.78, 0.38)`.
+- Team 4: amber, `Color(1.00, 0.72, 0.18)`.
+
+Autofill is not rendered as a team container. It is a separate host lobby action with 2-team, 3-team, and 4-team options. Manual team assignment still uses team container assign buttons for a peer/device.
 
 ## LAN Host Port Behavior
 
-- LAN/server hosting no longer hard-locks to port `7777`.
-- Hosting now scans from `7700` through `8700` and binds to the first available port.
+- LAN/server hosting no longer hard-locks to a single fixed port.
+- Hosting now starts at port `12000`, scans outward within `11000` through `13000`, and binds to the first available port.
 - The selected port is written back into setup state and used for LAN discovery responses and direct joins.
 - TODO later: allow choosing and preferring a specific port before falling back to the auto-increment scan.
 
@@ -131,13 +174,25 @@ Match setup should be resource-driven. `SetupConfig` owns the selected/available
 
 Game modes are represented as `GameModeConfig` resources in an array so multiple modes can be enabled for voting, rotation, quickmatch filtering, or future playlist logic. Map and biome setup are separate resources so procedural generation can grow without turning `SetupConfig` into a large flat object.
 
-The match lobby config UI should edit these resources directly through grouped sections for internet settings, map/biome settings, and game settings.
+The match lobby config UI should edit these resources directly through grouped sections for internet settings, map/biome settings, and game settings. For the MVP lobby, map seeds are always random and the seed picker is intentionally hidden. `MapGenerationConfig` still keeps seed fields for later debug/custom-match flows, but the normal match lobby should normalize `SelectedSeedMode` to `AlwaysRandom`.
+
+MVP map setup should stay intentionally narrow while the first playable slice is being chased:
+
+- Structures: only `Arena` is exposed in the match lobby.
+- Biomes: only `Plains` and `Arena` are exposed in the match lobby.
+- The structure and biome enums should only contain implemented/actively targeted values. Add new enum values one at a time when the corresponding map generation/content work starts.
+- The structure/biome selector overlay should show option icons, include `All` and `None` actions, and keep `Close` disabled until at least one option is selected.
+- Match Config map option buttons show the category label above the icon and the selected value below it. They use the generic category icon for multi-selection/all states, and switch to the selected option icon when exactly one biome or structure is selected.
+- The selector overlay action order is `Back`, `Clear`, `All`. `Clear` and game-mode playlist `Clear` use `assets/ui/reset_revert.svg`. `All` uses `assets/ui/select_all.svg`. Back-style overlay actions use `assets/ui/back_arrow.svg`.
+- The main menu Reset Players action also uses `assets/ui/reset_revert.svg` so reset/remove-all actions share one visual language.
 
 ## Overlay UI
 
 Overlay UI should be managed through a reusable `SceneOverlay` scene, and it is not an autoload in this project. Instead, game code should call `SceneOverlay.GetOrCreate(context)` so the overlay layer is created inside the current room/current scene only when needed.
 
 `SceneOverlay` can add overlays from a `Control` instance or `PackedScene`, close the top overlay, close all overlays, and optionally enable a blur backdrop for any overlay, not just popup panels.
+
+Join IP uses the reusable `SceneOverlay` blur backdrop when its address panel is open.
 
 ## RPC Update Methods
 

@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="PlayerItemShootable" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/PlayerItemShootable.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/items/modern/weapons/smg_t1.svg" id="2_texture"]
+[ext_resource type="Resource" path="res://assets/projectiles/data/bullet_smg.tres" id="3_projectile"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "smg_t1"
+DisplayName = "Smg-T1"
+Theme = 1
+Cost = 650
+Weight = 2.0
+HeldTexture = ExtResource("2_texture")
+RecoverySeconds = 0.10
+IsFullAuto = true
+Range = 500.0
+AimDisplayRange = 170.0
+AimMoveSpeedMultiplier = 0.95
+DefaultAccuracy = 0.05
+MovementAccuracy = 0.085
+AccuracyPushback = 0.024
+ShotAccuracyRecovery = 0.28
+MovementAccuracyRecovery = 0.65
+MaxInaccuracy = 0.30
+Projectile = ExtResource("3_projectile")
+MagazineSize = 24
+ShotsPerSecond = 10.0

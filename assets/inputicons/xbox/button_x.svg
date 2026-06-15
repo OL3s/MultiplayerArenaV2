@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>X button icon</title>
+  <circle cx="64" cy="64" r="50" fill="#2563EB" stroke="#E8EDF2" stroke-width="8"/>
+  <g fill="none" stroke="#E8EDF2" stroke-width="6.0" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1.5 0L8.5 14" transform="translate(50.43 45.00) scale(2.7143)"/>
+    <path d="M8.5 0L1.5 14" transform="translate(50.43 45.00) scale(2.7143)"/>
+  </g>
+</svg>

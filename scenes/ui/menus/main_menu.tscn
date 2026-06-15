@@ -1,0 +1,242 @@
+[gd_scene load_steps=10 format=3 uid="uid://cqb3ugv7ettpp"]
+
+[ext_resource type="Script" uid="uid://btib1l2dguqjn" path="res://scripts/ui/MainMenu.cs" id="1_mainmenu"]
+[ext_resource type="Texture2D" uid="uid://boqnysulqxwin" path="res://assets/network/networkmodes/network_lan.svg" id="4_network_lan"]
+[ext_resource type="Texture2D" uid="uid://bnkssvlrb0114" path="res://assets/network/networkmodes/network_client.svg" id="5_network_client"]
+[ext_resource type="Texture2D" path="res://assets/ui/test_scenes.svg" id="6_test_scenes"]
+[ext_resource type="Texture2D" path="res://assets/ui/settings_cog.svg" id="6_settings_cog"]
+[ext_resource type="Texture2D" path="res://assets/ui/exit_power.svg" id="7_exit_power"]
+[ext_resource type="Texture2D" path="res://assets/ui/reset_revert.svg" id="8_reset_revert"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot_card"]
+bg_color = Color(0.135, 0.16, 0.2, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.43, 0.5, 0.6, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+
+[node name="MainMenu" type="Control" unique_id=585385200]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mainmenu")
+
+[node name="MainLayout" type="VBoxContainer" parent="." unique_id=1812220902]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -520.0
+offset_top = -310.0
+offset_right = 520.0
+offset_bottom = 310.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 28
+alignment = 1
+
+[node name="TitlePanel" type="VBoxContainer" parent="MainLayout" unique_id=719277871]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout/TitlePanel" unique_id=720226227]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "Multiplayer Arena"
+horizontal_alignment = 1
+
+[node name="PlayerCardsCenter" type="CenterContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="LobbySlotsPanel" type="HBoxContainer" parent="MainLayout/PlayerCardsCenter" unique_id=351143914]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Slot1" type="VBoxContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel" unique_id=1684502088]
+custom_minimum_size = Vector2(180, 182)
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="PlayerIdBadgeSlot" type="CenterContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot1"]
+custom_minimum_size = Vector2(180, 28)
+layout_mode = 2
+
+[node name="CardPanel" type="PanelContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot1"]
+custom_minimum_size = Vector2(180, 150)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_slot_card")
+
+[node name="SlotLabel" type="Label" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot1/CardPanel" unique_id=927303613]
+layout_mode = 2
+text = "Player 1
+Waiting
+Empty"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot2" type="VBoxContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel" unique_id=1987712321]
+custom_minimum_size = Vector2(180, 182)
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="PlayerIdBadgeSlot" type="CenterContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot2"]
+custom_minimum_size = Vector2(180, 28)
+layout_mode = 2
+
+[node name="CardPanel" type="PanelContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot2"]
+custom_minimum_size = Vector2(180, 150)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_slot_card")
+
+[node name="SlotLabel" type="Label" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot2/CardPanel" unique_id=152699815]
+layout_mode = 2
+text = "Player 2
+Waiting
+Empty"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot3" type="VBoxContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel" unique_id=1007313727]
+custom_minimum_size = Vector2(180, 182)
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="PlayerIdBadgeSlot" type="CenterContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot3"]
+custom_minimum_size = Vector2(180, 28)
+layout_mode = 2
+
+[node name="CardPanel" type="PanelContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot3"]
+custom_minimum_size = Vector2(180, 150)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_slot_card")
+
+[node name="SlotLabel" type="Label" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot3/CardPanel" unique_id=594697321]
+layout_mode = 2
+text = "Player 3
+Waiting
+Empty"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot4" type="VBoxContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel" unique_id=237115865]
+custom_minimum_size = Vector2(180, 182)
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="PlayerIdBadgeSlot" type="CenterContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot4"]
+custom_minimum_size = Vector2(180, 28)
+layout_mode = 2
+
+[node name="CardPanel" type="PanelContainer" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot4"]
+custom_minimum_size = Vector2(180, 150)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_slot_card")
+
+[node name="SlotLabel" type="Label" parent="MainLayout/PlayerCardsCenter/LobbySlotsPanel/Slot4/CardPanel" unique_id=1925248993]
+layout_mode = 2
+text = "Player 4
+Waiting
+Empty"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ActionButtons" type="HBoxContainer" parent="MainLayout" unique_id=732875871]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="HostGameButton" type="Button" parent="MainLayout/ActionButtons" unique_id=751666647]
+custom_minimum_size = Vector2(240, 72)
+layout_mode = 2
+focus_neighbor_left = NodePath("../JoinGameButton")
+focus_neighbor_top = NodePath("../../../TopRightButtons/ExitGameButton")
+focus_neighbor_right = NodePath("../JoinGameButton")
+text = "Host Game"
+icon = ExtResource("4_network_lan")
+
+[node name="JoinGameButton" type="Button" parent="MainLayout/ActionButtons" unique_id=709071615]
+custom_minimum_size = Vector2(240, 72)
+layout_mode = 2
+focus_neighbor_left = NodePath("../HostGameButton")
+focus_neighbor_top = NodePath("../../../TopRightButtons/ExitGameButton")
+focus_neighbor_right = NodePath("../ResetPlayersButton")
+text = "Join Game"
+icon = ExtResource("5_network_client")
+
+[node name="ResetPlayersButton" type="Button" parent="MainLayout/ActionButtons"]
+custom_minimum_size = Vector2(180, 72)
+layout_mode = 2
+focus_neighbor_left = NodePath("../JoinGameButton")
+focus_neighbor_top = NodePath("../../../TopRightButtons/ExitGameButton")
+focus_neighbor_right = NodePath("../HostGameButton")
+text = "Reset Players"
+icon = ExtResource("8_reset_revert")
+
+[node name="TopRightButtons" type="HBoxContainer" parent="." unique_id=1018414908]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -187.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 64.0
+grow_horizontal = 0
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="TestScenesButton" type="Button" parent="TopRightButtons"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+focus_neighbor_right = NodePath("../SettingsButton")
+focus_neighbor_bottom = NodePath("../../MainLayout/ActionButtons/HostGameButton")
+icon = ExtResource("6_test_scenes")
+icon_max_width = 22
+expand_icon = true
+
+[node name="SettingsButton" type="Button" parent="TopRightButtons" unique_id=650086488]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+focus_neighbor_left = NodePath("../TestScenesButton")
+focus_neighbor_right = NodePath("../ExitGameButton")
+focus_neighbor_bottom = NodePath("../../MainLayout/ActionButtons/HostGameButton")
+icon = ExtResource("6_settings_cog")
+icon_max_width = 22
+expand_icon = true
+
+[node name="ExitGameButton" type="Button" parent="TopRightButtons" unique_id=288126945]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+focus_neighbor_left = NodePath("../SettingsButton")
+focus_neighbor_bottom = NodePath("../../MainLayout/ActionButtons/HostGameButton")
+icon = ExtResource("7_exit_power")
+icon_max_width = 22
+expand_icon = true
