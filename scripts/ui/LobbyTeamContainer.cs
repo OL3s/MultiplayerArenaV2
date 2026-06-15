@@ -22,8 +22,9 @@ public partial class LobbyTeamContainer : PanelContainer {
         PackedScene emptySlotScene,
         bool canAssign) {
         _teamId = teamId;
-        AddThemeStyleboxOverride("panel", TeamVisuals.GetTeamPanelStyle(teamId));
-        GetNode<Label>("Content/TeamMeta/TeamLabel").Text = $"Team {teamId}";
+        var displayTeamId = GetDisplayTeamId(teamId);
+        AddThemeStyleboxOverride("panel", TeamVisuals.GetTeamPanelStyle(displayTeamId));
+        GetNode<Label>("Content/TeamMeta/TeamLabel").Text = $"Team {displayTeamId}";
 
         var assignButton = AssignButton;
         assignButton.Visible = canAssign;
@@ -39,16 +40,20 @@ public partial class LobbyTeamContainer : PanelContainer {
                 break;
 
             var playerCard = playerCardScene.Instantiate<LobbyPlayerCard>();
-            playerCard.SetPlayer(playerData, teamId);
+            playerCard.SetPlayer(playerData, displayTeamId);
             playerCards.AddChild(playerCard);
             shownPlayers++;
         }
 
         for (var emptySlotIndex = shownPlayers; emptySlotIndex < MaxPlayersPerTeam; emptySlotIndex++) {
             var emptySlot = emptySlotScene.Instantiate<LobbyEmptyPlayerSlot>();
-            emptySlot.SetTeam(teamId);
+            emptySlot.SetTeam(displayTeamId);
             playerCards.AddChild(emptySlot);
         }
+    }
+
+    private static int GetDisplayTeamId(int backendTeamId) {
+        return backendTeamId + 1;
     }
 
     private void OnAssignPressed() {

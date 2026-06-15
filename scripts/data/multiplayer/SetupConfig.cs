@@ -225,6 +225,8 @@ public partial class SetupConfig : Resource {
             var defaultGameModes = new[] {
                 GameModeConfig.GameModeType.Deathmatch,
                 GameModeConfig.GameModeType.CaptureTheFlag,
+                GameModeConfig.GameModeType.KingOfTheHill,
+                GameModeConfig.GameModeType.Headquarters,
             };
 
             foreach (var modeType in defaultGameModes) {
@@ -241,7 +243,7 @@ public partial class SetupConfig : Resource {
         }
 
         if (BiomeConfig.EnabledBiomes.Count == 0) {
-            BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Plains);
+            BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Woods);
             BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Arena);
         }
     }
@@ -250,6 +252,8 @@ public partial class SetupConfig : Resource {
         return modeType switch {
             GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
             GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
+            GameModeConfig.GameModeType.KingOfTheHill => "King of the Hill",
+            GameModeConfig.GameModeType.Headquarters => "Headquarters",
             _ => modeType.ToString(),
         };
     }

@@ -147,7 +147,7 @@ Peers and players should be separate arrays. `PeerData` describes the connected 
 
 Important identity rule: `PlayerData` is looked up by `(PeerId, LocalId)`, not by `GlobalId`. `LocalId` can repeat across peers, because every machine has its own local player `0`, `1`, `2`, etc. `PeerId` disambiguates which device that local player belongs to.
 
-Real team ids currently run from `1` to `4`. Team `0` is treated as an auto-assign request, not a persistent gameplay team. Team resolution is peer-based for the current lobby model.
+Backend team ids currently run from `0` to `3`. Team `-1` is treated as unassigned/auto-assign, not a persistent gameplay team. Player-facing UI labels and palette names display those teams as `1` through `4` by adding `+1` at the presentation boundary. Team resolution is peer-based for the current lobby model, except local-only split-screen modes can assign individual local players directly.
 
 The match lobby shows a centered players section and a right-side config section. The network-mode debug overlay owns mode/peer/player summary display, so the match lobby should not duplicate that summary panel. Players are rendered through reusable `LobbyPlayerCard` scene instances and grouped into reusable `LobbyTeamContainer` scene instances for `Team 1` through `Team 4`. The team section uses a generic 2x2 grid so the default 16:9 lobby fits all four teams without vertical scrolling. Each team container represents the current 4-player-per-team cap with a horizontal row of four player slots. Occupied slots use player cards; empty slots use `LobbyEmptyPlayerSlot` scene instances and stay visible as open capacity.
 
@@ -161,7 +161,8 @@ Lobby team UI should stay scene-driven for easier iteration in the Godot editor:
 - `assets/ui/styles/lobby_*.tres`: reusable `StyleBoxFlat` resources for lobby panels, team containers, player cards, and empty slots. Put padding/content margins in these resources so containers do not hug their contents or surrounding edges.
 - `assets/ui/start_match.svg`: start-match button icon.
 - `assets/ui/config_connection.svg`, `config_biome.svg`, `config_structure.svg`, and `config_game.svg`: Match Config category/action icons.
-- `assets/ui/biome_plains.svg`, `biome_arena.svg`, and `structure_arena.svg`: option icons used by the map setup selector overlay and selected map setup buttons.
+- `assets/ui/biome_woods.svg`, `biome_arena.svg`, `structure_arena.svg`, `structure_plains.svg`, and `structure_square.svg`: option icons used by the map setup selector overlay and selected map setup buttons.
+- `assets/ui/game_mode_deathmatch.svg`, `game_mode_capture_the_flag.svg`, `game_mode_king_of_the_hill.svg`, and `game_mode_headquarters.svg`: game-mode catalog icons.
 - `assets/ui/styles/lobby_config_category.tres`, `lobby_apply_button.tres`, and `lobby_revert_button.tres`: Match Config section and action-button styles.
 
 Do not rebuild team containers, player cards, or empty slots entirely in `MatchLobby.cs`; use the scenes above and keep `MatchLobby.cs` responsible for data binding and lobby actions.
@@ -172,6 +173,8 @@ Team visuals are centralized in `scripts/ui/TeamVisuals.cs`. The first shared te
 - Team 2: blue, `Color(0.20, 0.55, 1.00)`.
 - Team 3: green, `Color(0.22, 0.78, 0.38)`.
 - Team 4: amber, `Color(1.00, 0.72, 0.18)`.
+
+Gameplay sprites that need team color should use neutral white-gray/grayscale source SVGs and runtime modulation through this palette. This includes player body sprites and team spawn base/core/platform sprites. Backend gameplay team ids are `0-3`; player-facing palette names are `1-4`, so runtime gameplay sprites map with `teamId + 1`.
 
 Autofill is not rendered as a team container. It is a separate host lobby action with 2-team, 3-team, and 4-team options. Manual team assignment still uses team container assign buttons for a peer/device.
 
@@ -192,8 +195,8 @@ The match lobby config UI should edit these resources directly through grouped s
 
 MVP map setup should stay intentionally narrow while the first playable slice is being chased:
 
-- Structures: only `Arena` is exposed in the match lobby.
-- Biomes: only `Plains` and `Arena` are exposed in the match lobby.
+- Structures: `Arena`, `Plains`, and `Square` are exposed in the match lobby. Structure selection is the gameplay-layout choice and should drive area shape, team base/objective centers, team spawn placement around those objectives, core neutral objective placement, secondary neutral objective candidate placement, and item spawn placement. `Arena` is currently the fixed non-random plus-shape structure; `Square` is the simple square-room test structure.
+- Biomes: only `Woods` and `Arena` are exposed in the match lobby.
 - The structure and biome enums should only contain implemented/actively targeted values. Add new enum values one at a time when the corresponding map generation/content work starts.
 - The structure/biome selector overlay should show option icons, include `All` and `None` actions, and keep `Close` disabled until at least one option is selected.
 - Match Config map option buttons show the category label above the icon and the selected value below it. They use the generic category icon for multi-selection/all states, and switch to the selected option icon when exactly one biome or structure is selected.
@@ -229,7 +232,9 @@ The public `UpdateXYZ` methods are the preferred API for game code. They should 
 ```csharp
 public partial class MultiplayerData : Resource
 {
-    public const int DefaultTeamId = 0;
+    public const int DefaultTeamId = -1;
+    public const int MinTeamId = 0;
+    public const int MaxTeamId = 3;
     public Godot.Collections.Array<PeerData> Peers { get; set; } = new();
     public Godot.Collections.Array<PlayerData> Players { get; set; } = new();
     public SetupConfig SetupConfig { get; set; } = new();
@@ -267,7 +272,7 @@ public partial class MapGenerationConfig : Resource
 
 public partial class BiomeConfig : Resource
 {
-    public enum BiomeType { Plains, Arena, Tundra, Urban, Jungle, Forest, Desert, Snow, Industrial }
+    public enum BiomeType { Woods, Arena, Tundra, Urban, Jungle, Forest, Desert, Snow, Industrial }
     public Godot.Collections.Array<BiomeType> EnabledBiomes { get; set; } = new();
 }
 ```

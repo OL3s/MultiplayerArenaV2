@@ -21,6 +21,7 @@ The root `README.md` should stay concise and newcomer-friendly. Detailed technic
 | Shared runtime logging format and `GameLog` usage | [Game Logging](game-logging.md) |
 | Destructible walls, props, tile rendering, combat damage model | [Destructible Environment](destructible-environment.md) |
 | Current combat and LAN player/item handoff | [Combat LAN Test Handoff](combat-lan-test-handoff.md) |
+| Structure-driven team spawns, team objectives, neutral objectives, and respawn flow | [Spawning And Objectives](spawning-and-objectives.md) |
 | Asset folder ownership and visual role rules | [Asset Organization](asset-organization.md) |
 | SVG input icon generation rules | [SVG Input Icon Generation](svg-input-icon-generation.md) |
 

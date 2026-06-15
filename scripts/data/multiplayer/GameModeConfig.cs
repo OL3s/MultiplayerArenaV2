@@ -5,6 +5,8 @@ public partial class GameModeConfig : Resource {
     public enum GameModeType {
         Deathmatch,
         CaptureTheFlag,
+        KingOfTheHill,
+        Headquarters,
     }
 
     [Export]

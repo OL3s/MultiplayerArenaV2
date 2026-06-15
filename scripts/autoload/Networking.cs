@@ -106,6 +106,7 @@ public partial class Networking : Node {
     private TextureRect _networkModeDebugIcon;
     private Label _networkModeDebugPeerLabel;
     private string _lastLoggedRootScenePath = string.Empty;
+    private bool _suppressLobbyStateChanged;
 
     public override void _Ready() {
         GameLog.RegisterNetworking(this);
@@ -612,7 +613,7 @@ public partial class Networking : Node {
             return;
 
         foreach (var playerData in MultiplayerData.Players)
-            playerData.TeamId = global::MultiplayerData.NormalizeTeamId(playerData.LocalId + 1);
+            playerData.TeamId = global::MultiplayerData.NormalizeTeamId(playerData.LocalId);
 
         PrintMultiplayerLog(GameLogType.StateChange, "SetLocalPlayersFreeForAllTeams", $"players={MultiplayerData.Players.Count}");
         EmitLobbyStateChanged();
@@ -623,7 +624,7 @@ public partial class Networking : Node {
             return;
 
         foreach (var playerData in MultiplayerData.Players)
-            playerData.TeamId = playerData.LocalId % 2 == 0 ? 1 : 2;
+            playerData.TeamId = playerData.LocalId % 2 == 0 ? 0 : 1;
 
         PrintMultiplayerLog(GameLogType.StateChange, "SetLocalPlayersTwoTeams", $"players={MultiplayerData.Players.Count}");
         EmitLobbyStateChanged();
@@ -665,7 +666,7 @@ public partial class Networking : Node {
 
         var teamPlayerCounts = new Dictionary<int, int>();
         var teamPeerCounts = new Dictionary<int, int>();
-        for (var teamId = 1; teamId <= normalizedTeamCount; teamId++) {
+        for (var teamId = 0; teamId < normalizedTeamCount; teamId++) {
             teamPlayerCounts[teamId] = 0;
             teamPeerCounts[teamId] = 0;
         }
@@ -673,17 +674,23 @@ public partial class Networking : Node {
         foreach (var playerData in MultiplayerData.Players)
             playerData.TeamId = global::MultiplayerData.DefaultTeamId;
 
-        foreach (var peerGroup in peerGroups) {
-            var teamId = GetBestAutofillTeam(teamPlayerCounts, teamPeerCounts);
-            var peerData = GetOrCreatePeerData(peerGroup.PeerId);
-            UpdatePeer(
-                peerGroup.PeerId,
-                peerData.IsHost,
-                teamId,
-                peerData.RequestedLocalPlayerCount,
-                peerData.MaxLocalPlayers);
-            teamPlayerCounts[teamId] += peerGroup.PlayerCount;
-            teamPeerCounts[teamId]++;
+        _suppressLobbyStateChanged = true;
+        try {
+            foreach (var peerGroup in peerGroups) {
+                var teamId = GetBestAutofillTeam(teamPlayerCounts, teamPeerCounts);
+                var peerData = GetOrCreatePeerData(peerGroup.PeerId);
+                UpdatePeer(
+                    peerGroup.PeerId,
+                    peerData.IsHost,
+                    teamId,
+                    peerData.RequestedLocalPlayerCount,
+                    peerData.MaxLocalPlayers);
+                teamPlayerCounts[teamId] += peerGroup.PlayerCount;
+                teamPeerCounts[teamId]++;
+            }
+        }
+        finally {
+            _suppressLobbyStateChanged = false;
         }
 
         PrintMultiplayerLog(GameLogType.StateChange, "AutoAssignPeerTeams", $"teams={normalizedTeamCount} peerGroups={peerGroups.Count} players={MultiplayerData.Players.Count}");
@@ -703,6 +710,7 @@ public partial class Networking : Node {
             normalizedTeamId,
             peerData.RequestedLocalPlayerCount,
             peerData.MaxLocalPlayers);
+        SetPeerPlayersTeam(peerId, normalizedTeamId);
     }
 
     public void UpdateSetupConfig(
@@ -1028,6 +1036,7 @@ public partial class Networking : Node {
         peerData.TeamId = global::MultiplayerData.NormalizeTeamId(teamId);
         peerData.RequestedLocalPlayerCount = requestedLocalPlayerCount;
         peerData.MaxLocalPlayers = maxLocalPlayers;
+        SetPeerPlayersTeam(peerId, peerData.TeamId);
         EmitLobbyStateChanged();
     }
 
@@ -1407,7 +1416,7 @@ public partial class Networking : Node {
     }
 
     private static int GetBestAutofillTeam(Dictionary<int, int> teamPlayerCounts, Dictionary<int, int> teamPeerCounts) {
-        var bestTeamId = 1;
+        var bestTeamId = global::MultiplayerData.DefaultTeamId;
         var bestPlayerCount = int.MaxValue;
         var bestPeerCount = int.MaxValue;
         foreach (var teamPlayerCount in teamPlayerCounts) {
@@ -1439,7 +1448,7 @@ public partial class Networking : Node {
 
     private int GetLeastPopulatedTeamId(int excludedPeerId = -1) {
         var teamCounts = new Dictionary<int, int>();
-        for (var teamId = 1; teamId <= 4; teamId++)
+        for (var teamId = 0; teamId < 4; teamId++)
             teamCounts[teamId] = 0;
 
         foreach (var playerData in MultiplayerData.Players) {
@@ -1453,9 +1462,9 @@ public partial class Networking : Node {
             teamCounts[playerTeamId]++;
         }
 
-        var bestTeamId = 1;
+        var bestTeamId = global::MultiplayerData.DefaultTeamId;
         var bestCount = int.MaxValue;
-        for (var teamId = 1; teamId <= 4; teamId++) {
+        for (var teamId = 0; teamId < 4; teamId++) {
             var count = teamCounts[teamId];
             if (count < bestCount) {
                 bestTeamId = teamId;
@@ -1464,6 +1473,14 @@ public partial class Networking : Node {
         }
 
         return bestTeamId;
+    }
+
+    private void SetPeerPlayersTeam(int peerId, int teamId) {
+        var normalizedTeamId = global::MultiplayerData.NormalizeTeamId(teamId);
+        foreach (var playerData in MultiplayerData.Players) {
+            if (playerData.PeerId == peerId)
+                playerData.TeamId = normalizedTeamId;
+        }
     }
 
     private void CloseNetworkPeer() {
@@ -1617,6 +1634,10 @@ public partial class Networking : Node {
     }
 
     private void EmitLobbyStateChanged() {
+        if (_suppressLobbyStateChanged) {
+            return;
+        }
+
         UpdateNetworkModeDebugIcon();
         EmitSignal(SignalName.LobbyStateChanged);
     }

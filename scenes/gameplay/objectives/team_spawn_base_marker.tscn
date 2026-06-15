@@ -1,0 +1,87 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/TeamSpawnBaseMarker.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/ui/team_spawn_core.svg" id="2_core"]
+[ext_resource type="Texture2D" path="res://assets/ui/team_spawn_platform.svg" id="3_platform"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_spawn"]
+radius = 32.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_objective"]
+radius = 12.0
+
+[node name="TeamSpawnBaseMarker" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Core" type="Sprite2D" parent="."]
+texture = ExtResource("2_core")
+scale = Vector2(0.28, 0.28)
+
+[node name="SpawnArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SpawnArea"]
+shape = SubResource("CircleShape2D_spawn")
+
+[node name="ObjectiveArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ObjectiveArea"]
+shape = SubResource("CircleShape2D_objective")
+
+[node name="Slot1" type="Node2D" parent="."]
+position = Vector2(0, -16)
+
+[node name="Platform" type="Sprite2D" parent="Slot1"]
+texture = ExtResource("3_platform")
+scale = Vector2(0.24, 0.24)
+rotation = -1.5708
+
+[node name="Label" type="Label" parent="Slot1"]
+offset_left = -4.0
+offset_top = -8.0
+offset_right = 12.0
+offset_bottom = 10.0
+text = "1"
+
+[node name="Slot2" type="Node2D" parent="."]
+position = Vector2(16, 0)
+
+[node name="Platform" type="Sprite2D" parent="Slot2"]
+texture = ExtResource("3_platform")
+scale = Vector2(0.24, 0.24)
+
+[node name="Label" type="Label" parent="Slot2"]
+offset_left = -4.0
+offset_top = -8.0
+offset_right = 12.0
+offset_bottom = 10.0
+text = "2"
+
+[node name="Slot3" type="Node2D" parent="."]
+position = Vector2(0, 16)
+
+[node name="Platform" type="Sprite2D" parent="Slot3"]
+texture = ExtResource("3_platform")
+scale = Vector2(0.24, 0.24)
+rotation = 1.5708
+
+[node name="Label" type="Label" parent="Slot3"]
+offset_left = -4.0
+offset_top = -8.0
+offset_right = 12.0
+offset_bottom = 10.0
+text = "3"
+
+[node name="Slot4" type="Node2D" parent="."]
+position = Vector2(-16, 0)
+
+[node name="Platform" type="Sprite2D" parent="Slot4"]
+texture = ExtResource("3_platform")
+scale = Vector2(0.24, 0.24)
+rotation = 3.14159
+
+[node name="Label" type="Label" parent="Slot4"]
+offset_left = -4.0
+offset_top = -8.0
+offset_right = 12.0
+offset_bottom = 10.0
+text = "4"

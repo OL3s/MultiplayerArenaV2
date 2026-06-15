@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 
 public partial class TestPlayerItemRoomLAN : Node2D {
@@ -10,12 +11,19 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private const float InputFullExitThreshold = 0.60f;
     private const float TriggerUseThreshold = 0.5f;
     private const float ActionAimDisplaySeconds = 0.5f;
+    private const float NeutralObjectiveRadius = 36.0f;
+    private const float TeamSpawnRadius = 32.0f;
+    private const float TeamObjectiveRadius = 12.0f;
+    private const float RespawnDelaySeconds = 1.0f;
+    private const float SpawnImmobilizeSeconds = 1.0f;
     private const int ItemMenuColumns = 3;
     private const int DirectionBucketCount = 16;
     private const string DefaultItemId = "pistol_t1";
     private const string GenericBulletScenePath = "res://scenes/gameplay/projectiles/generic_bullet.tscn";
     private const string GenericThrownItemScenePath = "res://scenes/gameplay/projectiles/generic_thrown_item.tscn";
     private const string GenericLaunchedProjectileScenePath = "res://scenes/gameplay/projectiles/generic_launched_projectile.tscn";
+    private const string NeutralObjectiveScenePath = "res://scenes/gameplay/objectives/neutral_objective.tscn";
+    private const string TeamSpawnBaseMarkerScenePath = "res://scenes/gameplay/objectives/team_spawn_base_marker.tscn";
 
     private static readonly string[] ModernItemIds = {
         "pistol_t1", "pistol_t2", "pistol_t3",
@@ -93,6 +101,7 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     private ArenaMapData _arenaMapData;
+    private StructureGenerationData _structureGenerationData;
     private ArenaTileLayerRenderer _tileLayerRenderer;
     private Camera2D _camera;
     private CanvasLayer _canvasLayer;
@@ -115,19 +124,34 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     private readonly Dictionary<int, double> _itemRecoverySecondsByGlobalId = new();
     private readonly Dictionary<int, bool> _wasUseHeldByGlobalId = new();
     private readonly Dictionary<int, bool> _suppressUseUntilReleasedByGlobalId = new();
+    private readonly Dictionary<int, float> _respawnSecondsByGlobalId = new();
+    private readonly Dictionary<int, float> _spawnSecondsByGlobalId = new();
+    private readonly Dictionary<int, int> _playerTeamIdsByGlobalId = new();
+    private readonly HashSet<int> _wipedTeamIds = new();
+    private readonly GameplaySpawnManager _spawnManager = new();
+    private readonly List<TeamSpawnBaseMarker> _teamSpawnBaseMarkers = new();
+    private readonly List<GameplaySpawnMarker> _itemSpawnMarkers = new();
     private readonly Dictionary<string, PlayerItem> _loadedItemsById = new();
     private readonly Dictionary<string, PlayerArmor> _loadedArmorById = new();
     private readonly Dictionary<string, Button> _itemMenuButtonsById = new();
+    private NeutralObjective _neutralObjective;
+    private int _objectiveControllingTeamId = -1;
+    private bool _objectiveIsContested;
+    private int _lastAutoAssignedPlayerCount = -1;
     private PlayerAimIndicator _aimIndicator;
     private PackedScene _genericBulletScene;
     private PackedScene _genericThrownItemScene;
     private PackedScene _genericLaunchedProjectileScene;
+    private PackedScene _neutralObjectiveScene;
+    private PackedScene _teamSpawnBaseMarkerScene;
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
 
     [Export]
     public int ClientPort { get; set; } = 12000;
+
+    public event Action<int> TeamWiped;
 
     public override void _Ready() {
         UiInputActions.EnsureConfigured();
@@ -141,6 +165,8 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _genericBulletScene = GD.Load<PackedScene>(GenericBulletScenePath);
         _genericThrownItemScene = GD.Load<PackedScene>(GenericThrownItemScenePath);
         _genericLaunchedProjectileScene = GD.Load<PackedScene>(GenericLaunchedProjectileScenePath);
+        _neutralObjectiveScene = GD.Load<PackedScene>(NeutralObjectiveScenePath);
+        _teamSpawnBaseMarkerScene = GD.Load<PackedScene>(TeamSpawnBaseMarkerScenePath);
 
         ApplyCommandLineOverrides();
         EnsureDefaultNetworkMode();
@@ -171,6 +197,8 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     public override void _Process(double delta) {
         UpdateItemRecoveries(delta);
+        UpdateRespawns(delta);
+        UpdateObjective(delta);
         ProcessLocalItemUse(delta);
         UpdateStatusLabel();
         UpdateLocalAimIndicator();
@@ -411,10 +439,8 @@ public partial class TestPlayerItemRoomLAN : Node2D {
 
     private void EnsureTestLocalLobbyPlayer() {
         _networking.LocalLobbyData.LocalPlayers.Clear();
-        var inputType = _networking.IsClient
-            ? LocalPlayerData.LocalInputType.Gamepad
-            : LocalPlayerData.LocalInputType.KeyboardMouse;
-        var deviceId = _networking.IsClient ? 0 : -1;
+        var inputType = LocalPlayerData.LocalInputType.KeyboardMouse;
+        var deviceId = -1;
 
         _networking.LocalLobbyData.LocalPlayers.Add(new LocalPlayerData {
             LocalId = 0,
@@ -449,19 +475,33 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             DefaultWallBiome = BiomeConfig.BiomeType.Arena,
         };
 
-        AddFloorRectangle(new Rect2I(5, 5, 18, 10));
-        _arenaMapData.ResetWallTiles();
+        GenerateStructureLayout();
         RenderArenaWithCollision();
+        BuildTeamSpawnBaseMarkers();
+        BuildNeutralObjective();
+        BuildItemSpawnMarkers();
         BuildCenterProp();
         RebuildPlayersFromNetworkData();
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "TestRoomBuilt", $"floorTiles={_arenaMapData.FloorTiles.Count} wallTiles={_arenaMapData.WallTiles.Count}");
     }
 
-    private void AddFloorRectangle(Rect2I rect) {
-        for (var x = rect.Position.X; x < rect.End.X; x++) {
-            for (var y = rect.Position.Y; y < rect.End.Y; y++)
-                _arenaMapData.AddFloorTile(new Vector2I(x, y));
-        }
+    private void GenerateStructureLayout() {
+        _spawnManager.Clear();
+        _structureGenerationData = new StructureGenerationData();
+        _structureGenerationData.Generate(GetSelectedStructureType());
+        _structureGenerationData.ApplyToArenaMap(_arenaMapData);
+
+        ApplyGeneratedTeamSpawns();
+        _spawnManager.SetItemSpawnTiles(ToArray(_structureGenerationData.GetSpawnTiles(StructureGenerationData.SpawnPointType.ItemSpawn)));
+    }
+
+    private MapGenerationConfig.StructureType GetSelectedStructureType() {
+        return MapGenerationConfig.StructureType.Square;
+    }
+
+    private void ApplyGeneratedTeamSpawns() {
+        foreach (var teamId in _structureGenerationData.GetTeamIds())
+            _spawnManager.SetSpawnTiles(teamId, ToArray(_structureGenerationData.GetTeamSpawnTiles(teamId)));
     }
 
     private void BuildCenterProp() {
@@ -472,7 +512,78 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         propData.Configure(LevelPropType.Barrel);
         _centerProp = new LevelProp { Name = "CenterBarrel" };
         AddChild(_centerProp);
-        _centerProp.Initialize(propData, TileToWorldCenter(new Vector2I(14, 10)));
+        _centerProp.Initialize(propData, TileToWorldCenter(GetObjectiveTilePosition()));
+    }
+
+    private void BuildTeamSpawnBaseMarkers() {
+        foreach (var marker in _teamSpawnBaseMarkers) {
+            if (IsInstanceValid(marker))
+                marker.QueueFree();
+        }
+
+        _teamSpawnBaseMarkers.Clear();
+        foreach (var teamId in _structureGenerationData.GetTeamIds()) {
+            var teamPlayerCount = GetTeamPlayerCount(teamId);
+            if (teamPlayerCount <= 0)
+                continue;
+
+            var marker = _teamSpawnBaseMarkerScene?.Instantiate<TeamSpawnBaseMarker>() ?? new TeamSpawnBaseMarker();
+            marker.Name = $"Team{teamId}SpawnBaseMarker";
+            marker.ZIndex = 7;
+            marker.Configure(teamId, teamPlayerCount, TeamSpawnRadius, TeamObjectiveRadius);
+            AddChild(marker);
+            marker.GlobalPosition = TileToWorldCenter(_structureGenerationData.GetTeamObjectiveTile(teamId));
+            _teamSpawnBaseMarkers.Add(marker);
+        }
+    }
+
+    private int GetTeamPlayerCount(int teamId) {
+        var playerCount = 0;
+        foreach (var playerData in _networking.MultiplayerData.Players) {
+            if (playerData.GlobalId >= 0 && TryGetBackendTeamId(playerData, out var playerTeamId, "team-player-count") && playerTeamId == teamId)
+                playerCount++;
+        }
+
+        return Mathf.Clamp(playerCount, 0, 4);
+    }
+
+    private void BuildNeutralObjective() {
+        if (_neutralObjective != null && IsInstanceValid(_neutralObjective))
+            _neutralObjective.QueueFree();
+
+        _neutralObjective = _neutralObjectiveScene?.Instantiate<NeutralObjective>() ?? new NeutralObjective();
+        _neutralObjective.Name = "NeutralCenterObjective";
+        _neutralObjective.ZIndex = 5;
+        _neutralObjective.Configure(NeutralObjectiveRadius, TeamObjectiveRadius);
+        AddChild(_neutralObjective);
+        _neutralObjective.GlobalPosition = TileToWorldCenter(GetObjectiveTilePosition());
+        _neutralObjective.SetState(-1, false);
+    }
+
+    private static Vector2I[] ToArray(IReadOnlyList<Vector2I> tiles) {
+        if (tiles == null || tiles.Count == 0)
+            return Array.Empty<Vector2I>();
+
+        var result = new Vector2I[tiles.Count];
+        for (var i = 0; i < tiles.Count; i++)
+            result[i] = tiles[i];
+
+        return result;
+    }
+
+    private void BuildItemSpawnMarkers() {
+        foreach (var marker in _itemSpawnMarkers) {
+            if (IsInstanceValid(marker))
+                marker.QueueFree();
+        }
+
+        _itemSpawnMarkers.Clear();
+        foreach (var itemSpawnTile in _spawnManager.GetItemSpawnTiles()) {
+            var marker = new GameplaySpawnMarker { Name = "ItemSpawnMarker", ZIndex = 6 };
+            AddChild(marker);
+            marker.GlobalPosition = TileToWorldCenter(itemSpawnTile);
+            _itemSpawnMarkers.Add(marker);
+        }
     }
 
     private void RenderArenaWithCollision() {
@@ -486,10 +597,15 @@ public partial class TestPlayerItemRoomLAN : Node2D {
                 continue;
 
             activeGlobalIds.Add(playerData.GlobalId);
-            if (_playersByGlobalId.TryGetValue(playerData.GlobalId, out var existingPlayer) && IsInstanceValid(existingPlayer))
+            if (!TryGetBackendTeamId(playerData, out var teamId, "sync-players"))
                 continue;
 
-            AddPlayer(playerData.GlobalId, GetTestPlayerTilePosition(playerData.GlobalId));
+            if (_playersByGlobalId.TryGetValue(playerData.GlobalId, out var existingPlayer) && IsInstanceValid(existingPlayer)) {
+                UpdatePlayerTeamSpawn(playerData.GlobalId, teamId, existingPlayer);
+                continue;
+            }
+
+            AddPlayer(playerData.GlobalId, teamId, GetTestPlayerTilePosition(playerData.GlobalId, teamId));
         }
 
         var removedGlobalIds = new List<int>();
@@ -517,6 +633,9 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             _itemRecoverySecondsByGlobalId.Remove(removedGlobalId);
             _wasUseHeldByGlobalId.Remove(removedGlobalId);
             _suppressUseUntilReleasedByGlobalId.Remove(removedGlobalId);
+            _respawnSecondsByGlobalId.Remove(removedGlobalId);
+            _spawnSecondsByGlobalId.Remove(removedGlobalId);
+            _playerTeamIdsByGlobalId.Remove(removedGlobalId);
         }
     }
 
@@ -545,13 +664,17 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _itemRecoverySecondsByGlobalId.Clear();
         _wasUseHeldByGlobalId.Clear();
         _suppressUseUntilReleasedByGlobalId.Clear();
+        _respawnSecondsByGlobalId.Clear();
+        _spawnSecondsByGlobalId.Clear();
+        _playerTeamIdsByGlobalId.Clear();
     }
 
-    private void AddPlayer(int globalId, Vector2I tilePosition) {
+    private void AddPlayer(int globalId, int teamId, Vector2I tilePosition) {
         var player = new DamageTestPlayer { Name = $"ItemTestPlayer{globalId}" };
         AddChild(player);
         player.Initialize(globalId, TileToWorldCenter(tilePosition));
         _playersByGlobalId[globalId] = player;
+        _playerTeamIdsByGlobalId[globalId] = teamId;
         _movementStatesByGlobalId[globalId] = GetNoInputState();
         _aimStatesByGlobalId[globalId] = new QuantizedInputState(0, InputStrength.Full);
         _isAimingByGlobalId[globalId] = false;
@@ -559,11 +682,28 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         _itemRecoverySecondsByGlobalId[globalId] = 0.0;
         _wasUseHeldByGlobalId[globalId] = false;
         _suppressUseUntilReleasedByGlobalId[globalId] = false;
+        _respawnSecondsByGlobalId[globalId] = -1.0f;
+        _spawnSecondsByGlobalId[globalId] = 0.0f;
         _accuracyStatesByGlobalId[globalId] = new PlayerItemAccuracyState();
         _loadoutsByGlobalId[globalId] = new PlayerLoadoutState();
         SetPlayerItem(globalId, DefaultItemId);
+        SetPlayerTeamColor(globalId);
+        SetPlayerLocalMarker(globalId);
         player.SetEstimatedAimDirection(DirectionIndexToVector(0), true);
-        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Spawn, "PlayerAdded", $"global={globalId} tile={tilePosition} world={player.GlobalPosition}");
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Spawn, "PlayerAdded", $"global={globalId} team={teamId} spawnIndex={GetTeamPlayerIndex(globalId, teamId)} tile={tilePosition} world={player.GlobalPosition}");
+    }
+
+    private void UpdatePlayerTeamSpawn(int globalId, int teamId, DamageTestPlayer player) {
+        if (_playerTeamIdsByGlobalId.TryGetValue(globalId, out var previousTeamId) && previousTeamId == teamId)
+            return;
+
+        var spawnTile = GetTestPlayerTilePosition(globalId, teamId);
+        var spawnPosition = TileToWorldCenter(spawnTile);
+        player.SetSyncedPosition(spawnPosition);
+        _playerTeamIdsByGlobalId[globalId] = teamId;
+        SetPlayerTeamColor(globalId);
+        SetPlayerLocalMarker(globalId);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Spawn, "PlayerTeamSpawnUpdated", $"global={globalId} team={teamId} spawnIndex={GetTeamPlayerIndex(globalId, teamId)} tile={spawnTile} world={spawnPosition}");
     }
 
     private void ProcessLocalPlayerInputStates() {
@@ -850,6 +990,25 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         UpdateStatusLabel();
     }
 
+    private void SetPlayerTeamColor(int globalId) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
+            return;
+
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+        if (!TryGetBackendTeamId(playerData, out var backendTeamId, "set-player-team-color"))
+            return;
+
+        player.SetTeamColor(TeamVisuals.GetTeamColor(GetPaletteTeamId(backendTeamId)));
+    }
+
+    private void SetPlayerLocalMarker(int globalId) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
+            return;
+
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+        player.SetLocalPlayerMarker(playerData?.IsLocalPlayer == true, playerData?.LocalId ?? -1);
+    }
+
     private void ResetPlayerUsesToMax(int globalId) {
         GetOrCreateLoadout(globalId).ResetUsesToMax();
         UpdateStatusLabel();
@@ -915,6 +1074,127 @@ public partial class TestPlayerItemRoomLAN : Node2D {
                 _itemRecoverySecondsByGlobalId.TryGetValue(globalId, out var recoverySeconds) ? recoverySeconds - delta : 0.0,
                 0.0);
         }
+    }
+
+    private void UpdateRespawns(double delta) {
+        if (_networking == null || (!_networking.IsServer && !_networking.IsLocal))
+            return;
+
+        UpdateTeamWipeState();
+
+        foreach (var playerEntry in _playersByGlobalId) {
+            var globalId = playerEntry.Key;
+            var player = playerEntry.Value;
+            if (!IsInstanceValid(player))
+                continue;
+
+            if (player.IsDead()) {
+                var respawnSeconds = _respawnSecondsByGlobalId.TryGetValue(globalId, out var currentRespawnSeconds) && currentRespawnSeconds >= 0.0f
+                    ? currentRespawnSeconds
+                    : RespawnDelaySeconds;
+                respawnSeconds -= (float)delta;
+                _respawnSecondsByGlobalId[globalId] = respawnSeconds;
+                if (respawnSeconds <= 0.0f)
+                    ResetPlayerForRespawn(globalId, true);
+                continue;
+            }
+
+            _respawnSecondsByGlobalId[globalId] = -1.0f;
+            if (!_spawnSecondsByGlobalId.TryGetValue(globalId, out var spawnSeconds) || spawnSeconds <= 0.0f)
+                continue;
+
+            spawnSeconds -= (float)delta;
+            _spawnSecondsByGlobalId[globalId] = spawnSeconds;
+            if (spawnSeconds <= 0.0f)
+                FinishPlayerSpawn(globalId, true);
+        }
+    }
+
+    private void ResetPlayerForRespawn(int globalId, bool syncToPeers) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
+            return;
+
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+        if (!TryGetBackendTeamId(playerData, out var teamId, "respawn"))
+            return;
+
+        var spawnTile = GetTestPlayerTilePosition(globalId, teamId);
+        var spawnPosition = TileToWorldCenter(spawnTile);
+        player.BeginSpawn(spawnPosition);
+        player.SetEstimatedAimDirection(DirectionIndexToVector(0), true);
+        _movementStatesByGlobalId[globalId] = GetNoInputState();
+        _aimStatesByGlobalId[globalId] = new QuantizedInputState(0, InputStrength.Full);
+        _isAimingByGlobalId[globalId] = false;
+        _itemRecoverySecondsByGlobalId[globalId] = 0.0;
+        _wasUseHeldByGlobalId[globalId] = false;
+        _suppressUseUntilReleasedByGlobalId[globalId] = true;
+        _respawnSecondsByGlobalId[globalId] = -1.0f;
+        _spawnSecondsByGlobalId[globalId] = SpawnImmobilizeSeconds;
+        if (_loadoutsByGlobalId.TryGetValue(globalId, out var loadout))
+            loadout.ResetUsesToMax();
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Spawn, "PlayerRespawnStarted", $"global={globalId} tile={spawnTile} world={spawnPosition}");
+        if (syncToPeers)
+            SyncPlayerRespawn(globalId, spawnPosition, SpawnImmobilizeSeconds);
+    }
+
+    private void FinishPlayerSpawn(int globalId, bool syncToPeers) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
+            return;
+
+        player.FinishSpawn();
+        _spawnSecondsByGlobalId[globalId] = 0.0f;
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Spawn, "PlayerSpawnFinished", $"global={globalId}");
+        if (syncToPeers)
+            SyncPlayerSpawnFinished(globalId);
+    }
+
+    private void SyncPlayerRespawn(int globalId, Vector2 spawnPosition, float spawnSeconds) {
+        if (CanSendHostRpc())
+            Rpc(nameof(RpcSyncPlayerRespawn), globalId, spawnPosition.X, spawnPosition.Y, spawnSeconds);
+    }
+
+    private void SyncPlayerSpawnFinished(int globalId) {
+        if (CanSendHostRpc())
+            Rpc(nameof(RpcSyncPlayerSpawnFinished), globalId);
+    }
+
+    private void UpdateTeamWipeState() {
+        var teamAliveState = GetTeamAliveState();
+        foreach (var teamEntry in teamAliveState) {
+            if (teamEntry.Value) {
+                _wipedTeamIds.Remove(teamEntry.Key);
+                continue;
+            }
+
+            if (_wipedTeamIds.Contains(teamEntry.Key))
+                continue;
+
+            _wipedTeamIds.Add(teamEntry.Key);
+            OnTeamWiped(teamEntry.Key);
+        }
+    }
+
+    private Dictionary<int, bool> GetTeamAliveState() {
+        var teamAliveState = new Dictionary<int, bool>();
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (!TryGetBackendTeamId(playerData, out var teamId, "team-alive-state"))
+                continue;
+
+            if (!teamAliveState.ContainsKey(teamId))
+                teamAliveState[teamId] = false;
+
+            if (IsInstanceValid(playerEntry.Value) && !playerEntry.Value.IsDead())
+                teamAliveState[teamId] = true;
+        }
+
+        return teamAliveState;
+    }
+
+    private void OnTeamWiped(int teamId) {
+        TeamWiped?.Invoke(teamId);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "TeamWiped", $"team={teamId}");
     }
 
     private void ProcessLocalPlayerItemUse(int globalId) {
@@ -1568,6 +1848,41 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncPlayerRespawn(int globalId, float worldX, float worldY, float spawnSeconds) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player))
+            return;
+
+        player.BeginSpawn(new Vector2(worldX, worldY));
+        _movementStatesByGlobalId[globalId] = GetNoInputState();
+        _itemRecoverySecondsByGlobalId[globalId] = 0.0;
+        _respawnSecondsByGlobalId[globalId] = -1.0f;
+        _spawnSecondsByGlobalId[globalId] = spawnSeconds;
+        if (_loadoutsByGlobalId.TryGetValue(globalId, out var loadout))
+            loadout.ResetUsesToMax();
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncPlayerRespawn", $"global={globalId} world=({worldX:0.0},{worldY:0.0}) spawn={spawnSeconds:0.0}");
+        UpdateStatusLabel();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncPlayerSpawnFinished(int globalId) {
+        FinishPlayerSpawn(globalId, false);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncPlayerSpawnFinished", $"global={globalId}");
+        UpdateStatusLabel();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncObjectiveState(int controllingTeamId, bool isContested) {
+        _objectiveControllingTeamId = controllingTeamId;
+        _objectiveIsContested = isContested;
+        if (_neutralObjective != null && IsInstanceValid(_neutralObjective))
+            _neutralObjective.SetState(controllingTeamId, isContested);
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncObjectiveState", GetObjectiveText());
+        UpdateStatusLabel();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RpcSyncUsePlayerItem(
         int globalId,
         string itemId,
@@ -1661,12 +1976,83 @@ public partial class TestPlayerItemRoomLAN : Node2D {
             (tilePosition.Y * TestTileSize.Y) + (TestTileSize.Y * 0.5f));
     }
 
-    private Vector2I GetTestPlayerTilePosition(int globalId) {
-        return globalId switch {
-            0 => new Vector2I(7, 10),
-            1 => new Vector2I(21, 10),
-            _ => new Vector2I(7 + (globalId % 14), 10),
-        };
+    private Vector2I GetTestPlayerTilePosition(int globalId, int teamId) {
+        return _spawnManager.GetSpawnTile(teamId, GetTeamPlayerIndex(globalId, teamId), _arenaMapData);
+    }
+
+    private int GetTeamPlayerIndex(int globalId, int teamId) {
+        var teamPlayerIndex = 0;
+        foreach (var playerData in _networking.MultiplayerData.Players) {
+            if (playerData.GlobalId < 0)
+                continue;
+
+            if (!TryGetBackendTeamId(playerData, out var playerTeamId, "team-player-index") || playerTeamId != teamId)
+                continue;
+
+            if (playerData.GlobalId == globalId)
+                return teamPlayerIndex;
+
+            teamPlayerIndex++;
+        }
+
+        return 0;
+    }
+
+    private Vector2I GetObjectiveTilePosition() {
+        var neutralObjectiveTiles = _structureGenerationData?.GetSpawnTiles(StructureGenerationData.SpawnPointType.NeutralObjective);
+        return neutralObjectiveTiles != null && neutralObjectiveTiles.Count > 0
+            ? neutralObjectiveTiles[0]
+            : Vector2I.Zero;
+    }
+
+    private void UpdateObjective(double delta) {
+        if (_neutralObjective == null || !IsInstanceValid(_neutralObjective))
+            return;
+
+        if (_networking == null || (!_networking.IsServer && !_networking.IsLocal))
+            return;
+
+        EvaluateObjectiveOccupancy(out var controllingTeamId, out var isContested);
+        if (controllingTeamId != _objectiveControllingTeamId || isContested != _objectiveIsContested) {
+            _objectiveControllingTeamId = controllingTeamId;
+            _objectiveIsContested = isContested;
+            _neutralObjective.SetState(_objectiveControllingTeamId, _objectiveIsContested);
+            SyncObjectiveState();
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "ObjectiveStateChanged", GetObjectiveText());
+        }
+    }
+
+    private void EvaluateObjectiveOccupancy(out int controllingTeamId, out bool isContested) {
+        controllingTeamId = -1;
+        isContested = false;
+
+        foreach (var playerEntry in _playersByGlobalId) {
+            var player = playerEntry.Value;
+            if (!IsInstanceValid(player) || player.IsDead() || !_neutralObjective.ContainsInnerPosition(player.GlobalPosition))
+                continue;
+
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (!TryGetBackendTeamId(playerData, out var teamId, "objective-occupancy"))
+                continue;
+
+            if (controllingTeamId < 0) {
+                controllingTeamId = teamId;
+                continue;
+            }
+
+            if (controllingTeamId != teamId) {
+                controllingTeamId = -1;
+                isContested = true;
+                return;
+            }
+        }
+    }
+
+    private void SyncObjectiveState() {
+        if (!CanSendHostRpc())
+            return;
+
+        Rpc(nameof(RpcSyncObjectiveState), _objectiveControllingTeamId, _objectiveIsContested);
     }
 
     private void OnConnectionStateChanged() {
@@ -1675,8 +2061,43 @@ public partial class TestPlayerItemRoomLAN : Node2D {
     }
 
     private void OnLobbyStateChanged() {
+        AutoAssignLanTestTeams();
         SyncPlayersWithNetworkData();
+        foreach (var globalId in _playersByGlobalId.Keys) {
+            SetPlayerTeamColor(globalId);
+            SetPlayerLocalMarker(globalId);
+        }
+        if (_structureGenerationData != null)
+            BuildTeamSpawnBaseMarkers();
         UpdateStatusLabel();
+    }
+
+    private void AutoAssignLanTestTeams() {
+        if (_networking == null || !_networking.IsHostAuthority || _networking.MultiplayerData.Players.Count <= 0)
+            return;
+
+        var playerCount = _networking.MultiplayerData.Players.Count;
+        if (_lastAutoAssignedPlayerCount == playerCount)
+            return;
+
+        _lastAutoAssignedPlayerCount = playerCount;
+        _networking.AutoAssignPeerTeams(2);
+    }
+
+    private bool TryGetBackendTeamId(PlayerData playerData, out int teamId, string context) {
+        teamId = MultiplayerData.DefaultTeamId;
+        var networkTeamId = _networking?.MultiplayerData?.GetTeam(playerData) ?? MultiplayerData.DefaultTeamId;
+        if (networkTeamId == MultiplayerData.DefaultTeamId) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Warning, "UnassignedTeamUsed", $"context={context} global={playerData?.GlobalId ?? -1} peer={playerData?.PeerId ?? -1} team={networkTeamId}");
+            return false;
+        }
+
+        teamId = MultiplayerData.NormalizeTeamId(networkTeamId);
+        return teamId != MultiplayerData.DefaultTeamId;
+    }
+
+    private static int GetPaletteTeamId(int backendTeamId) {
+        return Mathf.Clamp(backendTeamId + 1, 1, 4);
     }
 
     private int GetConnectedPeerCount() {
@@ -1695,7 +2116,16 @@ public partial class TestPlayerItemRoomLAN : Node2D {
         if (_networking == null)
             return;
 
-        _statusLabel.Text = $"Player Item Test Room\nPeers connected: {GetConnectedPeerCount()}\nControls: B item menu | arrows/d-pad + Enter/A select | left mouse / Xbox RT use\nPlayers: {GetPlayerText()}";
+        _statusLabel.Text = $"Player Item Test Room\nPeers connected: {GetConnectedPeerCount()}\nControls: B item menu | arrows/d-pad + Enter/A select | left mouse / Xbox RT use\nObjective: {GetObjectiveText()}\nPlayers: {GetPlayerText()}";
+    }
+
+    private string GetObjectiveText() {
+        if (_objectiveIsContested)
+            return "contested";
+
+        return _objectiveControllingTeamId >= 0
+            ? $"occupied by team {GetPaletteTeamId(_objectiveControllingTeamId)}"
+            : "neutral";
     }
 
     private string GetPlayerText() {

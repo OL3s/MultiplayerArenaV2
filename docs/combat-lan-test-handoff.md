@@ -91,7 +91,7 @@ This is now the dedicated player movement, aim, and item/action test bed.
 
 - Builds a square floor/wall room with one center barrel prop.
 - Host/local instances register one active keyboard/mouse local player: `LocalId 0`.
-- Client instances register one active gamepad local player: `LocalId 0` on device `0`.
+- Client instances register one active keyboard/mouse local player: `LocalId 0`.
 - Runtime player targets are built from `Networking.MultiplayerData.Players`, keyed only by `GlobalId`, and resolve `PeerId`/`LocalId` through `MultiplayerData.GetPlayerByGlobalId(...)`.
 - Expected player mapping with one host and one client is host `P0 peer 1:local 0` and client `P1 peer <clientPeer>:local 0`.
 - `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images from `assets/players/` and a `Pistol-T1` weapon `Sprite2D` from `assets/items/modern/weapons/`. The weapon is offset from the body and rotated toward the active aim display vector.
@@ -112,10 +112,10 @@ This is now the dedicated player movement, aim, and item/action test bed.
 Player item room controls:
 
 - Host/local player movement: keyboard `WASD` or arrow keys. Hold `Shift` to emit a half-strength movement vector for walking.
-- Client player movement: gamepad left stick. Client `LocalId 0` uses gamepad device `0`.
+- Client player movement: keyboard `WASD` or arrow keys in each client window. Client `LocalId 0` uses keyboard/mouse input for this LAN test.
 - Host/local aim: mouse direction from the player body.
-- Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction for controller convenience.
-- Active aiming is separate from aim direction. Keyboard/mouse uses `Ctrl` or right mouse button; controller uses active right-stick aim.
+- Client aim: mouse direction from the player body in each client window.
+- Active aiming is separate from aim direction. Keyboard/mouse uses `Ctrl` or right mouse button.
 - While actively aiming, movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier`.
 - `B`: open or close the item grid. Keyboard `B` and Xbox controller `B` both toggle it.
 - Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: select an item from the grid.

@@ -3,7 +3,7 @@ using Godot;
 [GlobalClass]
 public partial class BiomeConfig : Resource {
     public enum BiomeType {
-        Plains,
+        Woods,
         Arena,
     }
 

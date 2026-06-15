@@ -4,6 +4,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private static readonly Vector2 DefaultSize = new(12.0f, 12.0f);
     private const string FrontTexturePath = "res://assets/players/damage_test_player_front.svg";
     private const string BackTexturePath = "res://assets/players/damage_test_player_back.svg";
+    private const string LocalPlayerArrowTexturePath = "res://assets/ui/local_player_arrow.svg";
     private const float BackFacingYThreshold = -0.5f;
 
     private Area2D _hitbox;
@@ -11,6 +12,8 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private Sprite2D _bodySprite;
     private Sprite2D _armorSprite;
     private Label _label;
+    private Sprite2D _localPlayerMarker;
+    private Label _localPlayerLabel;
     private Sprite2D _weapon;
     private bool _isAlive = true;
     private bool _hasLocalAimDirection;
@@ -24,6 +27,9 @@ public partial class DamageTestPlayer : CharacterBody2D {
     private bool _drawBackBody;
     private Texture2D _heldTexture;
     private Texture2D _armorTexture;
+    private Color _teamColor = Colors.White;
+    private bool _isLocalPlayer;
+    private int _localPlayerId = -1;
 
     public int GlobalId { get; private set; } = -1;
 
@@ -34,6 +40,8 @@ public partial class DamageTestPlayer : CharacterBody2D {
     public HealthContainer Health { get; private set; } = new();
 
     public bool IsAlive => _isAlive;
+
+    public bool IsInvulnerable { get; private set; }
 
     public PlayerControlState ControlState { get; private set; } = PlayerControlState.Gameplay;
 
@@ -101,7 +109,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
     }
 
     public bool ApplyDamage(DamageContainer damageContainer) {
-        if (Health == null || !_isAlive)
+        if (Health == null || !_isAlive || IsInvulnerable)
             return false;
 
         Health.ApplyDamage(damageContainer);
@@ -122,7 +130,7 @@ public partial class DamageTestPlayer : CharacterBody2D {
     }
 
     public bool MoveWithVelocity(Vector2 velocity) {
-        if (IsDead()) {
+        if (IsDead() || ControlState == PlayerControlState.Spawning) {
             Velocity = Vector2.Zero;
             return false;
         }
@@ -188,6 +196,18 @@ public partial class DamageTestPlayer : CharacterBody2D {
         _armorSprite.Visible = _isAlive && _armorTexture != null;
     }
 
+    public void SetTeamColor(Color teamColor) {
+        _teamColor = teamColor;
+        ApplyBodyModulate();
+    }
+
+    public void SetLocalPlayerMarker(bool isLocalPlayer, int localPlayerId) {
+        _isLocalPlayer = isLocalPlayer;
+        _localPlayerId = localPlayerId;
+        EnsureNodes();
+        UpdateLocalPlayerMarker();
+    }
+
     public void SetControlState(PlayerControlState controlState) {
         ControlState = controlState;
         if (!CanProcessAimInput)
@@ -198,6 +218,28 @@ public partial class DamageTestPlayer : CharacterBody2D {
         Position = worldPosition;
         Health = CreateDefaultHealth();
         SetAlive(true);
+        SetControlState(PlayerControlState.Gameplay);
+        SetInvulnerable(false);
+        UpdateLabel();
+        QueueRedraw();
+    }
+
+    public void BeginSpawn(Vector2 worldPosition) {
+        Position = worldPosition;
+        Health = CreateDefaultHealth();
+        SetAlive(true);
+        SetControlState(PlayerControlState.Spawning);
+        SetInvulnerable(true);
+        UpdateLabel();
+        QueueRedraw();
+    }
+
+    public void FinishSpawn() {
+        if (IsDead())
+            return;
+
+        SetControlState(PlayerControlState.Gameplay);
+        SetInvulnerable(false);
         UpdateLabel();
         QueueRedraw();
     }
@@ -254,6 +296,30 @@ public partial class DamageTestPlayer : CharacterBody2D {
             ZIndex = 2,
         };
         AddChild(_weapon);
+
+        _localPlayerMarker = new Sprite2D {
+            Name = "LocalPlayerMarker",
+            Texture = GD.Load<Texture2D>(LocalPlayerArrowTexturePath),
+            Position = new Vector2(0.0f, -24.0f),
+            Scale = new Vector2(0.55f, 0.55f),
+            ZIndex = 8,
+            Visible = false,
+        };
+        AddChild(_localPlayerMarker);
+
+        _localPlayerLabel = new Label {
+            Name = "LocalPlayerLabel",
+            Position = new Vector2(-12.0f, -44.0f),
+            Size = new Vector2(24.0f, 14.0f),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            ZIndex = 9,
+            Visible = false,
+        };
+        _localPlayerLabel.AddThemeFontSizeOverride("font_size", 10);
+        AddChild(_localPlayerLabel);
+
+        UpdateLocalPlayerMarker();
         UpdateWeapon();
     }
 
@@ -275,15 +341,49 @@ public partial class DamageTestPlayer : CharacterBody2D {
         if (_weapon != null)
             _weapon.Visible = alive;
 
-        if (_bodySprite != null) {
+        if (_bodySprite != null)
             _bodySprite.Visible = true;
-            _bodySprite.Modulate = alive ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
-        }
 
         if (_armorSprite != null) {
             _armorSprite.Visible = alive && _armorTexture != null;
-            _armorSprite.Modulate = alive ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
         }
+
+        UpdateLocalPlayerMarker();
+
+        ApplyBodyModulate();
+    }
+
+    private void UpdateLocalPlayerMarker() {
+        var visible = _isLocalPlayer && _isAlive;
+        if (_localPlayerMarker != null)
+            _localPlayerMarker.Visible = visible;
+        if (_localPlayerLabel != null) {
+            _localPlayerLabel.Visible = visible;
+            _localPlayerLabel.Text = _localPlayerId >= 0 ? $"L{_localPlayerId}" : "L?";
+        }
+    }
+
+    private void SetInvulnerable(bool invulnerable) {
+        IsInvulnerable = invulnerable;
+        ApplyBodyModulate();
+    }
+
+    private void ApplyBodyModulate() {
+        var bodyColor = GetBodyModulateColor();
+        if (_bodySprite != null)
+            _bodySprite.Modulate = bodyColor;
+        if (_armorSprite != null)
+            _armorSprite.Modulate = bodyColor;
+    }
+
+    private Color GetBodyModulateColor() {
+        if (!_isAlive)
+            return new Color(0.45f, 0.45f, 0.45f);
+
+        if (IsInvulnerable)
+            return _teamColor.Lerp(Colors.White, 0.35f);
+
+        return _teamColor;
     }
 
     private void UpdateWeapon() {

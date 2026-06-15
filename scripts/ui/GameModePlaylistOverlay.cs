@@ -5,11 +5,15 @@ public partial class GameModePlaylistOverlay : PanelContainer {
     private const string ConfigGameIconPath = "res://assets/ui/config_game.svg";
     private const string DeathmatchIconPath = "res://assets/ui/game_mode_deathmatch.svg";
     private const string CaptureTheFlagIconPath = "res://assets/ui/game_mode_capture_the_flag.svg";
+    private const string KingOfTheHillIconPath = "res://assets/ui/game_mode_king_of_the_hill.svg";
+    private const string HeadquartersIconPath = "res://assets/ui/game_mode_headquarters.svg";
     private const string GameModeCatalogTileScenePath = "res://scenes/ui/overlays/game_mode_catalog_tile.tscn";
 
     private static readonly GameModeConfig.GameModeType[] AvailableGameModes = {
         GameModeConfig.GameModeType.Deathmatch,
         GameModeConfig.GameModeType.CaptureTheFlag,
+        GameModeConfig.GameModeType.KingOfTheHill,
+        GameModeConfig.GameModeType.Headquarters,
     };
 
     private Action<GameModeConfig.GameModeType> _onAdd;
@@ -147,6 +151,8 @@ public partial class GameModePlaylistOverlay : PanelContainer {
         return modeType switch {
             GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
             GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
+            GameModeConfig.GameModeType.KingOfTheHill => "King of the Hill",
+            GameModeConfig.GameModeType.Headquarters => "Headquarters",
             _ => modeType.ToString(),
         };
     }
@@ -155,6 +161,8 @@ public partial class GameModePlaylistOverlay : PanelContainer {
         return modeType switch {
             GameModeConfig.GameModeType.Deathmatch => DeathmatchIconPath,
             GameModeConfig.GameModeType.CaptureTheFlag => CaptureTheFlagIconPath,
+            GameModeConfig.GameModeType.KingOfTheHill => KingOfTheHillIconPath,
+            GameModeConfig.GameModeType.Headquarters => HeadquartersIconPath,
             _ => ConfigGameIconPath,
         };
     }

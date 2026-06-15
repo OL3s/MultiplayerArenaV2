@@ -66,7 +66,7 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 
 - Dedicated player/item/action LAN test scene.
 - Builds a simple square floor/wall room with one center barrel prop.
-- Spawns the host player on one side and the client player on the other side when both peers are connected.
+- Spawns players through the structure-driven `GameplaySpawnManager`; team assignment decides which team spawn tiles are used.
 - Uses the same `DamageTestPlayer.GlobalId -> PlayerData` ownership lookup pattern as the old LAN player test path.
 - Player movement is currently server-authoritative and intentionally simple: clients send movement input vectors when quantized movement state changes, only the host/server simulates movement, and clients directly apply server movement-state plus every-physics-tick moving-position updates without interpolation or local prediction.
 - Player visuals use temporary SVG player body sprites in `assets/players/` plus the `Pistol-T1` item image in `assets/items/modern/weapons/`.
@@ -76,16 +76,25 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Planned next UI slice: add reusable `scenes/ui/player_stats_panel.tscn` and `scenes/ui/local_players_hud.tscn` so the test room can display name, avatar, kills, health, selected item, armor, weapon slots, gadget slots, loaded ammo, reload/refresh cooldowns, and empty slots for up to 4 local players.
 - The item room uses a simplified armor-driven loadout model. Armor decides whether a second weapon is available, how many gadget slots are available, and which percentage multipliers apply to item-defined weapon reload and gadget refresh cooldowns.
 - The old backstrap, inventory-provider, ammo-rig, and separate magazine-bucket model is intentionally not used.
+- The selected map structure controls the test room area layout, team objective centers, team spawn tiles around each objective, and temporary item spawn marker positions through `StructureGenerationData`. `Arena` uses a fixed plus-shape layout; `Plains` uses a larger open layout; `Square` uses a simple square room for mode/test iteration.
+- The player/item LAN test currently forces `Square`, starts one host/server and one client by default, auto-assigns two teams, and spawns the two players on opposite left/right team bases.
+- Team bases use `scenes/gameplay/objectives/team_spawn_base_marker.tscn`. The scene is centered on the team objective/core, owns a larger spawn `Area2D`, owns a smaller objective `Area2D`, and packs the four labeled spawn platforms in a `+` around the core.
+- Spawn platforms map to team-local player slots `1-4`, only show platforms for players currently on that team, and hide the whole team base marker when the team has no players.
+- The room has one separate core neutral center objective from `scenes/gameplay/objectives/neutral_objective.tscn`. It owns a wider outer `Area2D` and a smaller inner `Area2D`; the inner area currently shows occupancy/contest state only. It does not award score; game modes should own scoring behavior. This mirrors the intended runtime contract: neutral objectives can exist in every game mode, even when ignored, and modes decide how or whether to use them.
+- Future secondary neutral objectives should use the same neutral objective scene but be placed at spread-out structure-generated spots. These are candidate/random objective points for modes such as future hold-the-zone behavior, not active by default.
+- Player death currently runs through a first respawn flow: 1-second dead timer, reset health/ammo/recovery, teleport to team spawn, 1-second immobilized invulnerable spawn state, then normal gameplay.
+- The room detects team wipes through a first `TeamWiped` event/log hook. Actual game-mode-specific wipe behavior is still deferred.
+- Players controlled by the local process show a yellow SVG arrow marker above the body and an `L#` label, where `#` is the backend local player id `0-3`.
 - The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
 - Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 
 ## LAN Player Item Room Controls
 
 - Host/local player movement: keyboard `WASD` or arrow keys. Hold `Shift` to emit a half-strength movement vector for walking.
-- Client player movement: gamepad left stick. Client `LocalId 0` uses gamepad device `0`.
+- Client player movement: keyboard `WASD` or arrow keys in each client window. Client `LocalId 0` uses keyboard/mouse input for this LAN test.
 - Host/local aim: mouse direction from the player body.
-- Client aim: gamepad right stick. If the right stick is inside the aim deadzone, aim falls back to the current left-stick movement direction.
-- Active aiming is separate from aim direction. Keyboard/mouse is actively aiming while `Ctrl` or right mouse button is held. Controller is actively aiming while the right stick is outside the aim deadzone.
+- Client aim: mouse direction from the player body in each client window.
+- Active aiming is separate from aim direction. Keyboard/mouse is actively aiming while `Ctrl` or right mouse button is held.
 - The debug aim indicator only draws while actively aiming, and movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier` while actively aiming.
 - `B`: open or close the test item grid. Keyboard `B` and Xbox controller `B` both toggle it.
 - Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: choose an item from the grid and equip it as the local player's current test item.
@@ -104,12 +113,13 @@ Current player/item test-scene follow-up:
 - Add item-defined refresh timers for gadgets after use with armor multipliers.
 - Add a reusable local player stats HUD scene stack and wire it to the player/item room test runtime.
 - Improve the temporary equipment menu so weapon/gadget slot assignment is clearer.
+- Replace temporary item spawn markers with real item pickup/spawn behavior.
 
 ## Example CLI Usage
 
 Linux/Bash helper scripts live in `tools/testing/`. They are the preferred way to launch multiple local Godot instances during LAN testing.
 
-Player/item room with one host/server and two clients:
+Player/item room with one host/server and one client, one peer per test team:
 
 ```bash
 ./tools/testing/launch-player-item-room-lan.sh
@@ -126,13 +136,14 @@ Script defaults:
 - `GODOT_BIN=godot`
 - `ADDRESS=127.0.0.1`
 - `PORT=12000`
-- `CLIENTS=2`
+- `CLIENTS=1` for `launch-player-item-room-lan.sh`.
+- `CLIENTS=2` for `launch-destruction-lan.sh`.
 - `START_DELAY=2`
 
 Override any default inline:
 
 ```bash
-CLIENTS=3 PORT=7800 START_DELAY=3 ./tools/testing/launch-player-item-room-lan.sh
+CLIENTS=1 PORT=7800 START_DELAY=3 ./tools/testing/launch-player-item-room-lan.sh
 ```
 
 The scripts write logs to `.tmp/test-logs/` and keep the terminal attached. Press `Ctrl+C` in that terminal to stop all spawned instances.

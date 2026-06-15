@@ -5,6 +5,7 @@ public partial class MapGenerationConfig : Resource {
     public enum StructureType {
         Arena,
         Plains,
+        Square,
     }
 
     public enum SeedMode {

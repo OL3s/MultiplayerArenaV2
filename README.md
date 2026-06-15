@@ -48,6 +48,7 @@ Use this as the documentation dictionary:
 | [Game Logging](docs/game-logging.md) | Shared runtime logging format, `GameLog` API rules, scopes/types, and LAN multi-process terminal logging guidance. |
 | [Test Scenes](docs/test-scenes.md) | Current test scenes, how to launch them, controls, test-specific notes, and runtime logging conventions. |
 | [Combat LAN Test Handoff](docs/combat-lan-test-handoff.md) | Current combat/LAN handoff for the shared damage backend, LAN damage-test player runtime, and immediate player control/action context. |
+| [Spawning And Objectives](docs/spawning-and-objectives.md) | Structure-driven team spawn bases, neutral objective ranges, and respawn/spawn-state rules. |
 | [Player Items And Loadout Plan](docs/player-items-inventory-plan.md) | Simplified player item model: armor-driven weapon/gadget capacity, item-owned reload/refresh cooldowns, armor cooldown modifiers, theme, and purchase-mode direction. |
 | [Player HUD UI Plan](docs/player-hud-ui-plan.md) | Planned local player stats HUD, reusable player panel scene, equipment/ammo/cooldown/armor display, and split-screen UI scaling rules. |
 | [Modern Item Content Plan](docs/modern-item-content-plan.md) | First modern-only item content list, including planned weapon tiers, launchers, and grenades. |
@@ -59,7 +60,7 @@ Use this as the documentation dictionary:
 
 Use separate scenes for destruction testing and player/item testing.
 
-On Linux/Bash, use the helper scripts for multi-instance LAN testing. Each script starts one host/server instance and two client instances by default:
+On Linux/Bash, use the helper scripts for multi-instance LAN testing. The player/item room starts one host/server instance and one client instance by default. The destruction LAN script starts one host/server instance and two client instances by default:
 
 ```bash
 ./tools/testing/launch-player-item-room-lan.sh
@@ -69,7 +70,7 @@ On Linux/Bash, use the helper scripts for multi-instance LAN testing. Each scrip
 Override defaults with environment variables:
 
 ```bash
-CLIENTS=3 PORT=7800 GODOT_BIN=godot ./tools/testing/launch-player-item-room-lan.sh
+CLIENTS=1 PORT=7800 GODOT_BIN=godot ./tools/testing/launch-player-item-room-lan.sh
 ```
 
 Logs are written to `.tmp/test-logs/`. Press `Ctrl+C` in the script terminal to stop all spawned instances.

@@ -12,29 +12,34 @@ public partial class MatchLobby : Control {
     private const string ConfirmationOverlayScenePath = "res://scenes/ui/overlays/confirmation_overlay.tscn";
     private const string ConfigBiomeIconPath = "res://assets/ui/config_biome.svg";
     private const string ConfigStructureIconPath = "res://assets/ui/config_structure.svg";
-    private const string BiomePlainsIconPath = "res://assets/ui/biome_plains.svg";
+    private const string BiomeWoodsIconPath = "res://assets/ui/biome_woods.svg";
     private const string BiomeArenaIconPath = "res://assets/ui/biome_arena.svg";
     private const string StructureArenaIconPath = "res://assets/ui/structure_arena.svg";
     private const string StructurePlainsIconPath = "res://assets/ui/structure_plains.svg";
-    private static readonly int[] DefaultTeamIds = { 0, 1, 2, 3, 4 };
+    private const string StructureSquareIconPath = "res://assets/ui/structure_square.svg";
+    private static readonly int[] DefaultTeamIds = { 0, 1, 2, 3 };
     private static readonly GameModeConfig.GameModeType[] AvailableGameModes = {
         GameModeConfig.GameModeType.Deathmatch,
         GameModeConfig.GameModeType.CaptureTheFlag,
+        GameModeConfig.GameModeType.KingOfTheHill,
+        GameModeConfig.GameModeType.Headquarters,
     };
     private static readonly MapGenerationConfig.StructureType[] AvailableStructureTypes = {
         MapGenerationConfig.StructureType.Arena,
         MapGenerationConfig.StructureType.Plains,
+        MapGenerationConfig.StructureType.Square,
     };
     private static readonly BiomeConfig.BiomeType[] AvailableBiomes = {
-        BiomeConfig.BiomeType.Plains,
+        BiomeConfig.BiomeType.Woods,
         BiomeConfig.BiomeType.Arena,
     };
     private static readonly string[] AvailableStructureIconPaths = {
         StructureArenaIconPath,
         StructurePlainsIconPath,
+        StructureSquareIconPath,
     };
     private static readonly string[] AvailableBiomeIconPaths = {
-        BiomePlainsIconPath,
+        BiomeWoodsIconPath,
         BiomeArenaIconPath,
     };
 
@@ -157,7 +162,7 @@ public partial class MatchLobby : Control {
         foreach (var playerData in multiplayerData.Players) {
             var teamId = multiplayerData.GetTeam(playerData);
             if (teamId == global::MultiplayerData.DefaultTeamId)
-                teamId = 1;
+                teamId = global::MultiplayerData.MinTeamId;
 
             if (!playerDataByTeam.ContainsKey(teamId))
                 playerDataByTeam[teamId] = new List<PlayerData>();
@@ -207,11 +212,15 @@ public partial class MatchLobby : Control {
     }
 
     private static IEnumerable<int> GetVisibleTeamIds(SetupConfig setupConfig) {
-        return DefaultTeamIds[1..];
+        return DefaultTeamIds;
     }
 
     private static string FormatTeamName(int teamId) {
-        return teamId == global::MultiplayerData.DefaultTeamId ? "Auto-Assign" : $"Team {teamId}";
+        return teamId == global::MultiplayerData.DefaultTeamId ? "Auto-Assign" : $"Team {GetDisplayTeamId(teamId)}";
+    }
+
+    private static int GetDisplayTeamId(int backendTeamId) {
+        return backendTeamId + 1;
     }
 
     private static string FormatModeName(Networking.NetworkMode networkMode) {
@@ -311,7 +320,7 @@ public partial class MatchLobby : Control {
 
     private static string GetBiomeIconPath(BiomeConfig.BiomeType biomeType) {
         return biomeType switch {
-            BiomeConfig.BiomeType.Plains => BiomePlainsIconPath,
+            BiomeConfig.BiomeType.Woods => BiomeWoodsIconPath,
             BiomeConfig.BiomeType.Arena => BiomeArenaIconPath,
             _ => ConfigBiomeIconPath,
         };
@@ -321,6 +330,7 @@ public partial class MatchLobby : Control {
         return structureType switch {
             MapGenerationConfig.StructureType.Arena => StructureArenaIconPath,
             MapGenerationConfig.StructureType.Plains => StructurePlainsIconPath,
+            MapGenerationConfig.StructureType.Square => StructureSquareIconPath,
             _ => ConfigStructureIconPath,
         };
     }
@@ -350,7 +360,7 @@ public partial class MatchLobby : Control {
         }
 
         if (setupConfig.BiomeConfig.EnabledBiomes.Count == 0) {
-            setupConfig.BiomeConfig.AddBiome(BiomeConfig.BiomeType.Plains);
+            setupConfig.BiomeConfig.AddBiome(BiomeConfig.BiomeType.Woods);
             setupConfig.BiomeConfig.AddBiome(BiomeConfig.BiomeType.Arena);
         }
     }
@@ -650,6 +660,8 @@ public partial class MatchLobby : Control {
         return modeType switch {
             GameModeConfig.GameModeType.Deathmatch => "Deathmatch",
             GameModeConfig.GameModeType.CaptureTheFlag => "Capture the Flag",
+            GameModeConfig.GameModeType.KingOfTheHill => "King of the Hill",
+            GameModeConfig.GameModeType.Headquarters => "Headquarters",
             _ => modeType.ToString(),
         };
     }
