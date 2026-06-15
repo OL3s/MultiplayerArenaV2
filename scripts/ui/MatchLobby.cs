@@ -63,6 +63,7 @@ public partial class MatchLobby : Control {
         GetNode<Button>("MainLayout/Actions/BackButton").Pressed += OnBackPressed;
         InitializeConfigControls();
         RefreshLobbyState();
+        CallDeferred(MethodName.FocusDefaultControl);
     }
 
     public override void _UnhandledInput(InputEvent inputEvent) {
@@ -120,6 +121,15 @@ public partial class MatchLobby : Control {
         revertButton.Visible = networking.HasSelectedMode;
         revertButton.Disabled = !networking.HasPendingSetupConfigChanges;
         revertButton.Modulate = revertButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
+    }
+
+    private void FocusDefaultControl() {
+        UiFocusHelper.EnsureFocusWithin(
+            this,
+            new NodePath("MainLayout/Actions/StartButton"),
+            new NodePath("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton"),
+            new NodePath("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameModeButton"),
+            new NodePath("MainLayout/Actions/BackButton"));
     }
 
     private static string GetTitle(Networking.NetworkMode networkMode) {

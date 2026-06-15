@@ -4,7 +4,9 @@ public partial class SettingsMenu : Control {
 	private const string MainMenuScenePath = "res://scenes/ui/menus/main_menu.tscn";
 
 	private CheckBox _networkDebugOverlayCheckBox;
+	private TabContainer _tabContainer;
 	private Button _applyButton;
+	private Button _backButton;
 
 	public override void _Ready() {
 		UiInputActions.EnsureConfigured();
@@ -44,17 +46,19 @@ public partial class SettingsMenu : Control {
 		titleLabel.AddThemeFontSizeOverride("font_size", 42);
 		mainLayout.AddChild(titleLabel);
 
-		var tabContainer = new TabContainer {
+		_tabContainer = new TabContainer {
+			Name = "TabContainer",
 			CustomMinimumSize = new Vector2(820.0f, 390.0f),
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			FocusMode = Control.FocusModeEnum.All,
 		};
-		mainLayout.AddChild(tabContainer);
+		mainLayout.AddChild(_tabContainer);
 
-		tabContainer.AddChild(CreatePlaceholderTab("Video", "Video settings will include resolution, display mode, scaling, and visual quality."));
-		tabContainer.AddChild(CreatePlaceholderTab("Sound", "Sound settings will include master, music, effects, and voice levels."));
-		tabContainer.AddChild(CreateOnlineTab());
-		tabContainer.AddChild(CreatePlaceholderTab("Controls", "Controls settings will include keyboard, mouse, and gamepad bindings."));
-		tabContainer.AddChild(CreatePlaceholderTab("Gameplay", "Gameplay settings will include accessibility and match preference options."));
+		_tabContainer.AddChild(CreatePlaceholderTab("Video", "Video settings will include resolution, display mode, scaling, and visual quality."));
+		_tabContainer.AddChild(CreatePlaceholderTab("Sound", "Sound settings will include master, music, effects, and voice levels."));
+		_tabContainer.AddChild(CreateOnlineTab());
+		_tabContainer.AddChild(CreatePlaceholderTab("Controls", "Controls settings will include keyboard, mouse, and gamepad bindings."));
+		_tabContainer.AddChild(CreatePlaceholderTab("Gameplay", "Gameplay settings will include accessibility and match preference options."));
 
 		var actionsLayout = new HBoxContainer {
 			Name = "ActionsLayout",
@@ -72,13 +76,13 @@ public partial class SettingsMenu : Control {
 		_applyButton.Pressed += OnApplyPressed;
 		actionsLayout.AddChild(_applyButton);
 
-		var backButton = new Button {
+		_backButton = new Button {
 			Name = "BackButton",
 			Text = "Back",
 			CustomMinimumSize = new Vector2(180.0f, 42.0f),
 		};
-		backButton.Pressed += OnBackPressed;
-		actionsLayout.AddChild(backButton);
+		_backButton.Pressed += OnBackPressed;
+		actionsLayout.AddChild(_backButton);
 	}
 
 	private Control CreatePlaceholderTab(string tabName, string description) {
@@ -147,7 +151,7 @@ public partial class SettingsMenu : Control {
 	}
 
 	private void FocusDefaultButton() {
-		_networkDebugOverlayCheckBox?.GrabFocus();
+		UiFocusHelper.EnsureFocusWithin(this, new NodePath("MainLayout/TabContainer"), new NodePath("MainLayout/ActionsLayout/BackButton"));
 	}
 
 	private void OnBackPressed() {
