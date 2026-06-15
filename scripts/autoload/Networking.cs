@@ -144,6 +144,12 @@ public partial class Networking : Node {
 
     public bool HasActiveNetworkPeer => HasNetworkPeer();
 
+    public bool IsNetworkedSession => HasNetworkPeer();
+
+    public bool IsRemoteClient => IsClient && HasNetworkPeer();
+
+    public bool IsHostAuthority => IsLocal || IsAuthoritativeServer();
+
     public int CurrentServerPort => MultiplayerData.SetupConfig.ServerPort;
 
     public bool HasPendingSetupConfigChanges => HasSelectedMode && !MultiplayerData.SetupConfig.IsEquivalentTo(CachedSetupConfig);
@@ -521,7 +527,7 @@ public partial class Networking : Node {
             return true;
         }
 
-        if (!HasNetworkPeer()) {
+        if (!IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.Validation, "ApplyCachedSetupConfigRejected", "reason=clientNoNetworkPeer");
             return false;
         }
@@ -562,6 +568,11 @@ public partial class Networking : Node {
         MultiplayerData.SetupConfig.OnlineEnabled = CurrentMode == NetworkMode.Online;
         PrintMultiplayerLog(GameLogType.ApiCall, "RegisterLocalLobbyPlayers", $"peer={peerId} activeLocalPlayers={activeLocalPlayerCount}");
 
+        var isHostPeer = IsHostPeerId(peerId);
+        UpdatePeer(peerId, isHostPeer, GetDefaultPeerTeamId(peerId), activeLocalPlayerCount, 4);
+        if (isHostPeer)
+            PrintMultiplayerLog(GameLogType.StateChange, "HostPeerRegistered", $"peer={peerId} localPlayers={activeLocalPlayerCount} host=true");
+
         var globalId = 0;
         foreach (var localPlayerData in LocalLobbyData.LocalPlayers) {
             if (!localPlayerData.IsActive)
@@ -586,12 +597,13 @@ public partial class Networking : Node {
             return;
         }
 
-        if (IsClient && HasNetworkPeer()) {
+        if (IsRemoteClient) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcRequestSetLocalPeerTeam", $"target={ServerPeerId} team={teamId}");
             RpcId(ServerPeerId, nameof(RpcRequestSetLocalPeerTeam), teamId);
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "LocalAuthoritySetPeerTeam", $"peer={peerId} team={teamId}");
         SetPeerTeam(peerId, teamId);
     }
 
@@ -623,23 +635,24 @@ public partial class Networking : Node {
             return;
         }
 
-        if (IsClient && HasNetworkPeer()) {
+        if (IsRemoteClient) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcRequestAutoAssignPeerTeams", $"target={ServerPeerId} teams={teamCount}");
             RpcId(ServerPeerId, nameof(RpcRequestAutoAssignPeerTeams), teamCount);
             return;
         }
 
-        if (!IsServer) {
-            PrintMultiplayerLog(GameLogType.Authority, "AutoAssignPeerTeamsRejected", $"teams={teamCount} reason=notServer");
+        if (!IsHostAuthority) {
+            PrintMultiplayerLog(GameLogType.Authority, "AutoAssignPeerTeamsRejected", $"teams={teamCount} reason=notHostAuthority");
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "LocalAuthorityAutoAssignPeerTeams", $"teams={teamCount}");
         ApplyAutoAssignPeerTeams(teamCount);
     }
 
     private void ApplyAutoAssignPeerTeams(int teamCount) {
-        if (!IsServer) {
-            PrintMultiplayerLog(GameLogType.Authority, "ApplyAutoAssignPeerTeamsRejected", $"teams={teamCount} reason=notServer");
+        if (!IsHostAuthority) {
+            PrintMultiplayerLog(GameLogType.Authority, "ApplyAutoAssignPeerTeamsRejected", $"teams={teamCount} reason=notHostAuthority");
             return;
         }
 
@@ -700,7 +713,7 @@ public partial class Networking : Node {
         int serverPort,
         string gameModeId) {
         PrintMultiplayerLog(GameLogType.ApiCall, "UpdateSetupConfig", $"maxPlayers={maxPlayers} localPlayers={localPlayerCount} online={onlineEnabled} address={serverAddress} port={serverPort} gameMode={gameModeId}");
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcUpdateSetupConfig", "target=all");
             Rpc(
                 nameof(RpcUpdateSetupConfig),
@@ -713,6 +726,7 @@ public partial class Networking : Node {
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplySetupConfigLocal", $"maxPlayers={maxPlayers} gameMode={gameModeId}");
         RpcUpdateSetupConfig(maxPlayers, localPlayerCount, onlineEnabled, serverAddress, serverPort, gameModeId);
     }
 
@@ -733,11 +747,12 @@ public partial class Networking : Node {
             setupConfig.GameModeId);
 
         var serializedSetupConfig = setupConfig.SerializeForNetwork();
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcReplaceFullSetupConfig", "target=all");
             Rpc(nameof(RpcReplaceFullSetupConfig), serializedSetupConfig);
         }
         else {
+            PrintMultiplayerLog(GameLogType.Authority, "ApplyFullSetupConfigLocal");
             RpcReplaceFullSetupConfig(serializedSetupConfig);
         }
 
@@ -751,7 +766,7 @@ public partial class Networking : Node {
         string displayName,
         bool isLocalPlayer) {
         PrintMultiplayerLog(GameLogType.ApiCall, "UpdatePlayer", $"global={globalId} peer={peerId} local={localId} localPlayer={isLocalPlayer} name={displayName}");
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcUpdatePlayer", $"target=all global={globalId}");
             Rpc(
                 nameof(RpcUpdatePlayer),
@@ -763,50 +778,55 @@ public partial class Networking : Node {
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplyPlayerUpdateLocal", $"global={globalId} peer={peerId} local={localId}");
         RpcUpdatePlayer(globalId, peerId, localId, displayName, isLocalPlayer);
     }
 
     public void UpdatePeer(int peerId, bool isHost, int teamId, int requestedLocalPlayerCount, int maxLocalPlayers) {
         PrintMultiplayerLog(GameLogType.ApiCall, "UpdatePeer", $"peer={peerId} host={isHost} team={teamId} requestedLocalPlayers={requestedLocalPlayerCount} maxLocalPlayers={maxLocalPlayers}");
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcUpdatePeer", $"target=all peer={peerId}");
             Rpc(nameof(RpcUpdatePeer), peerId, isHost, teamId, requestedLocalPlayerCount, maxLocalPlayers);
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplyPeerUpdateLocal", $"peer={peerId} host={isHost} team={teamId}");
         RpcUpdatePeer(peerId, isHost, teamId, requestedLocalPlayerCount, maxLocalPlayers);
     }
 
     public void RemovePeer(int peerId) {
         PrintMultiplayerLog(GameLogType.ApiCall, "RemovePeer", $"peer={peerId}");
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcRemovePeer", $"target=all peer={peerId}");
             Rpc(nameof(RpcRemovePeer), peerId);
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplyPeerRemoveLocal", $"peer={peerId}");
         RpcRemovePeer(peerId);
     }
 
     public void RemovePlayer(int peerId, int localId) {
         PrintMultiplayerLog(GameLogType.ApiCall, "RemovePlayer", $"peer={peerId} local={localId}");
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcRemovePlayer", $"target=all peer={peerId} local={localId}");
             Rpc(nameof(RpcRemovePlayer), peerId, localId);
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplyPlayerRemoveLocal", $"peer={peerId} local={localId}");
         RpcRemovePlayer(peerId, localId);
     }
 
     public void ClearPlayers() {
         PrintMultiplayerLog(GameLogType.ApiCall, "ClearPlayers");
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcClearPlayers", "target=all");
             Rpc(nameof(RpcClearPlayers));
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplyPlayersClearLocal");
         RpcClearPlayers();
     }
 
@@ -821,12 +841,13 @@ public partial class Networking : Node {
             return false;
         }
 
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcDamageArenaWallTile", $"tile={position} type={damageType} damage={damageAmount}");
             Rpc(nameof(RpcDamageArenaWallTile), position.X, position.Y, (int)damageType, damageAmount);
             return true;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplyWallDamageLocal", $"tile={position} type={damageType} damage={damageAmount}");
         RpcDamageArenaWallTile(position.X, position.Y, (int)damageType, damageAmount);
         return true;
     }
@@ -846,12 +867,13 @@ public partial class Networking : Node {
             return false;
         }
 
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcDamageArenaWallsInRadius", $"center={centerTile} radius={radius} type={damageType} damage={damageAmount}");
             Rpc(nameof(RpcDamageArenaWallsInRadius), centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
             return true;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplyRadiusWallDamageLocal", $"center={centerTile} radius={radius} type={damageType} damage={damageAmount}");
         RpcDamageArenaWallsInRadius(centerTile.X, centerTile.Y, radius, (int)damageType, damageAmount);
         return true;
     }
@@ -864,12 +886,13 @@ public partial class Networking : Node {
 
     public void ClearPeers() {
         PrintMultiplayerLog(GameLogType.ApiCall, "ClearPeers");
-        if (HasNetworkPeer()) {
+        if (IsNetworkedSession) {
             PrintMultiplayerLog(GameLogType.RpcSend, "RpcClearPeers", "target=all");
             Rpc(nameof(RpcClearPeers));
             return;
         }
 
+        PrintMultiplayerLog(GameLogType.Authority, "ApplyPeersClearLocal");
         RpcClearPeers();
     }
 
@@ -993,7 +1016,7 @@ public partial class Networking : Node {
         var playerData = GetOrCreatePlayerData(peerId, localId);
         playerData.GlobalId = globalId;
         playerData.DisplayName = displayName;
-        playerData.IsLocalPlayer = HasNetworkPeer() ? peerId == Multiplayer.GetUniqueId() : isLocalPlayer;
+        playerData.IsLocalPlayer = IsNetworkedSession ? peerId == Multiplayer.GetUniqueId() : isLocalPlayer;
         EmitLobbyStateChanged();
     }
 
@@ -1460,11 +1483,15 @@ public partial class Networking : Node {
     }
 
     private bool IsAuthoritativeServer() {
-        return IsServer && HasNetworkPeer() && Multiplayer.GetUniqueId() == ServerPeerId;
+        return IsServer && IsNetworkedSession && IsHostPeerId(Multiplayer.GetUniqueId());
     }
 
     private bool CanApplyAuthoritativeArenaMapChange() {
-        return !HasNetworkPeer() || IsAuthoritativeServer();
+        return !IsNetworkedSession || IsAuthoritativeServer();
+    }
+
+    private static bool IsHostPeerId(int peerId) {
+        return peerId == ServerPeerId;
     }
 
     private int GetRegisteredLocalPeerId() {

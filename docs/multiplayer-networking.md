@@ -107,6 +107,20 @@ Current implementation note:
 - This repository does not currently include the Easy Networking addon or RTC signaling layer.
 - Until those pieces are added, the join flow uses Godot's built-in multiplayer transport for working local multi-instance testing while preserving the same `Networking` authority and snapshot-sync flow the RTC path should use.
 
+## Host Authority And Self Connections
+
+The host/server authority is represented by peer id `1`. Host-owned local players are registered directly under peer `1`; connected clients receive different peer ids and request state changes from the host.
+
+The host should never create an RTC/WebRTC connection to itself. Future RTC integration should only create transport connections for remote peers. Host-local actions should validate and apply through the same authoritative gameplay code path, then broadcast resulting state to remote clients. Client actions should send requests to peer `1`; the host validates, applies, and syncs the result.
+
+Implementation rules:
+
+- `PeerData.IsHost` should be `true` for peer `1` and `false` for remote clients.
+- `Networking.IsHostAuthority` means this process can apply authoritative state locally. It is true for local-only mode and for the network host when its active multiplayer peer id is `1`.
+- `Networking.IsRemoteClient` means this process should send authority requests to peer `1` instead of applying them locally.
+- Shared sync methods may use Godot RPC `CallLocal` or explicit local apply helpers, but transport code must not create a host-to-host loopback connection.
+- Gameplay and lobby code should stay transport-agnostic. Replacing ENet with Easy Networking + RTC later should not require changing the lobby/team/player ownership model.
+
 ## Runtime Network Debug UI
 
 - The `Networking` autoload creates a small always-on-top network mode icon in the top-left corner for debug builds/runs.
