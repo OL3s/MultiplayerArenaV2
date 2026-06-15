@@ -15,6 +15,7 @@ public partial class MatchLobby : Control {
     private const string BiomePlainsIconPath = "res://assets/ui/biome_plains.svg";
     private const string BiomeArenaIconPath = "res://assets/ui/biome_arena.svg";
     private const string StructureArenaIconPath = "res://assets/ui/structure_arena.svg";
+    private const string StructurePlainsIconPath = "res://assets/ui/structure_plains.svg";
     private static readonly int[] DefaultTeamIds = { 0, 1, 2, 3, 4 };
     private static readonly GameModeConfig.GameModeType[] AvailableGameModes = {
         GameModeConfig.GameModeType.Deathmatch,
@@ -22,6 +23,7 @@ public partial class MatchLobby : Control {
     };
     private static readonly MapGenerationConfig.StructureType[] AvailableStructureTypes = {
         MapGenerationConfig.StructureType.Arena,
+        MapGenerationConfig.StructureType.Plains,
     };
     private static readonly BiomeConfig.BiomeType[] AvailableBiomes = {
         BiomeConfig.BiomeType.Plains,
@@ -29,6 +31,7 @@ public partial class MatchLobby : Control {
     };
     private static readonly string[] AvailableStructureIconPaths = {
         StructureArenaIconPath,
+        StructurePlainsIconPath,
     };
     private static readonly string[] AvailableBiomeIconPaths = {
         BiomePlainsIconPath,
@@ -317,6 +320,7 @@ public partial class MatchLobby : Control {
     private static string GetStructureIconPath(MapGenerationConfig.StructureType structureType) {
         return structureType switch {
             MapGenerationConfig.StructureType.Arena => StructureArenaIconPath,
+            MapGenerationConfig.StructureType.Plains => StructurePlainsIconPath,
             _ => ConfigStructureIconPath,
         };
     }
