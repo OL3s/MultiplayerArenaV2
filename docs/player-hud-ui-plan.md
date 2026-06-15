@@ -12,8 +12,8 @@ The first implementation should be test-scene friendly and reusable. Build it as
 
 Planned reusable scene split:
 
-- `Scenes/UI/PlayerStatsPanel.tscn`: one local player's stats/equipment panel.
-- `Scenes/UI/LocalPlayersHud.tscn`: parent HUD/container that owns and lays out 1-4 `PlayerStatsPanel` instances.
+- `scenes/ui/player_stats_panel.tscn`: one local player's stats/equipment panel.
+- `scenes/ui/local_players_hud.tscn`: parent HUD/container that owns and lays out 1-4 `PlayerStatsPanel` instances.
 
 `PlayerStatsPanel` should expose a script API that accepts simple runtime data or direct setters for the current display state. The game/test scene should not need to know internal label/icon node names.
 
@@ -72,10 +72,10 @@ The HUD should tolerate missing data while the item system is still being built.
 
 First integration target:
 
-- Scene: `Scenes/Tests/TestPlayerItemRoomLAN.tscn`
-- Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
+- Scene: `scenes/tests/test_player_item_room_lan.tscn`
+- Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 
-The test room should instantiate `LocalPlayersHud.tscn` or include it under its `CanvasLayer`. Runtime code should update the HUD when players spawn/despawn, item selection changes, armor changes, health changes, ammo changes, or scoring changes.
+The test room should instantiate `local_players_hud.tscn` or include it under its `CanvasLayer`. Runtime code should update the HUD when players spawn/despawn, item selection changes, armor changes, health changes, ammo changes, or scoring changes.
 
 The temporary `B` item grid remains a debug/equipment menu, not the final buy wheel. The new HUD is a passive status display that should remain useful while the menu is closed and should not consume gameplay input.
 

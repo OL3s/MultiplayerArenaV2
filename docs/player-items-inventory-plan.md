@@ -306,11 +306,11 @@ These scenes are data-driven from item/projectile resources. The carried item re
 
 Current implementation notes:
 
-- `Scenes/Gameplay/Projectiles/GenericBullet.tscn` uses `GenericBullet.cs` for swept over-time bullet movement. It checks each physics segment from previous to next position, stores hit object ids and wall tile coordinates, and prevents duplicate damage when a target sits across multiple sweep segments.
-- `Scenes/Gameplay/Projectiles/GenericThrownItem.tscn` uses `GenericThrownItem.cs` for throw travel, visual up/down arc animation, a ground shadow, simple bounce handling against walls/props/players, fuse/rest execution, ground-impact activation through `PlayerItemThrowable.ActivateOnGroundImpact`, and objective resolution.
-- `Scenes/Gameplay/Projectiles/GenericLaunchedProjectile.tscn` uses `GenericLaunchedProjectile.cs` for launcher-style projectile movement and collision execution.
+- `scenes/gameplay/projectiles/generic_bullet.tscn` uses `GenericBullet.cs` for swept over-time bullet movement. It checks each physics segment from previous to next position, stores hit object ids and wall tile coordinates, and prevents duplicate damage when a target sits across multiple sweep segments.
+- `scenes/gameplay/projectiles/generic_thrown_item.tscn` uses `GenericThrownItem.cs` for throw travel, visual up/down arc animation, a ground shadow, simple bounce handling against walls/props/players, fuse/rest execution, ground-impact activation through `PlayerItemThrowable.ActivateOnGroundImpact`, and objective resolution.
+- `scenes/gameplay/projectiles/generic_launched_projectile.tscn` uses `GenericLaunchedProjectile.cs` for launcher-style projectile movement and collision execution.
 - `PlayerProjectileData` now owns generic projectile profile fields such as runtime scene, texture, speed, range, width, color, lifetime, penetration, stop-on-hit behavior, damage, and collision objective.
-- Shared projectile profile resources live under `Assets/Projectiles/Data/` for the first modern bullet/projectile families.
+- Shared projectile profile resources live under `assets/projectiles/data/` for the first modern bullet/projectile families.
 
 Execution rules:
 
@@ -319,7 +319,7 @@ Execution rules:
 - Keep movement accuracy and shot inaccuracy readable through the existing aim indicator.
 - Route all damage through `DamageContainer -> HealthContainer` for players, props, and destructible walls.
 - Keep server-authoritative flow: clients request item use, host/server validates ownership, recovery, fire mode, ammo later, and then executes or replicates the result.
-- Keep spawned projectile/throwable visuals under `Assets/Projectiles/`, not `Assets/Items/`, when separate visuals are needed.
+- Keep spawned projectile/throwable visuals under `assets/projectiles/`, not `assets/items/`, when separate visuals are needed.
 
 ## Weapon Accuracy And Handling Stats
 

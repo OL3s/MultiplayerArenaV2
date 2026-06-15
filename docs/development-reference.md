@@ -13,13 +13,13 @@ dotnet build MultiplayerArenaV2.csproj
 Import assets from the CLI when new Godot assets were added:
 
 ```bash
-godot --headless --path . --import
+./tools/import-assets.sh
 ```
 
 Validate that Godot can start the project without opening the editor window:
 
 ```bash
-godot --headless --path . --quit
+./tools/verify-startup.sh
 ```
 
 ## C# Code Style

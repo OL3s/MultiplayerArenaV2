@@ -7,7 +7,7 @@ ADDRESS="${ADDRESS:-127.0.0.1}"
 PORT="${PORT:-7700}"
 CLIENTS="${CLIENTS:-2}"
 START_DELAY="${START_DELAY:-2}"
-SCENE="res://Scenes/Tests/TestMapDestructionLogicLAN.tscn"
+SCENE="res://scenes/tests/test_map_destruction_logic_lan.tscn"
 LOG_DIR="$ROOT_DIR/.tmp/test-logs"
 
 mkdir -p "$LOG_DIR"

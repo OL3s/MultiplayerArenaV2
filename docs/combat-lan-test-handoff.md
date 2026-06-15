@@ -10,7 +10,7 @@ This document is the current handoff for the shared combat backend, destructible
 
 ## Shared Combat Backend
 
-Core files live in `Scripts/Data/Combat/`.
+Core files live in `scripts/data/combat/`.
 
 - `DamageType`: `Crush`, `Slash`, `Heat`, `Explosive`.
 - `StatusEffectType`: currently only `Fire`.
@@ -47,9 +47,9 @@ This keeps spawned player bodies independent from lobby/network ownership detail
 
 ## LAN Damage Test Scene
 
-Scene: `Scenes/Tests/TestMapDestructionLogicLAN.tscn`
+Scene: `scenes/tests/test_map_destruction_logic_lan.tscn`
 
-Script: `Scripts/Data/Map/TestMapDestructionLogicLAN.cs`
+Script: `scripts/data/map/TestMapDestructionLogicLAN.cs`
 
 The LAN destruction test currently covers:
 
@@ -59,7 +59,7 @@ The LAN destruction test currently covers:
 - Radius damage falloff, strongest at the explosion center.
 - Real `PlayerData` registration through the `Networking` autoload instead of hardcoded mock player ids.
 - Godot physics collision for props and wall TileMap collision.
-- Player targets were moved to `Scenes/Tests/TestPlayerItemRoomLAN.tscn`.
+- Player targets were moved to `scenes/tests/test_player_item_room_lan.tscn`.
 
 Controls:
 
@@ -71,7 +71,7 @@ Controls:
 - `Shift + Left Click`: radius damage against props and walls.
 - Right click: rebuild/reset the arena.
 
-Player/item controls now live in `Scenes/Tests/TestPlayerItemRoomLAN.tscn`.
+Player/item controls now live in `scenes/tests/test_player_item_room_lan.tscn`.
 
 The LAN destruction test still seeds local lobby data before hosting/joining so host/client setup and RPC flow use the real `Networking` autoload, but it does not spawn player targets.
 
@@ -83,9 +83,9 @@ Current hitbox/collision/input test structure:
 
 ## LAN Player Item Room Test Scene
 
-Scene: `Scenes/Tests/TestPlayerItemRoomLAN.tscn`
+Scene: `scenes/tests/test_player_item_room_lan.tscn`
 
-Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
+Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 
 This is now the dedicated player movement, aim, and item/action test bed.
 
@@ -94,7 +94,7 @@ This is now the dedicated player movement, aim, and item/action test bed.
 - Client instances register one active gamepad local player: `LocalId 0` on device `0`.
 - Runtime player targets are built from `Networking.MultiplayerData.Players`, keyed only by `GlobalId`, and resolve `PeerId`/`LocalId` through `MultiplayerData.GetPlayerByGlobalId(...)`.
 - Expected player mapping with one host and one client is host `P0 peer 1:local 0` and client `P1 peer <clientPeer>:local 0`.
-- `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images from `Assets/Players/` and a `Pistol-T1` weapon `Sprite2D` from `Assets/Items/Modern/Weapons/`. The weapon is offset from the body and rotated toward the active aim display vector.
+- `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images from `assets/players/` and a `Pistol-T1` weapon `Sprite2D` from `assets/items/modern/weapons/`. The weapon is offset from the body and rotated toward the active aim display vector.
 - `DamageTestPlayer` stores separate local and estimated aim vectors. Owned/local players display their locally calculated exact aim immediately. Remote/non-owned player display uses the replicated quantized estimated aim.
 - The player body sprite flips only by `BodySprite.Scale.X`; root scale, collision, label, and weapon positioning are not flipped through the root node. The body switches to the back SVG only when aim is sufficiently upward.
 - Player room movement uses Godot physics bodies: players are `CharacterBody2D`, the center prop is `StaticBody2D`, and wall movement collision comes from the rendered `WallLayer` `TileMapLayer`.
@@ -125,7 +125,7 @@ Player item room controls:
 
 ## Damage Test Player Runtime
 
-File: `Scripts/Data/Gameplay/DamageTestPlayer.cs`
+File: `scripts/data/gameplay/DamageTestPlayer.cs`
 
 `DamageTestPlayer` is a temporary LAN-test runtime player body for combat and upcoming controls work.
 
@@ -151,8 +151,8 @@ Do not create a new `PlayerData` on death. If a future runtime body is recreated
 
 Files:
 
-- `Scripts/Data/Map/ArenaMapData.cs`
-- `Scripts/Data/Map/WallDamageData.cs`
+- `scripts/data/map/ArenaMapData.cs`
+- `scripts/data/map/WallDamageData.cs`
 
 Wall damage now uses the shared combat backend.
 
@@ -167,12 +167,12 @@ Wall damage now uses the shared combat backend.
 
 Files:
 
-- `Scripts/Data/Map/LevelProp.cs`
-- `Scripts/Data/Map/LevelPropData.cs`
-- `Scripts/Data/Map/LevelPropType.cs`
-- `Assets/Props/barrel.svg`
-- `Assets/Props/rock.svg`
-- `Assets/Props/tree.svg`
+- `scripts/data/map/LevelProp.cs`
+- `scripts/data/map/LevelPropData.cs`
+- `scripts/data/map/LevelPropType.cs`
+- `assets/props/barrel.svg`
+- `assets/props/rock.svg`
+- `assets/props/tree.svg`
 
 Current prop types:
 
@@ -182,7 +182,7 @@ Current prop types:
 
 Props use `HealthContainer` and `ArmorResource` directly. They should follow the same combat path as players and walls.
 
-Prop visuals use three-frame horizontal damage atlases in `Assets/Props/`: perfect, touched, and close-to-broken. `LevelProp` selects the frame from current health ratio using wall-style thresholds: no damage frame above or at 90%, touched below 90%, and close-to-broken below 50%.
+Prop visuals use three-frame horizontal damage atlases in `assets/props/`: perfect, touched, and close-to-broken. `LevelProp` selects the frame from current health ratio using wall-style thresholds: no damage frame above or at 90%, touched below 90%, and close-to-broken below 50%.
 
 ## Next Work: Player Items And Actions
 

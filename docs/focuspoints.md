@@ -6,22 +6,22 @@ This file tracks what to focus on in the next working session.
 
 Continue the player equipment slice inside the dedicated player item/action LAN test scene, with the next focus on ammunition, armor, inventory providers, carried item slots, validation, and a scalable local-player stats HUD.
 
-The generic item execution path is now established enough to start simulating real player equipment instead of only test overrides. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Keep the first version test-scene driven and data/resource driven before building final buy-wheel UI or purchase flow.
+The generic item execution path is now established enough to start simulating real player equipment instead of only test overrides. Use `scenes/tests/test_player_item_room_lan.tscn` for this slice instead of continuing to overload the LAN destruction test scene. Keep the first version test-scene driven and data/resource driven before building final buy-wheel UI or purchase flow.
 
 ## Primary Focus
 
 - Continue from `main` unless a new feature branch is created for the item slice.
 - Read `docs/player-items-inventory-plan.md` first.
-- Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` and `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs` as the primary player item/action test bed.
-- Keep `Scenes/Tests/TestMapDestructionLogicLAN.tscn` focused on destructible map and prop damage sync; it no longer spawns player targets for item testing.
+- Use `scenes/tests/test_player_item_room_lan.tscn` and `scripts/data/gameplay/TestPlayerItemRoomLAN.cs` as the primary player item/action test bed.
+- Keep `scenes/tests/test_map_destruction_logic_lan.tscn` focused on destructible map and prop damage sync; it no longer spawns player targets for item testing.
 - Keep `DamageTestPlayer.GlobalId` as the runtime identity key and resolve ownership through `Networking.MultiplayerData.GetPlayerByGlobalId(GlobalId)`.
 - Treat the existing `B` item grid as a temporary equipment/debug menu, not the final purchase UI.
 - Keep item use shaped like future server-authoritative commands: local input requests an item action, host/server validates inventory/ammo/control state and applies it, clients display the result.
 - Build ammo, armor, and inventory around the model in `docs/player-items-inventory-plan.md`: one armor item, one or more inventory providers, an optional backstrap item, carried equipables, typed slots, and separate magazine reserve buckets.
 - Give every item separate visual roles where relevant: a showcase/UI image for store, inventory, buy-wheel, debug menu, tooltip, and item selection, plus an in-use image for held/equipped/worn gameplay rendering.
-- Render equipped armor as an overlay above the root/base player body sprite. Start with `Assets/Items/Modern/Armor/light_armor.svg` and `Assets/Items/Modern/Armor/heavy_armor.svg` overlapping the current 12x12 test player image.
-- Give armor a separate presentation/store image for UI instead of reusing the tiny equipped overlay. Start with `Assets/Items/Modern/Armor/light_armor_store.svg` and `Assets/Items/Modern/Armor/heavy_armor_store.svg`.
-- Add player stats/equipment HUD UI as reusable scenes, not hardcoded controls inside the test room script. Start with a `PlayerStatsPanel.tscn`-style scene for one local player and a parent HUD scene/container that can lay out up to 4 local player panels at once.
+- Render equipped armor as an overlay above the root/base player body sprite. Start with `assets/items/modern/armor/light_armor.svg` and `assets/items/modern/armor/heavy_armor.svg` overlapping the current 12x12 test player image.
+- Give armor a separate presentation/store image for UI instead of reusing the tiny equipped overlay. Start with `assets/items/modern/armor/light_armor_store.svg` and `assets/items/modern/armor/heavy_armor_store.svg`.
+- Add player stats/equipment HUD UI as reusable scenes, not hardcoded controls inside the test room script. Start with a `player_stats_panel.tscn`-style scene for one local player and a parent HUD scene/container that can lay out up to 4 local player panels at once.
 - The player stats HUD should show player name, avatar image, kills, health/status, equipped weapon, ammunition/magazine reserves, armor, carried items, backstrap item, and empty slots. Missing equipment should render as explicit empty-slot UI, not disappear.
 
 ## Modern Items To Implement
@@ -68,7 +68,7 @@ The generic item execution path is now established enough to start simulating re
 - Every currently imaged modern weapon tier can be selected in `TestPlayerItemRoomLAN` and executes through the same item-use path.
 - Every currently imaged modern grenade can be selected in `TestPlayerItemRoomLAN` and executes through the same throwable path.
 - A thrown/grenade item can apply radius damage to players, props, and destructible walls through the shared damage backend.
-- The new item/action test scene can be launched directly without relying on `TestMapDestructionLogicLAN.tscn` as the active scene.
+- The new item/action test scene can be launched directly without relying on `test_map_destruction_logic_lan.tscn` as the active scene.
 - Item actions use exact aim at action time, not only the quantized estimated aim state.
 - Shootable weapons apply spread around exact aim using item accuracy stats, and sustained fire naturally becomes less accurate based on pushback versus recovery.
 - Shot inaccuracy recovers separately from movement inaccuracy. Movement penalty snaps worse instantly, then recovers by item-specific movement recovery when slowing down or stopping.

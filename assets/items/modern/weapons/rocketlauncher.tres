@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="PlayerItemProjectile" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/PlayerItemProjectile.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/items/modern/weapons/rocketlauncher.svg" id="2_texture"]
+[ext_resource type="Resource" path="res://assets/projectiles/data/rocket_basic.tres" id="3_projectile"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "rocketlauncher"
+DisplayName = "Rocketlauncher"
+Theme = 1
+Cost = 2400
+Weight = 6.2
+HeldTexture = ExtResource("2_texture")
+RecoverySeconds = 1.15
+AvailableFireModes = Array[int]([0])
+BurstMaxUseCount = 3
+Range = 900.0
+AimDisplayRange = 250.0
+AimMoveSpeedMultiplier = 0.70
+DefaultAccuracy = 0.045
+MovementAccuracy = 0.16
+AccuracyPushback = 0.055
+ShotAccuracyRecovery = 0.08
+MovementAccuracyRecovery = 0.30
+MaxInaccuracy = 0.28
+Projectile = ExtResource("3_projectile")
+MagazineSize = 1
+ShotsPerSecond = 0.85
+UsesSpecialMagazineReserve = true

@@ -11,13 +11,13 @@ config_version=5
 [application]
 
 config/name="MultiplayerArenaV2"
-run/main_scene="res://Scenes/UI/MainMenu.tscn"
+run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.6", "C#", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
-Networking="*res://Scripts/Autoload/Networking.cs"
+Networking="*res://scripts/autoload/Networking.cs"
 
 [display]
 

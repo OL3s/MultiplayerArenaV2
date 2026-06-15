@@ -6,7 +6,7 @@ For input button icons, do not use SVG `<text>`. Generate labels as real vector 
 
 ## Current Approach
 
-The generated icons in `Assets/InputIcons/` use a small pixel-font map in Python. Each label character is defined as a 5x7 bitmap, then written into the SVG as many small `<rect>` elements.
+The generated icons in `assets/inputicons/` use a small pixel-font map in Python. Each label character is defined as a 5x7 bitmap, then written into the SVG as many small `<rect>` elements.
 
 This keeps the files as SVGs, but avoids font resolution entirely:
 
@@ -70,7 +70,7 @@ svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
 2. Confirm no generated icon contains SVG text:
 
 ```bash
-rg '<text\b' Assets/InputIcons
+rg '<text\b' assets/InputIcons
 ```
 
 3. Reimport assets for Godot:

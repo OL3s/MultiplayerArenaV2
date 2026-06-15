@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://ciwyng7o5aq1m"]
+
+[ext_resource type="Script" uid="uid://b2n7fn46se2wl" path="res://scripts/data/map/TestMapDestructionLogic.cs" id="1_testmap"]
+[ext_resource type="Script" uid="uid://bybqyhkxesnht" path="res://scripts/data/map/ArenaTileLayerRenderer.cs" id="2_renderer"]
+[ext_resource type="TileSet" uid="uid://bpwq3f27n0d30" path="res://assets/tiles/tilesets/FloorTileset.tres" id="3_8c1fj"]
+[ext_resource type="TileSet" uid="uid://c3ta13o3uyuu" path="res://assets/tiles/tilesets/WallTileset.tres" id="4_a37sk"]
+[ext_resource type="TileSet" uid="uid://bbf1fmi1jee3w" path="res://assets/tiles/tilesets/WallDamagedTileset.tres" id="5_qv3ro"]
+
+[node name="TestMapDestructionLogic" type="Node2D" unique_id=2023947849]
+script = ExtResource("1_testmap")
+
+[node name="ArenaTileLayerRenderer" type="Node2D" parent="." unique_id=2103858202]
+script = ExtResource("2_renderer")
+
+[node name="FloorLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer" unique_id=1275038011]
+tile_set = ExtResource("3_8c1fj")
+
+[node name="WallLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer" unique_id=226549542]
+tile_set = ExtResource("4_a37sk")
+
+[node name="WallDamageLayer" type="TileMapLayer" parent="ArenaTileLayerRenderer" unique_id=1642307469]
+tile_set = ExtResource("5_qv3ro")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=917681539]
+position = Vector2(192, 144)
+zoom = Vector2(2, 2)

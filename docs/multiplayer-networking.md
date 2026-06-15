@@ -93,7 +93,7 @@ Current implementation note:
 ## Runtime Network Debug UI
 
 - The `Networking` autoload creates a small always-on-top network mode icon in the top-left corner for debug builds/runs.
-- The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `Assets/Network/NetworkModes/`.
+- The icon reflects `NetworkMode.NotSelected`, `Local`, `Lan`, `Online`, or `Client` using SVG assets in `assets/network/networkmodes/`.
 - Non-client modes also show a small peer-count label beside the icon so host/server peer state is readable while developing.
 - `SettingsConfig.ShowNetworkDebugOverlay` controls whether the network debug overlay is visible.
 - The setting is exposed in the main menu Settings screen under the `Online` tab.
@@ -103,7 +103,7 @@ Current implementation note:
 
 ## Settings Menu
 
-- `Scenes/UI/SettingsMenu.tscn` is the current settings entry point from the main menu.
+- `scenes/ui/settings_menu.tscn` is the current settings entry point from the main menu.
 - `SettingsConfig` is the shared settings resource owned by the `Networking` autoload for now.
 - `SettingsConfig.LoadOrCreate()` loads `user://settings_config.tres` or returns defaults, and `SettingsConfig.Save()` persists the current resource to the same path.
 - The settings menu currently has placeholder tabs for `Video`, `Sound`, `Controls`, and `Gameplay`, plus an `Online` tab with the network debug overlay toggle and Apply button.

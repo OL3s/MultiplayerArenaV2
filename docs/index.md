@@ -33,9 +33,9 @@ The root `README.md` should stay concise and newcomer-friendly. Detailed technic
 
 ## Current Working Context
 
-- Main scene: `Scenes/UI/MainMenu.tscn`.
-- Primary active gameplay test bed: `Scenes/Tests/TestPlayerItemRoomLAN.tscn`.
-- Destruction-focused LAN test bed: `Scenes/Tests/TestMapDestructionLogicLAN.tscn`.
+- Main scene: `scenes/ui/main_menu.tscn`.
+- Primary active gameplay test bed: `scenes/tests/test_player_item_room_lan.tscn`.
+- Destruction-focused LAN test bed: `scenes/tests/test_map_destruction_logic_lan.tscn`.
 - Current technical direction: build data/resource-driven gameplay systems first, keep UI reusable, and keep multiplayer behavior shaped around server authority.
 - Current next work: continue the player equipment slice with ammo reserves, armor behavior, inventory providers, carried item validation, and the local player HUD.
 

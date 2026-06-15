@@ -21,13 +21,13 @@ dotnet build MultiplayerArenaV2.csproj
 Import assets from the CLI when new Godot assets were added:
 
 ```bash
-godot --headless --path . --import
+./tools/import-assets.sh
 ```
 
 Validate that Godot can start the project without opening the editor window:
 
 ```bash
-godot --headless --path . --quit
+./tools/verify-startup.sh
 ```
 
 ## Documentation Index
@@ -73,18 +73,18 @@ CLIENTS=3 PORT=7800 GODOT_BIN=godot ./tools/testing/launch-player-item-room-lan.
 
 Logs are written to `.tmp/test-logs/`. Press `Ctrl+C` in the script terminal to stop all spawned instances.
 
-Destruction LAN host/client:
+Destruction LAN host/client without the helper script:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host & \
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role host & \
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 7700
 ```
 
-Player/item LAN host/client:
+Player/item LAN host/client without the helper script:
 
 ```bash
-godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role host & \
-godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host & \
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role client --address 127.0.0.1 --port 7700
 ```
 
 Keep detailed test scene notes in `docs/test-scenes.md`.
@@ -123,7 +123,7 @@ dotnet build MultiplayerArenaV2.csproj
 Import Godot assets after cloning or after asset changes:
 
 ```bash
-godot --headless --path . --import
+./tools/import-assets.sh
 ```
 
 ## Running
@@ -137,13 +137,13 @@ godot --path .
 Run the player/item LAN test scene directly:
 
 ```bash
-godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role host
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host
 ```
 
 Validate startup without opening the editor window:
 
 ```bash
-godot --headless --path . --quit
+./tools/verify-startup.sh
 ```
 
 ## Dependencies

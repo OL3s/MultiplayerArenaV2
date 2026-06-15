@@ -4,9 +4,9 @@ This document tracks current test scenes, test controls, launch commands, and ru
 
 ## Destruction Logic Test
 
-Scene: `Scenes/Tests/TestMapDestructionLogic.tscn`
+Scene: `scenes/tests/test_map_destruction_logic.tscn`
 
-Script: `Scripts/Data/Map/TestMapDestructionLogic.cs`
+Script: `scripts/data/map/TestMapDestructionLogic.cs`
 
 - Temporary root scene for destructible map backend testing.
 - Creates mock floor hashset data, calls `ResetWallTiles()`, then applies sample wall-damage values after normal wall generation.
@@ -17,9 +17,9 @@ Script: `Scripts/Data/Map/TestMapDestructionLogic.cs`
 
 ## LAN Destruction Test
 
-Scene: `Scenes/Tests/TestMapDestructionLogicLAN.tscn`
+Scene: `scenes/tests/test_map_destruction_logic_lan.tscn`
 
-Script: `Scripts/Data/Map/TestMapDestructionLogicLAN.cs`
+Script: `scripts/data/map/TestMapDestructionLogicLAN.cs`
 
 - Temporary LAN/RTC-focused test scene for server-authoritative wall destruction sync.
 - Uses the same scene-local map flow as `TestMapDestructionLogic`, then forwards host damage/reset RPCs to connected clients.
@@ -30,7 +30,7 @@ Script: `Scripts/Data/Map/TestMapDestructionLogicLAN.cs`
 - The client instance is a read-only viewer that applies and re-renders scene-local RPC updates sent by the host.
 - The LAN test scene currently focuses on live sync for already-connected peers. Start both peers first, then perform destruction tests from the host side.
 - Initial map construction and late-join catch-up are still not fully synchronized yet. Those are deferred follow-up tasks, not part of the current networking slice.
-- Player targets were removed from this scene. Use `Scenes/Tests/TestPlayerItemRoomLAN.tscn` for player movement, aim, and item/action testing.
+- Player targets were removed from this scene. Use `scenes/tests/test_player_item_room_lan.tscn` for player movement, aim, and item/action testing.
 
 ## LAN Test Controls
 
@@ -49,20 +49,20 @@ Script: `Scripts/Data/Map/TestMapDestructionLogicLAN.cs`
 
 ## LAN Player Item Room Test
 
-Scene: `Scenes/Tests/TestPlayerItemRoomLAN.tscn`
+Scene: `scenes/tests/test_player_item_room_lan.tscn`
 
-Script: `Scripts/Data/Gameplay/TestPlayerItemRoomLAN.cs`
+Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 
 - Dedicated player/item/action LAN test scene.
 - Builds a simple square floor/wall room with one center barrel prop.
 - Spawns the host player on one side and the client player on the other side when both peers are connected.
 - Uses the same `DamageTestPlayer.GlobalId -> PlayerData` ownership lookup pattern as the old LAN player test path.
 - Player movement is currently server-authoritative and intentionally simple: clients send movement input vectors when quantized movement state changes, only the host/server simulates movement, and clients directly apply server movement-state plus every-physics-tick moving-position updates without interpolation or local prediction.
-- Player visuals use temporary SVG player body sprites in `Assets/Players/` plus the `Pistol-T1` item image in `Assets/Items/Modern/Weapons/`.
+- Player visuals use temporary SVG player body sprites in `assets/players/` plus the `Pistol-T1` item image in `assets/items/modern/weapons/`.
 - Player held-item visuals now come from the selected modern item `.tres` resource's `HeldTexture`.
 - The temporary `B` item grid displays each item's `ShowcaseTexture` when present and falls back to `HeldTexture` for older resources.
 - The temporary `B` item grid also includes `Light Armor` and `Heavy Armor`; their buttons use store/showcase art, while selection applies the armor overlay texture on top of the player body.
-- Planned next UI slice: add reusable `Scenes/UI/PlayerStatsPanel.tscn` and `Scenes/UI/LocalPlayersHud.tscn` so the test room can display name, avatar, kills, health, selected item, ammo reserves, armor, carried slots, backstrap, and empty slots for up to 4 local players.
+- Planned next UI slice: add reusable `scenes/ui/player_stats_panel.tscn` and `scenes/ui/local_players_hud.tscn` so the test room can display name, avatar, kills, health, selected item, ammo reserves, armor, carried slots, backstrap, and empty slots for up to 4 local players.
 - The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
 - Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 
@@ -122,30 +122,37 @@ CLIENTS=3 PORT=7800 START_DELAY=3 ./tools/testing/launch-player-item-room-lan.sh
 
 The scripts write logs to `.tmp/test-logs/` and keep the terminal attached. Press `Ctrl+C` in that terminal to stop all spawned instances.
 
+Use the general tools for import and startup verification:
+
+```bash
+./tools/import-assets.sh
+./tools/verify-startup.sh
+```
+
 Host:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role host
 ```
 
 Client:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 7700
 ```
 
 Launch destruction host and client:
 
 ```bash
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role host
-godot --path . res://Scenes/Tests/TestMapDestructionLogicLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role host
+godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 7700
 ```
 
 Launch player item room host and client:
 
 ```bash
-godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role host
-godot --path . res://Scenes/Tests/TestPlayerItemRoomLAN.tscn -- --role client --address 127.0.0.1 --port 7700
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role client --address 127.0.0.1 --port 7700
 ```
 
 If the host log says it picked a port other than `7700`, use that port for the client. This can happen if another old test instance is still holding `7700`.

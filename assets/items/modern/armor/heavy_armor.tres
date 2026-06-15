@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PlayerArmor" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/PlayerArmor.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/items/modern/armor/heavy_armor.svg" id="2_overlay"]
+[ext_resource type="Texture2D" path="res://assets/items/modern/armor/heavy_armor_store.svg" id="3_showcase"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "heavy_armor"
+DisplayName = "Heavy Armor"
+Theme = 1
+Cost = 650
+Weight = 6.5
+HeldTexture = ExtResource("2_overlay")
+ShowcaseTexture = ExtResource("3_showcase")

@@ -13,12 +13,12 @@ This document tracks the first planned modern item content set. The first implem
 
 The carried item and the spawned projectile are separate concepts.
 
-- A rocket launcher is a carried/equipped item in `Assets/Items/Modern/Weapons/`.
-- A rocket is a spawned projectile in `Assets/Projectiles/Rockets/`.
-- A grenade launcher is a carried/equipped item in `Assets/Items/Modern/Weapons/`.
-- A launched grenade projectile belongs under `Assets/Projectiles/Grenades/` if it needs its own visual.
-- A hand grenade item belongs under `Assets/Items/Modern/Throwables/`.
-- The thrown grenade world body belongs under `Assets/Projectiles/Grenades/` if the held item visual is not reused.
+- A rocket launcher is a carried/equipped item in `assets/items/modern/weapons/`.
+- A rocket is a spawned projectile in `assets/projectiles/rockets/`.
+- A grenade launcher is a carried/equipped item in `assets/items/modern/weapons/`.
+- A launched grenade projectile belongs under `assets/projectiles/grenades/` if it needs its own visual.
+- A hand grenade item belongs under `assets/items/modern/throwables/`.
+- The thrown grenade world body belongs under `assets/projectiles/grenades/` if the held item visual is not reused.
 
 The next implementation slice should create shared runtime scenes for the execution side:
 
@@ -41,27 +41,27 @@ The existing weapon and throwable SVG files are currently in-use visuals. Their 
 
 Weapon in-use SVGs:
 
-- `Assets/Items/Modern/Weapons/pistol_t1.svg`
-- `Assets/Items/Modern/Weapons/pistol_t2.svg`
-- `Assets/Items/Modern/Weapons/pistol_t3.svg`
-- `Assets/Items/Modern/Weapons/smg_t1.svg`
-- `Assets/Items/Modern/Weapons/smg_t2.svg`
-- `Assets/Items/Modern/Weapons/smg_t3.svg`
-- `Assets/Items/Modern/Weapons/ar_t1.svg`
-- `Assets/Items/Modern/Weapons/ar_t2.svg`
-- `Assets/Items/Modern/Weapons/ar_t3.svg`
-- `Assets/Items/Modern/Weapons/rifle_t1.svg`
-- `Assets/Items/Modern/Weapons/rifle_t2.svg`
-- `Assets/Items/Modern/Weapons/rifle_t3.svg`
-- `Assets/Items/Modern/Weapons/rocketlauncher.svg`
-- `Assets/Items/Modern/Weapons/grenadelauncher_t1.svg`
-- `Assets/Items/Modern/Weapons/grenadelauncher_t2.svg`
+- `assets/items/modern/weapons/pistol_t1.svg`
+- `assets/items/modern/weapons/pistol_t2.svg`
+- `assets/items/modern/weapons/pistol_t3.svg`
+- `assets/items/modern/weapons/smg_t1.svg`
+- `assets/items/modern/weapons/smg_t2.svg`
+- `assets/items/modern/weapons/smg_t3.svg`
+- `assets/items/modern/weapons/ar_t1.svg`
+- `assets/items/modern/weapons/ar_t2.svg`
+- `assets/items/modern/weapons/ar_t3.svg`
+- `assets/items/modern/weapons/rifle_t1.svg`
+- `assets/items/modern/weapons/rifle_t2.svg`
+- `assets/items/modern/weapons/rifle_t3.svg`
+- `assets/items/modern/weapons/rocketlauncher.svg`
+- `assets/items/modern/weapons/grenadelauncher_t1.svg`
+- `assets/items/modern/weapons/grenadelauncher_t2.svg`
 
 Throwable in-use SVGs:
 
-- `Assets/Items/Modern/Throwables/nade_explosive.svg`
-- `Assets/Items/Modern/Throwables/nade_incendiary.svg`
-- `Assets/Items/Modern/Throwables/nade_smoke.svg`
+- `assets/items/modern/throwables/nade_explosive.svg`
+- `assets/items/modern/throwables/nade_incendiary.svg`
+- `assets/items/modern/throwables/nade_smoke.svg`
 
 ## Modern Item Data Resources
 
@@ -69,27 +69,27 @@ The first item data pass stores each modern carried item as a `.tres` resource b
 
 Weapon resources:
 
-- `Assets/Items/Modern/Weapons/pistol_t1.tres`
-- `Assets/Items/Modern/Weapons/pistol_t2.tres`
-- `Assets/Items/Modern/Weapons/pistol_t3.tres`
-- `Assets/Items/Modern/Weapons/smg_t1.tres`
-- `Assets/Items/Modern/Weapons/smg_t2.tres`
-- `Assets/Items/Modern/Weapons/smg_t3.tres`
-- `Assets/Items/Modern/Weapons/ar_t1.tres`
-- `Assets/Items/Modern/Weapons/ar_t2.tres`
-- `Assets/Items/Modern/Weapons/ar_t3.tres`
-- `Assets/Items/Modern/Weapons/rifle_t1.tres`
-- `Assets/Items/Modern/Weapons/rifle_t2.tres`
-- `Assets/Items/Modern/Weapons/rifle_t3.tres`
-- `Assets/Items/Modern/Weapons/rocketlauncher.tres`
-- `Assets/Items/Modern/Weapons/grenadelauncher_t1.tres`
-- `Assets/Items/Modern/Weapons/grenadelauncher_t2.tres`
+- `assets/items/modern/weapons/pistol_t1.tres`
+- `assets/items/modern/weapons/pistol_t2.tres`
+- `assets/items/modern/weapons/pistol_t3.tres`
+- `assets/items/modern/weapons/smg_t1.tres`
+- `assets/items/modern/weapons/smg_t2.tres`
+- `assets/items/modern/weapons/smg_t3.tres`
+- `assets/items/modern/weapons/ar_t1.tres`
+- `assets/items/modern/weapons/ar_t2.tres`
+- `assets/items/modern/weapons/ar_t3.tres`
+- `assets/items/modern/weapons/rifle_t1.tres`
+- `assets/items/modern/weapons/rifle_t2.tres`
+- `assets/items/modern/weapons/rifle_t3.tres`
+- `assets/items/modern/weapons/rocketlauncher.tres`
+- `assets/items/modern/weapons/grenadelauncher_t1.tres`
+- `assets/items/modern/weapons/grenadelauncher_t2.tres`
 
 Throwable resources:
 
-- `Assets/Items/Modern/Throwables/nade_explosive.tres`
-- `Assets/Items/Modern/Throwables/nade_incendiary.tres`
-- `Assets/Items/Modern/Throwables/nade_smoke.tres`
+- `assets/items/modern/throwables/nade_explosive.tres`
+- `assets/items/modern/throwables/nade_incendiary.tres`
+- `assets/items/modern/throwables/nade_smoke.tres`
 
 These resources currently define item id, display name, theme, cost, weight, held/in-use texture, recovery time, available fire modes, burst max use count, range/display range, aim movement multiplier, accuracy handling stats, magazine/fire-rate values for weapons/launchers, and throw range values for grenades. Add a showcase/presentation texture field when store, inventory, buy-wheel, debug menu, or tooltip UI needs readable item images. Projectile scene/data references and real firing/throw execution are still follow-up work.
 

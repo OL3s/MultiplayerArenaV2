@@ -4,18 +4,18 @@ This document tracks project asset folder rules so temporary and production asse
 
 ## Top-Level Folders
 
-- `Assets/Players/`: player body, character, and player-specific visual parts.
-- `Assets/Items/`: player-carried, bought, equipped, or usable item visuals.
-- `Assets/Projectiles/`: spawned projectile visuals and other moving world objects created by item use.
-- `Assets/Props/`: arena/world props such as barrels, rocks, trees, and other environmental objects.
-- `Assets/InputIcons/`: keyboard, mouse, and gamepad UI input icons.
-- `Assets/Network/`: network/debug UI icons and related network visuals.
-- `Assets/Tiles/`: tile atlases and TileSet resources.
-- `Assets/Shaders/`: shader resources.
+- `assets/players/`: player body, character, and player-specific visual parts.
+- `assets/items/`: player-carried, bought, equipped, or usable item visuals.
+- `assets/projectiles/`: spawned projectile visuals and other moving world objects created by item use.
+- `assets/props/`: arena/world props such as barrels, rocks, trees, and other environmental objects.
+- `assets/inputicons/`: keyboard, mouse, and gamepad UI input icons.
+- `assets/network/`: network/debug UI icons and related network visuals.
+- `assets/tiles/`: tile atlases and TileSet resources.
+- `assets/shaders/`: shader resources.
 
 ## Items Versus Projectiles
 
-Use `Assets/Items/` for the thing a player owns, carries, equips, buys, or holds.
+Use `assets/items/` for the thing a player owns, carries, equips, buys, or holds.
 
 Each item should have two item-level SVG roles:
 
@@ -24,26 +24,26 @@ Each item should have two item-level SVG roles:
 
 Store item `.tres` data resources beside their item visuals when they describe that item directly. The resource should reference both visual roles where relevant instead of assuming one SVG can work for both UI and gameplay. For example, a pistol resource should be able to reference a readable showcase pistol image and a smaller held pistol image.
 
-Use `Assets/Projectiles/` for the thing spawned into the world by using an item.
+Use `assets/projectiles/` for the thing spawned into the world by using an item.
 
 Examples:
 
-- `Assets/Items/Modern/Weapons/rocketlauncher.svg`: the carried rocket launcher item.
-- `Assets/Projectiles/Rockets/rocket.svg`: the rocket fired by the launcher.
-- `Assets/Items/Modern/Weapons/pistol_t1.svg`: the `Pistol-T1` visual currently used by `DamageTestPlayer`.
-- `Assets/Projectiles/Bullets/bullet.svg`: a visible bullet or tracer if one is added later.
-- `Assets/Items/Modern/Throwables/nade_explosive.svg`: a carried grenade item.
-- `Assets/Projectiles/Grenades/thrown_grenade.svg`: the spawned grenade body if the thrown world object needs a separate visual.
+- `assets/items/modern/weapons/rocketlauncher.svg`: the carried rocket launcher item.
+- `assets/projectiles/rockets/rocket.svg`: the rocket fired by the launcher.
+- `assets/items/modern/weapons/pistol_t1.svg`: the `Pistol-T1` visual currently used by `DamageTestPlayer`.
+- `assets/projectiles/bullets/bullet.svg`: a visible bullet or tracer if one is added later.
+- `assets/items/modern/throwables/nade_explosive.svg`: a carried grenade item.
+- `assets/projectiles/grenades/thrown_grenade.svg`: the spawned grenade body if the thrown world object needs a separate visual.
 
 ## Current Item Subfolders
 
-- `Assets/Items/Modern/Weapons/`: modern pistols, SMGs, ARs, rifles, rocket launchers, grenade launchers, and similar carried/equipped weapons.
-- `Assets/Items/Modern/Throwables/`: modern hand grenades and similar carried throwable items.
-- `Assets/Items/Modern/Armor/`: modern armor item visuals that overlay the base player body.
-- `Assets/Items/Modern/Inventory/`: future modern backpacks, holsters, pouches, straps, and other carry-equipment visuals.
-- `Assets/Items/Modern/Consumables/`: future modern stims, medkits, and other instant-use carried items.
+- `assets/items/modern/weapons/`: modern pistols, SMGs, ARs, rifles, rocket launchers, grenade launchers, and similar carried/equipped weapons.
+- `assets/items/modern/throwables/`: modern hand grenades and similar carried throwable items.
+- `assets/items/modern/armor/`: modern armor item visuals that overlay the base player body.
+- `assets/items/modern/inventory/`: future modern backpacks, holsters, pouches, straps, and other carry-equipment visuals.
+- `assets/items/modern/consumables/`: future modern stims, medkits, and other instant-use carried items.
 
-The first item/action content pass is modern-only, so item art is grouped under `Assets/Items/Modern/`. Future themes should get their own theme folder, such as `Assets/Items/Medieval/`, when that content is intentionally started.
+The first item/action content pass is modern-only, so item art is grouped under `assets/items/modern/`. Future themes should get their own theme folder, such as `assets/items/medieval/`, when that content is intentionally started.
 
 ## Current Modern Item SVGs
 
@@ -51,39 +51,39 @@ Existing modern weapon and throwable SVGs are currently treated as in-use visual
 
 Modern weapons:
 
-- `Assets/Items/Modern/Weapons/pistol_t1.svg`
-- `Assets/Items/Modern/Weapons/pistol_t2.svg`
-- `Assets/Items/Modern/Weapons/pistol_t3.svg`
-- `Assets/Items/Modern/Weapons/smg_t1.svg`
-- `Assets/Items/Modern/Weapons/smg_t2.svg`
-- `Assets/Items/Modern/Weapons/smg_t3.svg`
-- `Assets/Items/Modern/Weapons/ar_t1.svg`
-- `Assets/Items/Modern/Weapons/ar_t2.svg`
-- `Assets/Items/Modern/Weapons/ar_t3.svg`
-- `Assets/Items/Modern/Weapons/rifle_t1.svg`
-- `Assets/Items/Modern/Weapons/rifle_t2.svg`
-- `Assets/Items/Modern/Weapons/rifle_t3.svg`
-- `Assets/Items/Modern/Weapons/rocketlauncher.svg`
-- `Assets/Items/Modern/Weapons/grenadelauncher_t1.svg`
-- `Assets/Items/Modern/Weapons/grenadelauncher_t2.svg`
+- `assets/items/modern/weapons/pistol_t1.svg`
+- `assets/items/modern/weapons/pistol_t2.svg`
+- `assets/items/modern/weapons/pistol_t3.svg`
+- `assets/items/modern/weapons/smg_t1.svg`
+- `assets/items/modern/weapons/smg_t2.svg`
+- `assets/items/modern/weapons/smg_t3.svg`
+- `assets/items/modern/weapons/ar_t1.svg`
+- `assets/items/modern/weapons/ar_t2.svg`
+- `assets/items/modern/weapons/ar_t3.svg`
+- `assets/items/modern/weapons/rifle_t1.svg`
+- `assets/items/modern/weapons/rifle_t2.svg`
+- `assets/items/modern/weapons/rifle_t3.svg`
+- `assets/items/modern/weapons/rocketlauncher.svg`
+- `assets/items/modern/weapons/grenadelauncher_t1.svg`
+- `assets/items/modern/weapons/grenadelauncher_t2.svg`
 
 Modern throwables:
 
-- `Assets/Items/Modern/Throwables/nade_explosive.svg`
-- `Assets/Items/Modern/Throwables/nade_incendiary.svg`
-- `Assets/Items/Modern/Throwables/nade_smoke.svg`
+- `assets/items/modern/throwables/nade_explosive.svg`
+- `assets/items/modern/throwables/nade_incendiary.svg`
+- `assets/items/modern/throwables/nade_smoke.svg`
 
 Modern armor overlays:
 
-- `Assets/Items/Modern/Armor/light_armor.svg`
-- `Assets/Items/Modern/Armor/heavy_armor.svg`
+- `assets/items/modern/armor/light_armor.svg`
+- `assets/items/modern/armor/heavy_armor.svg`
 
 Modern armor showcase/presentation images:
 
-- `Assets/Items/Modern/Armor/light_armor_store.svg`
-- `Assets/Items/Modern/Armor/heavy_armor_store.svg`
+- `assets/items/modern/armor/light_armor_store.svg`
+- `assets/items/modern/armor/heavy_armor_store.svg`
 
-Modern item data resources use matching filenames beside these SVGs, such as `Assets/Items/Modern/Weapons/pistol_t1.tres` and `Assets/Items/Modern/Throwables/nade_explosive.tres`.
+Modern item data resources use matching filenames beside these SVGs, such as `assets/items/modern/weapons/pistol_t1.tres` and `assets/items/modern/throwables/nade_explosive.tres`.
 
 ## Item Visual Roles
 
@@ -99,7 +99,7 @@ Use `_showcase.svg` for new showcase images and the base filename for the in-use
 
 ## Player Visual Layering
 
-The base player body image belongs under `Assets/Players/` and should be the root player visual. Equipped armor is a separate overlay image from `Assets/Items/Modern/Armor/` rendered above the body at the same origin. The overlay should hide or replace body pixels only where the armor SVG draws opaque/semi-opaque shapes, so armor can be changed independently from player identity/body art.
+The base player body image belongs under `assets/players/` and should be the root player visual. Equipped armor is a separate overlay image from `assets/items/modern/armor/` rendered above the body at the same origin. The overlay should hide or replace body pixels only where the armor SVG draws opaque/semi-opaque shapes, so armor can be changed independently from player identity/body art.
 
 Initial armor overlay target size is `12x12`, matching the current damage-test player SVGs. Later production player bodies can use the same layering rule with larger or directional armor art.
 
@@ -107,14 +107,14 @@ Armor follows the same item visual role split. The armor in-use visual is the pl
 
 ## Current Projectile Subfolders
 
-- `Assets/Projectiles/Bullets/`: visible bullets, pellets, or tracers.
-- `Assets/Projectiles/Rockets/`: rockets and similar launched explosive bodies.
-- `Assets/Projectiles/Arrows/`: arrows, bolts, and similar physical shots.
-- `Assets/Projectiles/Grenades/`: spawned thrown grenades or grenade-like world bodies.
+- `assets/projectiles/bullets/`: visible bullets, pellets, or tracers.
+- `assets/projectiles/rockets/`: rockets and similar launched explosive bodies.
+- `assets/projectiles/arrows/`: arrows, bolts, and similar physical shots.
+- `assets/projectiles/grenades/`: spawned thrown grenades or grenade-like world bodies.
 
 ## Prop Damage Atlases
 
-Current prop SVGs in `Assets/Props/` are horizontal three-frame damage atlases. Each atlas uses the prop's intended in-game frame size repeated three times across the width:
+Current prop SVGs in `assets/props/` are horizontal three-frame damage atlases. Each atlas uses the prop's intended in-game frame size repeated three times across the width:
 
 - Frame `0`: perfect/undamaged.
 - Frame `1`: touched/damaged, used below 90% health.

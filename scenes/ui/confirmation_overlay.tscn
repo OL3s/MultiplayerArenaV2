@@ -1,0 +1,67 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/ConfirmationOverlay.cs" id="1_confirmationoverlay"]
+
+[node name="ConfirmationOverlay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("1_confirmationoverlay")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PopupPanel" type="PanelContainer" parent="CenterContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(560, 240)
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PopupPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 22
+
+[node name="Content" type="VBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Are You Sure?"
+horizontal_alignment = 1
+
+[node name="MessageLabel" type="Label" parent="CenterContainer/PopupPanel/MarginContainer/Content"]
+layout_mode = 2
+text = "This action cannot be undone."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Actions" type="HBoxContainer" parent="CenterContainer/PopupPanel/MarginContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/Content/Actions"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 54)
+text = "No"
+focus_neighbor_right = NodePath("../ConfirmButton")
+focus_neighbor_left = NodePath("../ConfirmButton")
+
+[node name="ConfirmButton" type="Button" parent="CenterContainer/PopupPanel/MarginContainer/Content/Actions"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 54)
+text = "Yes"
+focus_neighbor_left = NodePath("../CancelButton")
+focus_neighbor_right = NodePath("../CancelButton")
