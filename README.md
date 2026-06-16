@@ -71,6 +71,7 @@ Use separate scenes for destruction testing and player/item testing.
 On Linux/Bash, use the helper scripts for multi-instance LAN testing. The player/item room starts one host/server instance and one client instance by default. The destruction LAN script starts one host/server instance and two client instances by default:
 
 ```bash
+./tools/testing/launch-default-arena-lan.sh
 ./tools/testing/launch-player-item-room-lan.sh
 ./tools/testing/launch-destruction-lan.sh
 ```
@@ -88,6 +89,13 @@ Destruction LAN host/client without the helper script:
 ```bash
 godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role host & \
 godot --path . res://scenes/tests/test_map_destruction_logic_lan.tscn -- --role client --address 127.0.0.1 --port 12000
+```
+
+Default Arena LAN host/client without the helper script:
+
+```bash
+godot --path . res://scenes/tests/test_default_arena_lan.tscn -- --role host & \
+godot --path . res://scenes/tests/test_default_arena_lan.tscn -- --role client --address 127.0.0.1 --port 12000
 ```
 
 Player/item LAN host/client without the helper script:

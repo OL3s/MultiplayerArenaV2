@@ -99,7 +99,6 @@ public partial class ArenaMatch : Node2D {
     private ArenaTileLayerRenderer _tileLayerRenderer;
     private Camera2D _camera;
     private CanvasLayer _canvasLayer;
-    private Label _statusLabel;
     private LocalPlayersHud _localPlayersHud;
     private PanelContainer _debugBuyMenuPanel;
     private GridContainer _debugBuyMenuGrid;
@@ -186,7 +185,6 @@ public partial class ArenaMatch : Node2D {
         _tileLayerRenderer = GetNode<ArenaTileLayerRenderer>("ArenaTileLayerRenderer");
         _camera = GetNode<Camera2D>("Camera2D");
         _canvasLayer = GetNode<CanvasLayer>("CanvasLayer");
-        _statusLabel = _canvasLayer.GetNode<Label>("StatusLabel");
         _networking = GetNode<Networking>("/root/Networking");
         _aimIndicator = new PlayerAimIndicator { Name = "AimIndicator", ZIndex = 20 };
         AddChild(_aimIndicator);
@@ -3402,19 +3400,8 @@ public partial class ArenaMatch : Node2D {
         if (_networking == null)
             return;
 
-        _statusLabel.Text = $"Arena Match\n{GetMatchSetupText()}\nPeers connected: {GetConnectedPeerCount()}\nControls: {GetBuyMenuControlText()} | Tab/Select scoreboard{GetHostServerActionsControlText()} | arrows/d-pad + Enter/A select | left mouse / Xbox RT use";
         UpdateObjectiveStatusHud();
         UpdateLocalPlayersHud();
-    }
-
-    private string GetHostServerActionsControlText() {
-        return _networking?.IsHostAuthority == true ? " | Esc host menu" : string.Empty;
-    }
-
-    private string GetBuyMenuControlText() {
-        return EnableDebugBuyMenu
-            ? "V buy menu | B debug equip"
-            : "V/B buy menu near team base";
     }
 
     private void UpdateLocalPlayersHud() {

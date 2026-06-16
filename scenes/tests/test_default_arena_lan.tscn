@@ -1,14 +1,13 @@
 [gd_scene load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gameplay/TestPlayerItemRoomLAN.cs" id="1_playeritemroom"]
+[ext_resource type="Script" path="res://scripts/data/gameplay/DefaultArenaLAN.cs" id="1_defaultarena"]
 [ext_resource type="Script" path="res://scripts/data/map/ArenaTileLayerRenderer.cs" id="2_renderer"]
 [ext_resource type="TileSet" path="res://assets/tiles/tilesets/FloorTileset.tres" id="3_floor_tileset"]
 [ext_resource type="TileSet" path="res://assets/tiles/tilesets/WallTileset.tres" id="4_wall_tileset"]
 [ext_resource type="TileSet" path="res://assets/tiles/tilesets/WallDamagedTileset.tres" id="5_wall_damage_tileset"]
 
-[node name="TestCaptureTheFlagSquareLAN" type="Node2D"]
-script = ExtResource("1_playeritemroom")
-GameModeOverride = 1
+[node name="TestDefaultArenaLAN" type="Node2D"]
+script = ExtResource("1_defaultarena")
 
 [node name="ArenaTileLayerRenderer" type="Node2D" parent="."]
 script = ExtResource("2_renderer")

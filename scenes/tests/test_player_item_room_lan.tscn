@@ -26,11 +26,3 @@ position = Vector2(224, 160)
 zoom = Vector2(2, 2)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
-
-[node name="StatusLabel" type="Label" parent="CanvasLayer"]
-offset_left = 16.0
-offset_top = 16.0
-offset_right = 900.0
-offset_bottom = 104.0
-theme_override_font_sizes/font_size = 18
-text = "Waiting for connection..."

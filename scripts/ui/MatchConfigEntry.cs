@@ -28,8 +28,8 @@ public partial class MatchConfigEntry : PanelContainer {
         if (_icon != null)
             return;
 
-        _icon = GetNode<TextureRect>("Margin/Row/Icon");
-        _categoryLabel = GetNode<Label>("Margin/Row/Text/CategoryLabel");
-        _valueLabel = GetNode<Label>("Margin/Row/Text/ValueLabel");
+        _icon = GetNode<TextureRect>("Margin/Stack/Icon");
+        _categoryLabel = GetNode<Label>("Margin/Stack/CategoryLabel");
+        _valueLabel = GetNode<Label>("Margin/Stack/ValueLabel");
     }
 }

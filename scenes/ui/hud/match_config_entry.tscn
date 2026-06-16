@@ -15,7 +15,7 @@ corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
 [node name="MatchConfigEntry" type="PanelContainer"]
-custom_minimum_size = Vector2(132, 40)
+custom_minimum_size = Vector2(104, 52)
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 script = ExtResource("1_match_config_entry")
@@ -23,33 +23,33 @@ script = ExtResource("1_match_config_entry")
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 2
 theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 5
+theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 5
+theme_override_constants/margin_bottom = 4
 
-[node name="Row" type="HBoxContainer" parent="Margin"]
+[node name="Stack" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
-theme_override_constants/separation = 7
+theme_override_constants/separation = 1
+alignment = 1
 
-[node name="Icon" type="TextureRect" parent="Margin/Row"]
-custom_minimum_size = Vector2(24, 24)
-layout_mode = 2
-stretch_mode = 5
-
-[node name="Text" type="VBoxContainer" parent="Margin/Row"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 0
-
-[node name="CategoryLabel" type="Label" parent="Margin/Row/Text"]
+[node name="CategoryLabel" type="Label" parent="Margin/Stack"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.58, 0.66, 0.78, 1)
-theme_override_font_sizes/font_size = 9
+theme_override_font_sizes/font_size = 8
 text = "CONFIG"
+horizontal_alignment = 1
 clip_text = true
 
-[node name="ValueLabel" type="Label" parent="Margin/Row/Text"]
+[node name="Icon" type="TextureRect" parent="Margin/Stack"]
+custom_minimum_size = Vector2(16, 16)
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+size_flags_horizontal = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ValueLabel" type="Label" parent="Margin/Stack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
 text = "--"
+horizontal_alignment = 1
 clip_text = true

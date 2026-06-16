@@ -401,6 +401,7 @@ public partial class Networking : Node {
             ConnectionStatusText = "Status: Local game ready.";
             RegisterLocalLobbyPlayers();
             SetLocalPlayersFreeForAllTeams();
+            SyncCachedSetupConfig();
             PrintMultiplayerLog(GameLogType.Lifecycle, "LocalSessionReady", $"localPlayers={MultiplayerData.Players.Count}");
             EmitConnectionStateChanged();
             return true;
@@ -424,6 +425,7 @@ public partial class Networking : Node {
         PrintMultiplayerLog(GameLogType.Lifecycle, "HostingStarted", $"address={MultiplayerData.SetupConfig.ServerAddress} port={port}");
         StartDiscoveryServer();
         RegisterLocalLobbyPlayers();
+        SyncCachedSetupConfig();
         EmitConnectionStateChanged();
         return true;
     }

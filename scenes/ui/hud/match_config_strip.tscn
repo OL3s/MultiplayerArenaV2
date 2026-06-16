@@ -16,25 +16,25 @@ corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
 [node name="MatchConfigStrip" type="PanelContainer"]
-custom_minimum_size = Vector2(0, 58)
+custom_minimum_size = Vector2(0, 76)
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 script = ExtResource("1_match_config_strip")
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 2
 theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 7
+theme_override_constants/margin_top = 5
 theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 7
+theme_override_constants/margin_bottom = 5
 
 [node name="Layout" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 2
 
 [node name="TitleLabel" type="Label" parent="Margin/Layout"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.78, 0.9, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 9
 text = "MATCH CONFIG"
 horizontal_alignment = 1
 

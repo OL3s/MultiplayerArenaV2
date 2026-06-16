@@ -93,6 +93,18 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - The scene now has a local-player debug aim indicator: transparent line, dotted line, and crosshair/circle whose radius comes from dynamic current accuracy and item-aware aim projection distance.
 - Gun aim indicators are capped through item `AimDisplayRange` for readability when gameplay range extends beyond the screen, and stop at sampled collision so the player can see whether the aim line intersects an object. Throwable indicators project toward sampled collision or throw endpoint, using gamepad aim-vector strength for throw distance.
 
+## Default Arena LAN Test
+
+Scene: `scenes/tests/test_default_arena_lan.tscn`
+
+Script: `scripts/data/gameplay/DefaultArenaLAN.cs`
+
+- Direct LAN launcher for the default Arena setup without the square/fixed-seed/debug-buy test overrides.
+- Uses the shared `ArenaMatch` runtime with direct LAN bootstrap enabled.
+- Starts one host process and one client process by default through `tools/testing/launch-default-arena-lan.sh`.
+- Each process seeds one keyboard/mouse local player through the direct test bootstrap path. The existing peer team assignment puts the host and client players on separate teams.
+- Use this when checking default Arena behavior without going through the lobby UI and without forcing the square mode test scenes.
+
 ## LAN Player Item Room Controls
 
 - Host/local player movement: keyboard `WASD` or arrow keys. Hold `Shift` to emit a half-strength movement vector for walking.
@@ -141,6 +153,12 @@ Player/item room with one host/server and one client, one peer per test team:
 ./tools/testing/launch-player-item-room-lan.sh
 ```
 
+Default Arena LAN with one host/server and one client, one keyboard/mouse local player per process/team:
+
+```bash
+./tools/testing/launch-default-arena-lan.sh
+```
+
 Mode-specific square LAN tests also use one host/server and one client:
 
 ```bash
@@ -152,6 +170,7 @@ Mode-specific square LAN tests also use one host/server and one client:
 
 These scripts open:
 
+- `scenes/tests/test_default_arena_lan.tscn`
 - `scenes/tests/test_deathmatch_square_lan.tscn`
 - `scenes/tests/test_capture_the_flag_square_lan.tscn`
 - `scenes/tests/test_king_of_the_hill_square_lan.tscn`
@@ -169,6 +188,7 @@ Script defaults:
 - `ADDRESS=127.0.0.1`
 - `PORT=12000`
 - `CLIENTS=1` for `launch-player-item-room-lan.sh`.
+- `CLIENTS=1` for `launch-default-arena-lan.sh`.
 - `CLIENTS=1` for each mode-specific square LAN launcher.
 - `CLIENTS=2` for `launch-destruction-lan.sh`.
 - `START_DELAY=2`
