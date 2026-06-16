@@ -6,7 +6,7 @@ public abstract partial class PlayerGadget : PlayerItem, IPlayerUsable {
     public PlayerItemObjective UseObjective { get; set; }
 
     [Export]
-    public float RecoverySeconds { get; set; }
+    public float ReloadRecoverySeconds { get; set; } = 1.0f;
 
     [Export]
     public float Range { get; set; } = 160.0f;

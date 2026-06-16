@@ -5,6 +5,7 @@ public partial class BiomeConfig : Resource {
     public enum BiomeType {
         Woods,
         Arena,
+        Medieval,
     }
 
     [Export]

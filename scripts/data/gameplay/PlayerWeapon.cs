@@ -6,7 +6,10 @@ public abstract partial class PlayerWeapon : PlayerItem, IPlayerUsable {
     public PlayerItemObjective UseObjective { get; set; }
 
     [Export]
-    public float RecoverySeconds { get; set; }
+    public float ReloadRecoverySeconds { get; set; } = 0.2f;
+
+    [Export]
+    public float ReloadTimeSeconds { get; set; } = 1.0f;
 
     [Export]
     public bool IsFullAuto { get; set; }

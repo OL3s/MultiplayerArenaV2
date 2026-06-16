@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemThemeCatalog" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/ItemThemeCatalog.cs" id="1_script"]
+[ext_resource type="Resource" path="res://assets/items/themes/modern.tres" id="2_modern"]
+[ext_resource type="Resource" path="res://assets/items/themes/medieval.tres" id="3_medieval"]
+
+[resource]
+script = ExtResource("1_script")
+ThemeDefinitions = Array[Resource]([ExtResource("2_modern"), ExtResource("3_medieval")])
+DefaultEnabledThemes = Array[Resource]([ExtResource("2_modern"), ExtResource("3_medieval")])
+FallbackTheme = ExtResource("2_modern")

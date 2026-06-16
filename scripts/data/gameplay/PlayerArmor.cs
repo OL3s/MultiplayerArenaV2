@@ -12,10 +12,13 @@ public partial class PlayerArmor : PlayerItem {
     public int GadgetSlotCount { get; set; } = 1;
 
     [Export]
-    public int WeaponMagazineCount { get; set; } = 2;
+    public float WeaponReloadTimeMultiplier { get; set; } = 1.0f;
 
     [Export]
-    public int GadgetUseCount { get; set; } = 1;
+    public float WeaponReloadRecoveryMultiplier { get; set; } = 1.0f;
+
+    [Export]
+    public float GadgetReloadRecoveryMultiplier { get; set; } = 1.0f;
 
     public int GetWeaponSlotCount() {
         return AllowsSecondWeapon ? 2 : 1;

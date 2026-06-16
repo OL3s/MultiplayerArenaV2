@@ -6,6 +6,16 @@ This file tracks what to focus on in the next working session.
 
 Move from test-room iteration toward a real lobby-launched match slice. The current priority is to make Start Match lead into playable gameplay using lobby-selected setup, then replace placeholder map/visual content with actual structure, biome, prop, and gameplay assets.
 
+## Recent Session Handoff
+
+- Implemented the resource-root item theme system. `assets/items/item_theme_catalog.tres` points to theme definitions under `assets/items/themes/`; each theme definition owns metadata, icon, item root folder, and direct default starter item reference.
+- `SetupConfig.ItemThemeConfig` now syncs selected theme definition resource paths instead of enum values. Lobby theme selection is catalog-driven, not hardcoded to modern/medieval arrays.
+- `ArenaMatch` now scans selected theme root folders recursively for `PlayerItem` resources. Buy/debug menus populate from loaded resources and default starter items come from selected theme definitions.
+- Added modern `pistol_t0` as the intentionally weak starter pistol. Added the medieval first-pass items: `bow_t0`, `bow_t1`, `crossbow_t1`, `bomb`, and `leather_armor`.
+- Added `Medieval` as a biome option and documented that medieval should eventually be more melee-focused, while current medieval content is a ranged/gadget/armor placeholder slice.
+- Added the match-level loadout mode config structure and lobby UI placement. Map config now groups biome, structure, and item theme together; Game config groups game mode and loadout mode together. Runtime loadout-mode behavior is still a follow-up.
+- Verification passed after the refactor: `dotnet build MultiplayerArenaV2.csproj`, `./tools/import-assets.sh`, `./tools/verify-startup.sh`, and short headless startup of `test_player_item_room_lan.tscn`. The headless item-room test equipped `pistol_t0` through the new catalog/theme-folder path.
+
 ## Primary Focus
 
 - Use the main menu host/join flow and `scenes/ui/lobby/match_lobby.tscn` as the primary entry point, not only direct test-scene launchers.
@@ -29,14 +39,16 @@ Move from test-room iteration toward a real lobby-launched match slice. The curr
 ## Next Implementation Order
 
 1. Verify Start Match from Local and LAN lobbies enters `scenes/gameplay/arena_match.tscn` on host and connected clients.
-2. Make the match scene consume lobby setup without forcing square/fixed-seed test overrides.
-3. Add a camera controller that tracks all local players on the current device, centers on their bounds, and zooms smoothly between readable min/max zoom levels.
-4. Restore or rebuild `Plains` as a real open-field structure distinct from `Square`.
-5. Add at least one more production-intent structure layout beyond the debug square/arena shape.
-6. Add biome-aware tile/prop selection so `Woods` and `Arena` visibly differ without changing spawn/objective rules.
-7. Replace temporary in-game SVG placeholders with proper assets for the first playable slice, prioritizing map tiles, props, player bodies, team bases/objectives, and item pickups.
-8. Move hardcoded structure definitions toward reusable data/resources once there is more than one real layout to author.
-9. Run `dotnet build MultiplayerArenaV2.csproj`, `./tools/import-assets.sh`, and `./tools/verify-startup.sh` after implementation.
+2. Confirm lobby-selected item themes reach `ArenaMatch` in lobby-started play, especially modern-only, medieval-only, and both-themes selections.
+3. Confirm lobby-selected loadout modes reach `ArenaMatch` in lobby-started play before implementing mode-specific gear persistence, budget, randomization, or mirrored-loadout behavior.
+4. Make the match scene consume lobby setup without forcing square/fixed-seed test overrides.
+5. Add a camera controller that tracks all local players on the current device, centers on their bounds, and zooms smoothly between readable min/max zoom levels.
+6. Restore or rebuild `Plains` as a real open-field structure distinct from `Square`.
+7. Add at least one more production-intent structure layout beyond the debug square/arena shape.
+8. Add biome-aware tile/prop selection so `Woods`, `Arena`, and `Medieval` visibly differ without changing spawn/objective rules.
+9. Replace temporary in-game SVG placeholders with proper assets for the first playable slice, prioritizing map tiles, props, player bodies, team bases/objectives, and item pickups.
+10. Move hardcoded structure definitions toward reusable data/resources once there is more than one real layout to author.
+11. Run `dotnet build MultiplayerArenaV2.csproj`, `./tools/import-assets.sh`, and `./tools/verify-startup.sh` after implementation.
 
 ## Keep In Mind
 
@@ -45,7 +57,10 @@ Move from test-room iteration toward a real lobby-launched match slice. The curr
 - Do not make biomes responsible for spawn or objective placement. Structures own gameplay layout; biomes own visual/content dressing.
 - Camera framing should be per device/process and based on local players only, not every networked player in the match.
 - Do not rebuild the old inventory/backstrap/ammo-rig model.
-- Keep the current armor-driven loadout, reload, gadget refresh, and local-player HUD work as implemented baseline, then iterate only where readability or gameplay flow needs it.
+- Keep the current armor-driven loadout, reload/recovery, gadget recovery, and local-player HUD work as implemented baseline, then iterate only where readability or gameplay flow needs it.
+- Keep the modern starter pistol marked as a modern-only default/starter item; do not make every theme inherit that exact default.
+- Keep medieval melee as documented future work until there is an explicit melee runtime slice.
+- Resource paths and direct resource references should be the durable keys for theme/catalog/item selection. Avoid parallel enum/string lists for content that already exists as resources or folders.
 
 ## Relevant Docs
 
@@ -57,4 +72,5 @@ Move from test-room iteration toward a real lobby-launched match slice. The curr
 - `docs/player-items-inventory-plan.md`
 - `docs/player-hud-ui-plan.md`
 - `docs/modern-item-content-plan.md`
+- `docs/item-themes.md`
 - `docs/destructible-environment.md`

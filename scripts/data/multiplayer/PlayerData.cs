@@ -17,5 +17,17 @@ public partial class PlayerData : Resource {
     [Export]
     public string DisplayName { get; set; } = "Player";
 
+    [Export]
+    public int Score { get; set; }
+
+    [Export]
+    public int Kills { get; set; }
+
+    [Export]
+    public int Deaths { get; set; }
+
+    [Export]
+    public int Assists { get; set; }
+
     public bool IsLocalPlayer { get; set; }
 }

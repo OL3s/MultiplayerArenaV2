@@ -1,6 +1,13 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/PlayerHudCard.cs" id="1_player_hud_card"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_overlay"]
+bg_color = Color(0.02, 0.02, 0.025, 0.78)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
 
 [node name="PlayerHudCard" type="PanelContainer"]
 custom_minimum_size = Vector2(188, 58)
@@ -32,7 +39,7 @@ theme_override_constants/separation = 6
 
 [node name="StatusLabel" type="Label" parent="Margin/Row/TextColumn/StatusRow"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 11
 
 [node name="HealthLabel" type="Label" parent="Margin/Row/TextColumn/StatusRow"]
 layout_mode = 2
@@ -55,3 +62,48 @@ stretch_mode = 5
 layout_mode = 2
 theme_override_constants/separation = 1
 alignment = 1
+
+[node name="OverlayPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_overlay")
+
+[node name="Center" type="CenterContainer" parent="OverlayPanel"]
+layout_mode = 2
+
+[node name="Content" type="VBoxContainer" parent="OverlayPanel/Center"]
+layout_mode = 2
+theme_override_constants/separation = 3
+alignment = 1
+
+[node name="PromptRow" type="HBoxContainer" parent="OverlayPanel/Center/Content"]
+layout_mode = 2
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="PromptIcon" type="TextureRect" parent="OverlayPanel/Center/Content/PromptRow"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+expand_mode = 5
+stretch_mode = 5
+
+[node name="PromptLabel" type="Label" parent="OverlayPanel/Center/Content/PromptRow"]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_font_sizes/font_size = 13
+text = "PROMPT"
+clip_text = true
+vertical_alignment = 1
+
+[node name="OverlayProgress" type="ProgressBar" parent="OverlayPanel/Center/Content"]
+custom_minimum_size = Vector2(96, 5)
+layout_mode = 2
+show_percentage = false

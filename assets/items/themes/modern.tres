@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemThemeDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/ItemThemeDefinition.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/ui/theme_modern.svg" id="2_icon"]
+[ext_resource type="Resource" path="res://assets/items/modern/weapons/pistol_t0.tres" id="3_default"]
+
+[resource]
+script = ExtResource("1_script")
+Id = "modern"
+DisplayName = "Modern"
+Description = "Ranged-weapon-heavy theme built around guns, launchers, grenades, and armor."
+Icon = ExtResource("2_icon")
+RootFolder = "res://assets/items/modern"
+DefaultStarterItem = ExtResource("3_default")
+SortOrder = 0

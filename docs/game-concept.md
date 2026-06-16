@@ -30,4 +30,4 @@ Neutral objectives and team spawn bases can exist on every match map. Game modes
 
 ## Current Direction
 
-The game should prioritize fast readable combat, local/online multiplayer flexibility, and destructible arena play. Systems should remain generic enough for multiple themes, including the current modern item direction and possible future medieval content.
+The game should prioritize fast readable combat, local/online multiplayer flexibility, and destructible arena play. Systems should remain generic enough for multiple item themes. Modern is ranged-weapon focused. Medieval has started as a small ranged/gadget/armor data slice and should eventually become more melee-focused when melee runtime work is intentionally implemented.

@@ -45,11 +45,11 @@ public partial class DamageTestPlayer : CharacterBody2D {
 
     public PlayerControlState ControlState { get; private set; } = PlayerControlState.Gameplay;
 
-    public bool CanProcessMovementInput => ControlState == PlayerControlState.Gameplay;
+    public bool CanProcessMovementInput => ControlState is PlayerControlState.Gameplay or PlayerControlState.Aim or PlayerControlState.Reload;
 
-    public bool CanProcessAimInput => ControlState == PlayerControlState.Gameplay;
+    public bool CanProcessAimInput => ControlState is PlayerControlState.Gameplay or PlayerControlState.Aim or PlayerControlState.Reload;
 
-    public bool CanUseItems => ControlState == PlayerControlState.Gameplay;
+    public bool CanUseItems => ControlState is PlayerControlState.Gameplay or PlayerControlState.Aim;
 
     public Vector2 DisplayAimDirection => _hasLocalAimDirection ? _localAimDirection : _estimatedAimDirection;
 

@@ -1,0 +1,50 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/ObjectiveStatusHud.cs" id="1_objective_status_hud"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.08, 0.09, 0.11, 0.88)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.6, 0.68, 0.95)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[node name="ObjectiveStatusHud" type="PanelContainer"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -190.0
+offset_top = 12.0
+offset_right = 190.0
+offset_bottom = 74.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+script = ExtResource("1_objective_status_hud")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 8
+
+[node name="Content" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="TitleLabel" type="Label" parent="Margin/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "OBJECTIVE"
+horizontal_alignment = 1
+
+[node name="StateLabel" type="Label" parent="Margin/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Neutral"
+horizontal_alignment = 1

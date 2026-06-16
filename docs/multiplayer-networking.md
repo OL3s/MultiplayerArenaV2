@@ -187,7 +187,7 @@ Autofill is not rendered as a team container. It is a separate host lobby action
 
 ## Setup Config Direction
 
-Match setup should be resource-driven. `SetupConfig` owns the selected/available game modes, map generation settings, biome settings, player limits, address/port, and team behavior.
+Match setup should be resource-driven. `SetupConfig` owns the selected/available game modes, loadout modes, map generation settings, biome settings, item theme settings, player limits, address/port, and team behavior.
 
 Game modes are represented as `GameModeConfig` resources in an array so multiple modes can be enabled for voting, rotation, quickmatch filtering, or future playlist logic. Map and biome setup are separate resources so procedural generation can grow without turning `SetupConfig` into a large flat object.
 
@@ -196,7 +196,9 @@ The match lobby config UI should edit these resources directly through grouped s
 MVP map setup should stay intentionally narrow while the first playable slice is being chased:
 
 - Structures: `Arena`, `Plains`, and `Square` are exposed in the match lobby. Structure selection is the gameplay-layout choice and should drive area shape, team base/objective centers, team spawn placement around those objectives, core neutral objective placement, secondary neutral objective candidate placement, and item spawn placement. `Arena` is currently the fixed non-random plus-shape structure; `Square` is the simple square-room test structure.
-- Biomes: only `Woods` and `Arena` are exposed in the match lobby.
+- Biomes: `Woods`, `Arena`, and `Medieval` are exposed in the match lobby.
+- Item themes: `Modern` and `Medieval` are exposed in the match lobby and sync through `SetupConfig.ItemThemeConfig`.
+- Loadout modes: `Buy On Spawn`, `Persistent Budget`, `Random Respawn`, and `Mirror Loadout` are exposed in the match lobby Game section and sync through `SetupConfig.LoadoutModeConfig`. The config/UI structure is present; full gameplay behavior is deferred to the loadout-mode runtime pass.
 - The structure and biome enums should only contain implemented/actively targeted values. Add new enum values one at a time when the corresponding map generation/content work starts.
 - The structure/biome selector overlay should show option icons, include `All` and `None` actions, and keep `Close` disabled until at least one option is selected.
 - Match Config map option buttons show the category label above the icon and the selected value below it. They use the generic category icon for multi-selection/all states, and switch to the selected option icon when exactly one biome or structure is selected.

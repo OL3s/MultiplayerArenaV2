@@ -56,8 +56,10 @@ Use this as the documentation dictionary:
 | [Combat LAN Test Handoff](docs/combat-lan-test-handoff.md) | Current combat/LAN handoff for the shared damage backend, LAN damage-test player runtime, and immediate player control/action context. |
 | [Spawning And Objectives](docs/spawning-and-objectives.md) | Structure-driven team spawn bases, neutral objective ranges, and respawn/spawn-state rules. |
 | [Player Items And Loadout Plan](docs/player-items-inventory-plan.md) | Simplified player item model: armor-driven weapon/gadget capacity, item-owned reload/refresh cooldowns, armor cooldown modifiers, theme, and purchase-mode direction. |
+| [Item Themes](docs/item-themes.md) | Modern and medieval item theme libraries, default starter weapons, theme-selection behavior, and future melee direction. |
 | [Player HUD UI Plan](docs/player-hud-ui-plan.md) | Planned local player stats HUD, reusable player panel scene, equipment/ammo/cooldown/armor display, and split-screen UI scaling rules. |
-| [Modern Item Content Plan](docs/modern-item-content-plan.md) | First modern-only item content list, including planned weapon tiers, launchers, and grenades. |
+| [Loadout Modes](docs/loadout-modes.md) | Match-level gear acquisition modes, including buy-on-spawn, persistent budget, random respawn, and mirrored loadout setup. |
+| [Modern Item Content Plan](docs/modern-item-content-plan.md) | Modern item content list, including starter pistol, weapon tiers, launchers, and grenades. |
 | [Asset Organization](docs/asset-organization.md) | Asset folder ownership rules, including item versus projectile art placement. |
 | [Focus Points](docs/focuspoints.md) | Next-session implementation focus and short working checklist. |
 | [SVG Input Icon Generation](docs/svg-input-icon-generation.md) | SVG input-icon generation approach and why button labels are generated as vector geometry instead of SVG `<text>`. |

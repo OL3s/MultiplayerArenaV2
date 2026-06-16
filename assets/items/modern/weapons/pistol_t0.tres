@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="PlayerItemShootable" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/PlayerItemShootable.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/items/modern/weapons/pistol_t0.svg" id="2_texture"]
+[ext_resource type="Resource" path="res://assets/projectiles/data/bullet_pistol.tres" id="3_projectile"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "pistol_t0"
+DisplayName = "Starter Pistol"
+Theme = 1
+Cost = 0
+Weight = 1.0
+HeldTexture = ExtResource("2_texture")
+ReloadRecoverySeconds = 4.8
+ReloadTimeSeconds = 1.65
+Range = 360.0
+AimDisplayRange = 140.0
+AimMoveSpeedMultiplier = 1.0
+DefaultAccuracy = 0.080
+MovementAccuracy = 0.135
+AccuracyPushback = 0.030
+ShotAccuracyRecovery = 0.12
+MovementAccuracyRecovery = 0.55
+MaxInaccuracy = 0.36
+Projectile = ExtResource("3_projectile")
+MagazineSize = 7
+ShotsPerSecond = 2.6

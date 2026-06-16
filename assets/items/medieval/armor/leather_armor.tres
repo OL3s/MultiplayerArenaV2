@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PlayerArmor" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/PlayerArmor.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/items/medieval/armor/leather_armor.svg" id="2_overlay"]
+[ext_resource type="Texture2D" path="res://assets/items/medieval/armor/leather_armor_store.svg" id="3_showcase"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "leather_armor"
+DisplayName = "Leather Armor"
+Theme = 2
+Cost = 250
+Weight = 2.2
+HeldTexture = ExtResource("2_overlay")
+ShowcaseTexture = ExtResource("3_showcase")
+AllowsSecondWeapon = false
+GadgetSlotCount = 1
+WeaponReloadTimeMultiplier = 0.95
+WeaponReloadRecoveryMultiplier = 0.95
+GadgetReloadRecoveryMultiplier = 0.95

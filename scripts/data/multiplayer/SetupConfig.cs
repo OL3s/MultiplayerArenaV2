@@ -34,6 +34,12 @@ public partial class SetupConfig : Resource {
     [Export]
     public BiomeConfig BiomeConfig { get; set; } = new();
 
+    [Export]
+    public ItemThemeConfig ItemThemeConfig { get; set; } = new();
+
+    [Export]
+    public LoadoutModeConfig LoadoutModeConfig { get; set; } = new();
+
     public void AddGameMode(GameModeConfig gameModeConfig) {
         if (gameModeConfig == null)
             return;
@@ -68,6 +74,8 @@ public partial class SetupConfig : Resource {
             GameplayScoring = GameplayScoring?.Clone() ?? new GameplayScoring(),
             MapConfig = MapConfig?.Clone() ?? new MapGenerationConfig(),
             BiomeConfig = BiomeConfig?.Clone() ?? new BiomeConfig(),
+            ItemThemeConfig = ItemThemeConfig?.Clone() ?? new ItemThemeConfig(),
+            LoadoutModeConfig = LoadoutModeConfig?.Clone() ?? new LoadoutModeConfig(),
         };
 
         foreach (var gameModeConfig in GameModes) {
@@ -91,6 +99,8 @@ public partial class SetupConfig : Resource {
         GameplayScoring = source.GameplayScoring?.Clone() ?? new GameplayScoring();
         MapConfig = source.MapConfig?.Clone() ?? new MapGenerationConfig();
         BiomeConfig = source.BiomeConfig?.Clone() ?? new BiomeConfig();
+        ItemThemeConfig = source.ItemThemeConfig?.Clone() ?? new ItemThemeConfig();
+        LoadoutModeConfig = source.LoadoutModeConfig?.Clone() ?? new LoadoutModeConfig();
         GameModes.Clear();
 
         foreach (var gameModeConfig in source.GameModes) {
@@ -123,6 +133,14 @@ public partial class SetupConfig : Resource {
             gameModes.Add($"{(int)gameMode.ModeType},{EscapeNetworkValue(gameMode.DisplayName)},{(gameMode.IsEnabled ? 1 : 0)}");
         }
 
+        var itemThemes = new List<string>();
+        foreach (var themePath in ItemThemeConfig.EnabledThemeDefinitionPaths)
+            itemThemes.Add(EscapeNetworkValue(themePath));
+
+        var loadoutModes = new List<string>();
+        foreach (var loadoutMode in LoadoutModeConfig.EnabledLoadoutModes)
+            loadoutModes.Add(((int)loadoutMode).ToString());
+
         return string.Join(
             "|",
             MaxPlayers,
@@ -138,7 +156,10 @@ public partial class SetupConfig : Resource {
             GameplayScoring.RandomizeGameModeOrder ? 1 : 0,
             string.Join(",", mapTypes),
             string.Join(",", biomes),
-            string.Join(";", gameModes));
+            string.Join(";", gameModes),
+            string.Join(",", itemThemes),
+            string.Join(",", loadoutModes),
+            LoadoutModeConfig.StartingBudget);
     }
 
     public static bool TryDeserializeForNetwork(string serializedSetupConfig, out SetupConfig setupConfig) {
@@ -178,6 +199,8 @@ public partial class SetupConfig : Resource {
                 FixedSeed = fixedSeed,
             },
             BiomeConfig = new BiomeConfig(),
+            ItemThemeConfig = new ItemThemeConfig(),
+            LoadoutModeConfig = new LoadoutModeConfig(),
             GameplayScoring = new GameplayScoring {
                 BestOfRoundsPerGameMode = bestOfRoundsPerGameMode,
                 BestOfGameModes = bestOfGameModes,
@@ -216,6 +239,21 @@ public partial class SetupConfig : Resource {
             }
         }
 
+        if (parts.Length > 14 && !string.IsNullOrWhiteSpace(parts[14])) {
+            foreach (var themePath in parts[14].Split(',', StringSplitOptions.RemoveEmptyEntries))
+                setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths.Add(UnescapeNetworkValue(themePath));
+        }
+
+        if (parts.Length > 15 && !string.IsNullOrWhiteSpace(parts[15])) {
+            foreach (var loadoutMode in parts[15].Split(',', StringSplitOptions.RemoveEmptyEntries)) {
+                if (int.TryParse(loadoutMode, out var loadoutModeValue))
+                    setupConfig.LoadoutModeConfig.EnabledLoadoutModes.Add((LoadoutModeConfig.LoadoutModeType)loadoutModeValue);
+            }
+        }
+
+        if (parts.Length > 16 && int.TryParse(parts[16], out var startingBudget))
+            setupConfig.LoadoutModeConfig.StartingBudget = startingBudget;
+
         setupConfig.EnsureDefaultSelections();
         return true;
     }
@@ -245,6 +283,19 @@ public partial class SetupConfig : Resource {
         if (BiomeConfig.EnabledBiomes.Count == 0) {
             BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Woods);
             BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Arena);
+            BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Medieval);
+        }
+
+        if (ItemThemeConfig.EnabledThemeDefinitionPaths.Count == 0) {
+            foreach (var themePath in ItemThemeRegistry.GetDefaultEnabledThemePaths())
+                ItemThemeConfig.EnabledThemeDefinitionPaths.Add(themePath);
+        }
+
+        if (LoadoutModeConfig.EnabledLoadoutModes.Count == 0) {
+            LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.BuyOnSpawn);
+            LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.PersistentBudget);
+            LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.RandomOnRespawn);
+            LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.MirrorLoadout);
         }
     }
 

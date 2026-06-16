@@ -17,55 +17,19 @@ public partial class ArenaMatch : Node2D {
     private const float RespawnDelaySeconds = 1.0f;
     private const float SpawnImmobilizeSeconds = 1.0f;
     private const int DefaultTestMapSeed = 12000;
-    private const int ItemMenuColumns = 3;
+    private const int DebugBuyMenuColumns = 3;
     private const int DirectionBucketCount = 16;
-    private const string DefaultItemId = "pistol_t1";
     private const string GenericBulletScenePath = "res://scenes/gameplay/projectiles/generic_bullet.tscn";
     private const string GenericThrownItemScenePath = "res://scenes/gameplay/projectiles/generic_thrown_item.tscn";
     private const string GenericLaunchedProjectileScenePath = "res://scenes/gameplay/projectiles/generic_launched_projectile.tscn";
     private const string NeutralObjectiveScenePath = "res://scenes/gameplay/objectives/neutral_objective.tscn";
     private const string TeamSpawnBaseMarkerScenePath = "res://scenes/gameplay/objectives/team_spawn_base_marker.tscn";
     private const string LocalPlayersHudScenePath = "res://scenes/ui/hud/local_players_hud.tscn";
-
-    private static readonly string[] ModernItemIds = {
-        "pistol_t1", "pistol_t2", "pistol_t3",
-        "smg_t1", "smg_t2", "smg_t3",
-        "ar_t1", "ar_t2", "ar_t3",
-        "rifle_t1", "rifle_t2", "rifle_t3",
-        "rocketlauncher", "grenadelauncher_t1", "grenadelauncher_t2",
-        "nade_explosive", "nade_incendiary", "nade_smoke",
-    };
-
-    private static readonly string[] ModernArmorIds = {
-        "light_armor", "heavy_armor",
-    };
-
-    private static readonly Dictionary<string, string> ItemResourcePaths = new() {
-        ["pistol_t1"] = "res://assets/items/modern/weapons/pistol_t1.tres",
-        ["pistol_t2"] = "res://assets/items/modern/weapons/pistol_t2.tres",
-        ["pistol_t3"] = "res://assets/items/modern/weapons/pistol_t3.tres",
-        ["smg_t1"] = "res://assets/items/modern/weapons/smg_t1.tres",
-        ["smg_t2"] = "res://assets/items/modern/weapons/smg_t2.tres",
-        ["smg_t3"] = "res://assets/items/modern/weapons/smg_t3.tres",
-        ["ar_t1"] = "res://assets/items/modern/weapons/ar_t1.tres",
-        ["ar_t2"] = "res://assets/items/modern/weapons/ar_t2.tres",
-        ["ar_t3"] = "res://assets/items/modern/weapons/ar_t3.tres",
-        ["rifle_t1"] = "res://assets/items/modern/weapons/rifle_t1.tres",
-        ["rifle_t2"] = "res://assets/items/modern/weapons/rifle_t2.tres",
-        ["rifle_t3"] = "res://assets/items/modern/weapons/rifle_t3.tres",
-        ["rocketlauncher"] = "res://assets/items/modern/weapons/rocketlauncher.tres",
-        ["grenadelauncher_t1"] = "res://assets/items/modern/weapons/grenadelauncher_t1.tres",
-        ["grenadelauncher_t2"] = "res://assets/items/modern/weapons/grenadelauncher_t2.tres",
-        ["nade_explosive"] = "res://assets/items/modern/throwables/nade_explosive.tres",
-        ["nade_incendiary"] = "res://assets/items/modern/throwables/nade_incendiary.tres",
-        ["nade_smoke"] = "res://assets/items/modern/throwables/nade_smoke.tres",
-    };
-
-    private static readonly Dictionary<string, string> ArmorResourcePaths = new() {
-        ["light_armor"] = "res://assets/items/modern/armor/light_armor.tres",
-        ["heavy_armor"] = "res://assets/items/modern/armor/heavy_armor.tres",
-    };
-
+    private const string PlayerBuyRadialMenuScenePath = "res://scenes/ui/buy/player_buy_radial_menu.tscn";
+    private const string ScoreboardOverlayScenePath = "res://scenes/ui/hud/scoreboard_overlay.tscn";
+    private const string ObjectiveStatusHudScenePath = "res://scenes/ui/hud/objective_status_hud.tscn";
+    private const string KeyboardReloadIconPath = "res://assets/inputicons/keyboard/key_r.svg";
+    private const string GamepadReloadIconPath = "res://assets/inputicons/xbox/button_x.svg";
     private enum InputStrength {
         None,
         Some,
@@ -110,8 +74,11 @@ public partial class ArenaMatch : Node2D {
     private CanvasLayer _canvasLayer;
     private Label _statusLabel;
     private LocalPlayersHud _localPlayersHud;
-    private PanelContainer _itemMenuPanel;
-    private GridContainer _itemMenuGrid;
+    private PanelContainer _debugBuyMenuPanel;
+    private GridContainer _debugBuyMenuGrid;
+    private PlayerBuyRadialMenu _buyRadialMenu;
+    private ScoreboardOverlay _scoreboardOverlay;
+    private ObjectiveStatusHud _objectiveStatusHud;
     private Networking _networking;
     private LevelProp _centerProp;
     private readonly Dictionary<int, DamageTestPlayer> _playersByGlobalId = new();
@@ -125,7 +92,7 @@ public partial class ArenaMatch : Node2D {
     private readonly Dictionary<int, PlayerItemAccuracyState> _accuracyStatesByGlobalId = new();
     private readonly Dictionary<int, PlayerLoadoutState> _loadoutsByGlobalId = new();
     private readonly Dictionary<int, float> _aimStrengthByGlobalId = new();
-    private readonly Dictionary<int, double> _itemRecoverySecondsByGlobalId = new();
+    private readonly Dictionary<int, double> _shotIntervalSecondsByGlobalId = new();
     private readonly Dictionary<int, bool> _wasUseHeldByGlobalId = new();
     private readonly Dictionary<int, bool> _suppressUseUntilReleasedByGlobalId = new();
     private readonly Dictionary<int, float> _respawnSecondsByGlobalId = new();
@@ -135,9 +102,12 @@ public partial class ArenaMatch : Node2D {
     private readonly GameplaySpawnManager _spawnManager = new();
     private readonly List<TeamSpawnBaseMarker> _teamSpawnBaseMarkers = new();
     private readonly List<GameplaySpawnMarker> _itemSpawnMarkers = new();
-    private readonly Dictionary<string, PlayerItem> _loadedItemsById = new();
-    private readonly Dictionary<string, PlayerArmor> _loadedArmorById = new();
-    private readonly Dictionary<string, Button> _itemMenuButtonsById = new();
+    private readonly Dictionary<string, PlayerItem> _loadedItemsByPath = new();
+    private readonly Dictionary<string, PlayerArmor> _loadedArmorByPath = new();
+    private readonly List<string> _activeItemPaths = new();
+    private readonly List<string> _activeArmorPaths = new();
+    private readonly List<ItemThemeDefinition> _activeItemThemes = new();
+    private readonly Dictionary<string, Button> _debugBuyMenuButtonsById = new();
     private NeutralObjective _neutralObjective;
     private int _objectiveControllingTeamId = -1;
     private bool _objectiveIsContested;
@@ -149,6 +119,10 @@ public partial class ArenaMatch : Node2D {
     private PackedScene _neutralObjectiveScene;
     private PackedScene _teamSpawnBaseMarkerScene;
     private PackedScene _localPlayersHudScene;
+    private PackedScene _playerBuyRadialMenuScene;
+    private PackedScene _scoreboardOverlayScene;
+    private PackedScene _objectiveStatusHudScene;
+    private int _activeBuyMenuGlobalId = -1;
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -185,6 +159,9 @@ public partial class ArenaMatch : Node2D {
         _neutralObjectiveScene = GD.Load<PackedScene>(NeutralObjectiveScenePath);
         _teamSpawnBaseMarkerScene = GD.Load<PackedScene>(TeamSpawnBaseMarkerScenePath);
         _localPlayersHudScene = GD.Load<PackedScene>(LocalPlayersHudScenePath);
+        _playerBuyRadialMenuScene = GD.Load<PackedScene>(PlayerBuyRadialMenuScenePath);
+        _scoreboardOverlayScene = GD.Load<PackedScene>(ScoreboardOverlayScenePath);
+        _objectiveStatusHudScene = GD.Load<PackedScene>(ObjectiveStatusHudScenePath);
 
         ApplyCommandLineOverrides();
         if (UseLanTestBootstrap) {
@@ -195,10 +172,15 @@ public partial class ArenaMatch : Node2D {
         if (ForceTestSetupOverrides)
             ApplyTestSetupOverrides();
 
+        RefreshItemThemeLibraries();
+
         _networking.ConnectionStateChanged += OnConnectionStateChanged;
         _networking.LobbyStateChanged += OnLobbyStateChanged;
         BuildLocalPlayersHud();
-        BuildItemMenu();
+        BuildDebugBuyMenu();
+        BuildBuyRadialMenu();
+        BuildScoreboard();
+        BuildObjectiveStatusHud();
         UpdateStatusLabel();
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "SceneReady", $"clientTarget={ClientAddress}:{ClientPort}");
 
@@ -220,11 +202,13 @@ public partial class ArenaMatch : Node2D {
     }
 
     public override void _Process(double delta) {
-        UpdateItemRecoveries(delta);
+        UpdateShotIntervals(delta);
         UpdateRespawns(delta);
         UpdateObjective(delta);
+        UpdateBuyRadialMenu();
         ProcessLocalItemUse(delta);
         UpdateStatusLabel();
+        UpdateScoreboard();
         UpdateLocalAimIndicator();
     }
 
@@ -238,19 +222,140 @@ public partial class ArenaMatch : Node2D {
     }
 
     public override void _UnhandledInput(InputEvent @event) {
-        if (IsItemMenuToggleEvent(@event)) {
-            ToggleItemMenu();
+        if (TryProcessBuyRadialMenuInput(@event)) {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (IsBuyMenuToggleEvent(@event)) {
+            ToggleBuyMenu();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (IsDebugBuyMenuToggleEvent(@event)) {
+            ToggleDebugBuyMenu();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (IsScoreboardToggleEvent(@event)) {
+            ToggleScoreboard();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (TryProcessReloadInput(@event)) {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (TryProcessKeyboardMouseAimToggle(@event)) {
             GetViewport().SetInputAsHandled();
             return;
         }
 
     }
 
-    private bool IsItemMenuToggleEvent(InputEvent @event) {
+    private bool IsBuyMenuToggleEvent(InputEvent @event) {
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.V })
+            return true;
+
+        return @event is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.Y };
+    }
+
+    private bool IsDebugBuyMenuToggleEvent(InputEvent @event) {
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.B })
             return true;
 
         return @event is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.B };
+    }
+
+    private bool TryProcessBuyRadialMenuInput(InputEvent @event) {
+        if (_buyRadialMenu == null || !_buyRadialMenu.Visible)
+            return false;
+
+        if (@event.IsActionPressed("ui_cancel")) {
+            CloseBuyMenu();
+            return true;
+        }
+
+        if (@event.IsActionPressed("ui_accept") || @event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }) {
+            _buyRadialMenu.ConfirmSelection();
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsScoreboardToggleEvent(InputEvent @event) {
+        if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Tab })
+            return true;
+
+        return @event is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.Back };
+    }
+
+    private bool TryProcessReloadInput(InputEvent @event) {
+        if (@event is not InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.R }
+            && @event is not InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.X })
+            return false;
+
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            var localPlayerData = GetLocalPlayerDataForGlobalId(playerEntry.Key);
+            if (!IsReloadInputForLocalPlayer(@event, localPlayerData))
+                continue;
+
+            RequestLocalReload(playerEntry.Key);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsReloadInputForLocalPlayer(InputEvent @event, LocalPlayerData localPlayerData) {
+        if (localPlayerData == null)
+            return false;
+
+        return @event switch {
+            InputEventKey => localPlayerData.InputType == LocalPlayerData.LocalInputType.KeyboardMouse,
+            InputEventJoypadButton joypadButton => localPlayerData.InputType == LocalPlayerData.LocalInputType.Gamepad && joypadButton.Device == localPlayerData.DeviceId,
+            _ => false,
+        };
+    }
+
+    private bool TryProcessKeyboardMouseAimToggle(InputEvent @event) {
+        var togglePressed = @event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Ctrl }
+            || @event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right };
+        if (!togglePressed)
+            return false;
+
+        foreach (var playerEntry in _playersByGlobalId) {
+            var player = playerEntry.Value;
+            if (!IsInstanceValid(player) || player.IsDead())
+                continue;
+
+            if (player.ControlState is not (PlayerControlState.Gameplay or PlayerControlState.Aim))
+                continue;
+
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData == null || !playerData.IsLocalPlayer)
+                continue;
+
+            var localPlayerData = GetLocalPlayerDataForGlobalId(playerEntry.Key);
+            if (localPlayerData?.InputType != LocalPlayerData.LocalInputType.KeyboardMouse)
+                continue;
+
+            player.SetControlState(player.ControlState == PlayerControlState.Aim
+                ? PlayerControlState.Gameplay
+                : PlayerControlState.Aim);
+            return true;
+        }
+
+        return false;
     }
 
     private void TryStartHost() {
@@ -305,51 +410,76 @@ public partial class ArenaMatch : Node2D {
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "ClientConnectStartResult", $"started={started} target={ClientAddress}:{ClientPort}");
     }
 
-    private void BuildItemMenu() {
-        _itemMenuPanel = new PanelContainer {
-            Name = "ItemMenuPanel",
+    private void BuildDebugBuyMenu() {
+        _debugBuyMenuPanel = new PanelContainer {
+            Name = "DebugBuyMenuPanel",
             Visible = false,
             OffsetLeft = 220.0f,
             OffsetTop = 80.0f,
             OffsetRight = 720.0f,
             OffsetBottom = 500.0f,
         };
-        _canvasLayer.AddChild(_itemMenuPanel);
+        _canvasLayer.AddChild(_debugBuyMenuPanel);
 
-        var margin = new MarginContainer { Name = "ItemMenuMargin" };
+        var margin = new MarginContainer { Name = "DebugBuyMenuMargin" };
         margin.AddThemeConstantOverride("margin_left", 16);
         margin.AddThemeConstantOverride("margin_top", 16);
         margin.AddThemeConstantOverride("margin_right", 16);
         margin.AddThemeConstantOverride("margin_bottom", 16);
-        _itemMenuPanel.AddChild(margin);
+        _debugBuyMenuPanel.AddChild(margin);
 
-        var layout = new VBoxContainer { Name = "ItemMenuLayout" };
+        var layout = new VBoxContainer { Name = "DebugBuyMenuLayout" };
         layout.AddThemeConstantOverride("separation", 10);
         margin.AddChild(layout);
 
         var title = new Label {
-            Name = "ItemMenuTitle",
-            Text = "Select Test Item",
+            Name = "DebugBuyMenuTitle",
+            Text = "Debug Buy / Equip",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         title.AddThemeFontSizeOverride("font_size", 20);
         layout.AddChild(title);
 
-        _itemMenuGrid = new GridContainer {
-            Name = "ItemMenuGrid",
-            Columns = ItemMenuColumns,
+        _debugBuyMenuGrid = new GridContainer {
+            Name = "DebugBuyMenuGrid",
+            Columns = DebugBuyMenuColumns,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
-        _itemMenuGrid.AddThemeConstantOverride("h_separation", 8);
-        _itemMenuGrid.AddThemeConstantOverride("v_separation", 8);
-        layout.AddChild(_itemMenuGrid);
+        _debugBuyMenuGrid.AddThemeConstantOverride("h_separation", 8);
+        _debugBuyMenuGrid.AddThemeConstantOverride("v_separation", 8);
+        layout.AddChild(_debugBuyMenuGrid);
 
-        foreach (var itemId in ModernItemIds)
-            AddItemMenuButton(itemId);
+        RebuildDebugBuyMenuButtons();
+    }
 
-        foreach (var armorId in ModernArmorIds)
-            AddArmorMenuButton(armorId);
+    private void RebuildDebugBuyMenuButtons() {
+        if (_debugBuyMenuGrid == null)
+            return;
+
+        _debugBuyMenuButtonsById.Clear();
+        foreach (var child in _debugBuyMenuGrid.GetChildren()) {
+            _debugBuyMenuGrid.RemoveChild(child);
+            child.QueueFree();
+        }
+
+        foreach (var itemPath in _activeItemPaths)
+            AddDebugBuyItemButton(itemPath);
+
+        foreach (var armorPath in _activeArmorPaths)
+            AddDebugBuyArmorButton(armorPath);
+    }
+
+    private void BuildBuyRadialMenu() {
+        if (_buyRadialMenu != null && IsInstanceValid(_buyRadialMenu))
+            return;
+
+        _buyRadialMenu = _playerBuyRadialMenuScene?.Instantiate<PlayerBuyRadialMenu>() ?? new PlayerBuyRadialMenu();
+        _buyRadialMenu.Name = "PlayerBuyRadialMenu";
+        _buyRadialMenu.Visible = false;
+        _buyRadialMenu.ZIndex = 40;
+        _buyRadialMenu.EntrySelected += OnBuyRadialEntrySelected;
+        _canvasLayer.AddChild(_buyRadialMenu);
     }
 
     private void BuildLocalPlayersHud() {
@@ -361,11 +491,29 @@ public partial class ArenaMatch : Node2D {
         _canvasLayer.AddChild(_localPlayersHud);
     }
 
-    private void AddItemMenuButton(string itemId) {
-        var item = LoadItem(itemId);
+    private void BuildScoreboard() {
+        if (_scoreboardOverlay != null && IsInstanceValid(_scoreboardOverlay))
+            return;
+
+        _scoreboardOverlay = _scoreboardOverlayScene?.Instantiate<ScoreboardOverlay>() ?? new ScoreboardOverlay();
+        _scoreboardOverlay.Name = "ScoreboardOverlay";
+        _canvasLayer.AddChild(_scoreboardOverlay);
+    }
+
+    private void BuildObjectiveStatusHud() {
+        if (_objectiveStatusHud != null && IsInstanceValid(_objectiveStatusHud))
+            return;
+
+        _objectiveStatusHud = _objectiveStatusHudScene?.Instantiate<ObjectiveStatusHud>() ?? new ObjectiveStatusHud();
+        _objectiveStatusHud.Name = "ObjectiveStatusHud";
+        _canvasLayer.AddChild(_objectiveStatusHud);
+    }
+
+    private void AddDebugBuyItemButton(string itemPath) {
+        var item = LoadItem(itemPath);
         var button = new Button {
-            Name = $"ItemButton_{itemId}",
-            Text = item?.DisplayName ?? itemId,
+            Name = $"DebugBuyItemButton_{item?.ItemId ?? itemPath.GetFile().GetBaseName()}",
+            Text = item?.DisplayName ?? itemPath.GetFile().GetBaseName(),
             Icon = item?.GetShowcaseTexture(),
             ExpandIcon = true,
             CustomMinimumSize = new Vector2(150.0f, 70.0f),
@@ -373,16 +521,16 @@ public partial class ArenaMatch : Node2D {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         button.AddThemeConstantOverride("icon_max_width", 34);
-        button.Pressed += () => SelectItemFromMenu(itemId);
-        _itemMenuButtonsById[itemId] = button;
-        _itemMenuGrid.AddChild(button);
+        button.Pressed += () => SelectDebugBuyItem(itemPath);
+        _debugBuyMenuButtonsById[itemPath] = button;
+        _debugBuyMenuGrid.AddChild(button);
     }
 
-    private void AddArmorMenuButton(string armorId) {
-        var armor = LoadArmor(armorId);
+    private void AddDebugBuyArmorButton(string armorPath) {
+        var armor = LoadArmor(armorPath);
         var button = new Button {
-            Name = $"ArmorButton_{armorId}",
-            Text = armor?.DisplayName ?? armorId,
+            Name = $"DebugBuyArmorButton_{armor?.ItemId ?? armorPath.GetFile().GetBaseName()}",
+            Text = armor?.DisplayName ?? armorPath.GetFile().GetBaseName(),
             Icon = armor?.GetShowcaseTexture(),
             ExpandIcon = true,
             CustomMinimumSize = new Vector2(150.0f, 70.0f),
@@ -390,20 +538,20 @@ public partial class ArenaMatch : Node2D {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         button.AddThemeConstantOverride("icon_max_width", 34);
-        button.Pressed += () => SelectArmorFromMenu(armorId);
-        _itemMenuGrid.AddChild(button);
+        button.Pressed += () => SelectDebugBuyArmor(armorPath);
+        _debugBuyMenuGrid.AddChild(button);
     }
 
-    private void SelectItemFromMenu(string itemId) {
-        ApplyLocalItemSelection(itemId);
+    private void SelectDebugBuyItem(string itemPath) {
+        ApplyLocalItemSelection(itemPath);
         SuppressLocalItemUseUntilReleased();
-        CloseItemMenu();
+        CloseDebugBuyMenu();
     }
 
-    private void SelectArmorFromMenu(string armorId) {
-        ApplyLocalArmorSelection(armorId);
+    private void SelectDebugBuyArmor(string armorPath) {
+        ApplyLocalArmorSelection(armorPath);
         SuppressLocalItemUseUntilReleased();
-        CloseItemMenu();
+        CloseDebugBuyMenu();
     }
 
     private void SuppressLocalItemUseUntilReleased() {
@@ -414,34 +562,219 @@ public partial class ArenaMatch : Node2D {
         }
     }
 
-    private void ToggleItemMenu() {
-        if (_itemMenuPanel != null && _itemMenuPanel.Visible)
-            CloseItemMenu();
+    private void ToggleDebugBuyMenu() {
+        if (_debugBuyMenuPanel != null && _debugBuyMenuPanel.Visible)
+            CloseDebugBuyMenu();
         else
-            OpenItemMenu();
+            OpenDebugBuyMenu();
     }
 
-    private void OpenItemMenu() {
-        if (_itemMenuPanel == null)
+    private void ToggleScoreboard() {
+        if (_scoreboardOverlay == null)
             return;
 
-        _itemMenuPanel.Visible = true;
-        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "ItemMenuOpened");
+        _scoreboardOverlay.Visible = !_scoreboardOverlay.Visible;
+        if (_scoreboardOverlay.Visible)
+            UpdateScoreboard();
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, _scoreboardOverlay.Visible ? "ScoreboardOpened" : "ScoreboardClosed");
+    }
+
+    private void OpenDebugBuyMenu() {
+        if (_debugBuyMenuPanel == null)
+            return;
+
+        CloseBuyMenu();
+        _debugBuyMenuPanel.Visible = true;
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "DebugBuyMenuOpened");
         SetLocalPlayersControlState(PlayerControlState.Menu);
-        var focusItemId = GetFirstLocalPlayerItemId();
-        if (focusItemId != string.Empty && _itemMenuButtonsById.TryGetValue(focusItemId, out var selectedButton))
+        var focusItemPath = GetFirstLocalPlayerItemPath();
+        if (focusItemPath != string.Empty && _debugBuyMenuButtonsById.TryGetValue(focusItemPath, out var selectedButton))
             selectedButton.GrabFocus();
-        else if (_itemMenuGrid.GetChildCount() > 0 && _itemMenuGrid.GetChild(0) is Button firstButton)
+        else if (_debugBuyMenuGrid.GetChildCount() > 0 && _debugBuyMenuGrid.GetChild(0) is Button firstButton)
             firstButton.GrabFocus();
     }
 
-    private void CloseItemMenu() {
-        if (_itemMenuPanel == null)
+    private void CloseDebugBuyMenu() {
+        if (_debugBuyMenuPanel == null)
             return;
 
-        _itemMenuPanel.Visible = false;
-        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "ItemMenuClosed");
-        SetLocalPlayersControlState(PlayerControlState.Gameplay);
+        var wasVisible = _debugBuyMenuPanel.Visible;
+        _debugBuyMenuPanel.Visible = false;
+        if (wasVisible) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "DebugBuyMenuClosed");
+            SetLocalPlayersControlState(PlayerControlState.Gameplay);
+        }
+    }
+
+    private void ToggleBuyMenu() {
+        if (_buyRadialMenu != null && _buyRadialMenu.Visible)
+            CloseBuyMenu();
+        else
+            OpenBuyMenu();
+    }
+
+    private void OpenBuyMenu() {
+        if (_buyRadialMenu == null)
+            return;
+
+        var globalId = GetFirstLocalPlayerGlobalId();
+        if (globalId < 0 || !_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || player.IsDead())
+            return;
+
+        CloseDebugBuyMenu();
+        _activeBuyMenuGlobalId = globalId;
+        PositionBuyRadialMenu(player);
+        SetBuyCategoryEntries();
+        _buyRadialMenu.Visible = true;
+        SetLocalPlayersControlState(PlayerControlState.Menu);
+        StopLocalPlayerGameplayInput(globalId);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "BuyMenuOpened", $"global={globalId}");
+    }
+
+    private void CloseBuyMenu() {
+        if (_buyRadialMenu == null)
+            return;
+
+        var wasVisible = _buyRadialMenu.Visible;
+        _buyRadialMenu.Visible = false;
+        _activeBuyMenuGlobalId = -1;
+        if (wasVisible) {
+            SetLocalPlayersControlState(PlayerControlState.Gameplay);
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "BuyMenuClosed");
+        }
+    }
+
+    private void UpdateBuyRadialMenu() {
+        if (_buyRadialMenu == null || !_buyRadialMenu.Visible)
+            return;
+
+        if (_activeBuyMenuGlobalId >= 0 && _playersByGlobalId.TryGetValue(_activeBuyMenuGlobalId, out var player) && IsInstanceValid(player))
+            PositionBuyRadialMenu(player);
+
+        var direction = GetBuyMenuSelectionDirection();
+        _buyRadialMenu.SelectDirection(direction);
+    }
+
+    private void PositionBuyRadialMenu(DamageTestPlayer player) {
+        var camera = GetViewport().GetCamera2D();
+        var viewportSize = GetViewportRect().Size;
+        var screenPosition = camera == null
+            ? player.GlobalPosition
+            : player.GlobalPosition - camera.GetScreenCenterPosition() + (viewportSize * 0.5f);
+        _buyRadialMenu.Position = screenPosition;
+    }
+
+    private Vector2 GetBuyMenuSelectionDirection() {
+        var keyboardDirection = Input.GetVector("ui_left", "ui_right", "ui_up", "ui_down");
+        if (keyboardDirection.LengthSquared() > 0.1f)
+            return keyboardDirection;
+
+        return _buyRadialMenu.GetLocalMousePosition();
+    }
+
+    private void SetBuyCategoryEntries() {
+        _buyRadialMenu.SetEntries("BUY", new[] {
+            new PlayerBuyRadialMenu.Entry { Id = "weapons", Label = "Weapons", Kind = PlayerBuyRadialMenu.EntryKind.Category },
+            new PlayerBuyRadialMenu.Entry { Id = "gadgets", Label = "Gadgets", Kind = PlayerBuyRadialMenu.EntryKind.Category },
+            new PlayerBuyRadialMenu.Entry { Id = "armor", Label = "Armor", Kind = PlayerBuyRadialMenu.EntryKind.Category },
+            new PlayerBuyRadialMenu.Entry { Id = "cancel", Label = "Cancel", Kind = PlayerBuyRadialMenu.EntryKind.Close },
+        });
+    }
+
+    private void OnBuyRadialEntrySelected(PlayerBuyRadialMenu.Entry entry) {
+        if (entry == null)
+            return;
+
+        if (entry.Kind == PlayerBuyRadialMenu.EntryKind.Close) {
+            CloseBuyMenu();
+            return;
+        }
+
+        if (entry.Kind == PlayerBuyRadialMenu.EntryKind.Back) {
+            SetBuyCategoryEntries();
+            return;
+        }
+
+        if (entry.Kind == PlayerBuyRadialMenu.EntryKind.Category) {
+            SetBuyItemEntries(entry.Id);
+            return;
+        }
+
+        if (entry.Kind != PlayerBuyRadialMenu.EntryKind.Item)
+            return;
+
+        if (entry.Id.StartsWith("armor:"))
+            ApplyLocalArmorSelection(_activeBuyMenuGlobalId, entry.Id["armor:".Length..]);
+        else if (entry.Id.StartsWith("item:"))
+            ApplyLocalItemSelection(_activeBuyMenuGlobalId, entry.Id["item:".Length..]);
+
+        SuppressLocalItemUseUntilReleased();
+        CloseBuyMenu();
+    }
+
+    private void SetBuyItemEntries(string categoryId) {
+        var entries = new List<PlayerBuyRadialMenu.Entry>();
+        entries.Add(new PlayerBuyRadialMenu.Entry { Id = "back", Label = "Back", Kind = PlayerBuyRadialMenu.EntryKind.Back });
+
+        if (categoryId == "armor") {
+            foreach (var armorPath in _activeArmorPaths) {
+                var armor = LoadArmor(armorPath);
+                entries.Add(new PlayerBuyRadialMenu.Entry {
+                    Id = $"armor:{armorPath}",
+                    Label = armor?.DisplayName ?? armorPath.GetFile().GetBaseName(),
+                    Icon = armor?.GetShowcaseTexture(),
+                    Kind = PlayerBuyRadialMenu.EntryKind.Item,
+                });
+            }
+
+            _buyRadialMenu.SetEntries("ARMOR", entries);
+            return;
+        }
+
+        foreach (var itemPath in _activeItemPaths) {
+            var item = LoadItem(itemPath);
+            if (categoryId == "weapons" && item is not PlayerWeapon)
+                continue;
+            if (categoryId == "gadgets" && item is not PlayerGadget)
+                continue;
+
+            entries.Add(new PlayerBuyRadialMenu.Entry {
+                Id = $"item:{itemPath}",
+                Label = item?.DisplayName ?? itemPath.GetFile().GetBaseName(),
+                Icon = item?.GetShowcaseTexture(),
+                Kind = PlayerBuyRadialMenu.EntryKind.Item,
+            });
+        }
+
+        _buyRadialMenu.SetEntries(categoryId == "weapons" ? "WEAPONS" : "GADGETS", entries);
+    }
+
+    private void UpdateScoreboard() {
+        if (_scoreboardOverlay == null || !_scoreboardOverlay.Visible || _networking?.MultiplayerData == null)
+            return;
+
+        var players = new List<PlayerData>();
+        foreach (var playerData in _networking.MultiplayerData.Players) {
+            if (playerData != null)
+                players.Add(playerData);
+        }
+
+        players.Sort(CompareScoreboardPlayers);
+        _scoreboardOverlay.SetPlayers(players, _networking.MultiplayerData);
+    }
+
+    private static int CompareScoreboardPlayers(PlayerData a, PlayerData b) {
+        var scoreCompare = b.Score.CompareTo(a.Score);
+        if (scoreCompare != 0)
+            return scoreCompare;
+
+        var killsCompare = b.Kills.CompareTo(a.Kills);
+        if (killsCompare != 0)
+            return killsCompare;
+
+        var deathsCompare = a.Deaths.CompareTo(b.Deaths);
+        return deathsCompare != 0 ? deathsCompare : a.GlobalId.CompareTo(b.GlobalId);
     }
 
     private void SetLocalPlayersControlState(PlayerControlState controlState) {
@@ -467,18 +800,67 @@ public partial class ArenaMatch : Node2D {
         ApplyLocalAimStateChange(globalId, noInputState, false);
     }
 
-    private string GetFirstLocalPlayerItemId() {
+    private string GetFirstLocalPlayerItemPath() {
         foreach (var playerEntry in _playersByGlobalId) {
             var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
             if (playerData == null || !playerData.IsLocalPlayer)
                 continue;
 
             return _itemsByGlobalId.TryGetValue(playerEntry.Key, out var item) && item != null
-                ? item.ItemId
-                : DefaultItemId;
+                ? item.ResourcePath
+                : GetDefaultItemPath();
         }
 
         return string.Empty;
+    }
+
+    private int GetFirstLocalPlayerGlobalId() {
+        foreach (var playerEntry in _playersByGlobalId) {
+            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
+            if (playerData != null && playerData.IsLocalPlayer)
+                return playerEntry.Key;
+        }
+
+        return -1;
+    }
+
+    private void RefreshItemThemeLibraries() {
+        _activeItemPaths.Clear();
+        _activeArmorPaths.Clear();
+        _activeItemThemes.Clear();
+
+        var themePaths = _networking?.MultiplayerData?.SetupConfig?.ItemThemeConfig?.EnabledThemeDefinitionPaths;
+        _activeItemThemes.AddRange(ItemThemeRegistry.ResolveThemes(themePaths));
+
+        foreach (var theme in _activeItemThemes) {
+            foreach (var item in ItemThemeRegistry.LoadThemeItems(theme)) {
+                if (item == null || string.IsNullOrWhiteSpace(item.ResourcePath))
+                    continue;
+
+                if (item is PlayerArmor armor) {
+                    _loadedArmorByPath[item.ResourcePath] = armor;
+                    if (!_activeArmorPaths.Contains(item.ResourcePath))
+                        _activeArmorPaths.Add(item.ResourcePath);
+                }
+                else {
+                    _loadedItemsByPath[item.ResourcePath] = item;
+                    if (!_activeItemPaths.Contains(item.ResourcePath))
+                        _activeItemPaths.Add(item.ResourcePath);
+                }
+            }
+        }
+
+        RebuildDebugBuyMenuButtons();
+    }
+
+    private string GetDefaultItemPath() {
+        foreach (var theme in _activeItemThemes) {
+            var starterPath = theme.DefaultStarterItem?.ResourcePath;
+            if (!string.IsNullOrWhiteSpace(starterPath))
+                return starterPath;
+        }
+
+        return _activeItemPaths.Count > 0 ? _activeItemPaths[0] : string.Empty;
     }
 
     private void ApplyCommandLineOverrides() {
@@ -723,7 +1105,7 @@ public partial class ArenaMatch : Node2D {
             _loadoutsByGlobalId.Remove(removedGlobalId);
             _accuracyStatesByGlobalId.Remove(removedGlobalId);
             _aimStrengthByGlobalId.Remove(removedGlobalId);
-            _itemRecoverySecondsByGlobalId.Remove(removedGlobalId);
+            _shotIntervalSecondsByGlobalId.Remove(removedGlobalId);
             _wasUseHeldByGlobalId.Remove(removedGlobalId);
             _suppressUseUntilReleasedByGlobalId.Remove(removedGlobalId);
             _respawnSecondsByGlobalId.Remove(removedGlobalId);
@@ -754,7 +1136,7 @@ public partial class ArenaMatch : Node2D {
         _loadoutsByGlobalId.Clear();
         _accuracyStatesByGlobalId.Clear();
         _aimStrengthByGlobalId.Clear();
-        _itemRecoverySecondsByGlobalId.Clear();
+        _shotIntervalSecondsByGlobalId.Clear();
         _wasUseHeldByGlobalId.Clear();
         _suppressUseUntilReleasedByGlobalId.Clear();
         _respawnSecondsByGlobalId.Clear();
@@ -772,14 +1154,14 @@ public partial class ArenaMatch : Node2D {
         _aimStatesByGlobalId[globalId] = new QuantizedInputState(0, InputStrength.Full);
         _isAimingByGlobalId[globalId] = false;
         _aimStrengthByGlobalId[globalId] = 1.0f;
-        _itemRecoverySecondsByGlobalId[globalId] = 0.0;
+        _shotIntervalSecondsByGlobalId[globalId] = 0.0;
         _wasUseHeldByGlobalId[globalId] = false;
         _suppressUseUntilReleasedByGlobalId[globalId] = false;
         _respawnSecondsByGlobalId[globalId] = -1.0f;
         _spawnSecondsByGlobalId[globalId] = 0.0f;
         _accuracyStatesByGlobalId[globalId] = new PlayerItemAccuracyState();
         _loadoutsByGlobalId[globalId] = new PlayerLoadoutState();
-        SetPlayerItem(globalId, DefaultItemId);
+        SetPlayerItem(globalId, GetDefaultItemPath());
         SetPlayerTeamColor(globalId);
         SetPlayerLocalMarker(globalId);
         player.SetEstimatedAimDirection(DirectionIndexToVector(0), true);
@@ -821,7 +1203,7 @@ public partial class ArenaMatch : Node2D {
             _lastLocalMovementStatesByGlobalId.TryGetValue(playerEntry.Key, out var previousMovementState);
             _lastLocalAimStatesByGlobalId.TryGetValue(playerEntry.Key, out var previousAimState);
 
-            var inputVectors = GetLocalInputVectors(localPlayerData, player);
+            var inputVectors = GetLocalInputVectors(playerEntry.Key, localPlayerData, player);
             var movementVector = player.CanProcessMovementInput ? inputVectors.Movement : Vector2.Zero;
             var aimVector = player.CanProcessAimInput ? inputVectors.Aim : Vector2.Zero;
             var lockedInputVectors = new LocalInputVectors(
@@ -987,19 +1369,29 @@ public partial class ArenaMatch : Node2D {
             if (playerData == null || !playerData.IsLocalPlayer)
                 continue;
 
-            if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
-                GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestSetPlayerItem", $"global={playerEntry.Key} item={itemId}");
-                RpcId(1, nameof(RpcRequestSetPlayerItem), playerEntry.Key, itemId);
-            }
-            else if (CanSendHostRpc()) {
-                SetPlayerItem(playerEntry.Key, itemId);
-                SyncPlayerItem(playerEntry.Key, itemId);
-            }
-            else {
-                SetPlayerItem(playerEntry.Key, itemId);
-            }
-
+            ApplyLocalItemSelection(playerEntry.Key, itemId);
             return;
+        }
+    }
+
+    private void ApplyLocalItemSelection(int globalId, string itemId) {
+        if (globalId < 0)
+            return;
+
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+        if (playerData == null || !playerData.IsLocalPlayer)
+            return;
+
+        if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestSetPlayerItem", $"global={globalId} item={itemId}");
+            RpcId(1, nameof(RpcRequestSetPlayerItem), globalId, itemId);
+        }
+        else if (CanSendHostRpc()) {
+            SetPlayerItem(globalId, itemId);
+            SyncPlayerItem(globalId, itemId);
+        }
+        else {
+            SetPlayerItem(globalId, itemId);
         }
     }
 
@@ -1009,24 +1401,34 @@ public partial class ArenaMatch : Node2D {
             if (playerData == null || !playerData.IsLocalPlayer)
                 continue;
 
-            if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
-                GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestSetPlayerArmor", $"global={playerEntry.Key} armor={armorId}");
-                RpcId(1, nameof(RpcRequestSetPlayerArmor), playerEntry.Key, armorId);
-            }
-            else if (CanSendHostRpc()) {
-                SetPlayerArmor(playerEntry.Key, armorId);
-                SyncPlayerArmor(playerEntry.Key, armorId);
-            }
-            else {
-                SetPlayerArmor(playerEntry.Key, armorId);
-            }
-
+            ApplyLocalArmorSelection(playerEntry.Key, armorId);
             return;
         }
     }
 
-    private void SetPlayerItem(int globalId, string itemId) {
-        var item = LoadItem(itemId) ?? LoadItem(DefaultItemId);
+    private void ApplyLocalArmorSelection(int globalId, string armorId) {
+        if (globalId < 0)
+            return;
+
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+        if (playerData == null || !playerData.IsLocalPlayer)
+            return;
+
+        if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestSetPlayerArmor", $"global={globalId} armor={armorId}");
+            RpcId(1, nameof(RpcRequestSetPlayerArmor), globalId, armorId);
+        }
+        else if (CanSendHostRpc()) {
+            SetPlayerArmor(globalId, armorId);
+            SyncPlayerArmor(globalId, armorId);
+        }
+        else {
+            SetPlayerArmor(globalId, armorId);
+        }
+    }
+
+    private void SetPlayerItem(int globalId, string itemPath) {
+        var item = LoadItem(itemPath) ?? LoadItem(GetDefaultItemPath());
         if (item == null)
             return;
 
@@ -1044,7 +1446,7 @@ public partial class ArenaMatch : Node2D {
 
         if (item is IPlayerUsable usable)
             accuracyState.SetItem(usable);
-        _itemRecoverySecondsByGlobalId[globalId] = 0.0;
+        _shotIntervalSecondsByGlobalId[globalId] = 0.0;
         _wasUseHeldByGlobalId[globalId] = false;
         if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
             player.SetHeldTexture(item.HeldTexture);
@@ -1053,21 +1455,21 @@ public partial class ArenaMatch : Node2D {
         UpdateStatusLabel();
     }
 
-    private void SyncPlayerItem(int globalId, string itemId) {
+    private void SyncPlayerItem(int globalId, string itemPath) {
         if (CanSendHostRpc()) {
-            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncPlayerItem", $"global={globalId} item={itemId}");
-            Rpc(nameof(RpcSyncPlayerItem), globalId, itemId);
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncPlayerItem", $"global={globalId} item={itemPath}");
+            Rpc(nameof(RpcSyncPlayerItem), globalId, itemPath);
         }
     }
 
-    private void SetPlayerArmor(int globalId, string armorId) {
-        var armor = LoadArmor(armorId);
+    private void SetPlayerArmor(int globalId, string armorPath) {
+        var armor = LoadArmor(armorPath);
         if (armor == null)
             return;
 
         var loadout = GetOrCreateLoadout(globalId);
         loadout.EquipArmor(armor);
-        var selectedItem = loadout.SelectedItem ?? LoadItem(DefaultItemId);
+        var selectedItem = loadout.SelectedItem ?? LoadItem(GetDefaultItemPath());
         if (selectedItem != null) {
             _itemsByGlobalId[globalId] = selectedItem;
             if (_accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState) && selectedItem is IPlayerUsable selectedUsable)
@@ -1116,37 +1518,37 @@ public partial class ArenaMatch : Node2D {
         return loadout;
     }
 
-    private void SyncPlayerArmor(int globalId, string armorId) {
+    private void SyncPlayerArmor(int globalId, string armorPath) {
         if (CanSendHostRpc()) {
-            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncPlayerArmor", $"global={globalId} armor={armorId}");
-            Rpc(nameof(RpcSyncPlayerArmor), globalId, armorId);
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcSyncPlayerArmor", $"global={globalId} armor={armorPath}");
+            Rpc(nameof(RpcSyncPlayerArmor), globalId, armorPath);
         }
     }
 
-    private PlayerItem LoadItem(string itemId) {
-        if (_loadedItemsById.TryGetValue(itemId, out var loadedItem))
-            return loadedItem;
-
-        if (!ItemResourcePaths.TryGetValue(itemId, out var itemPath))
+    private PlayerItem LoadItem(string itemPath) {
+        if (string.IsNullOrWhiteSpace(itemPath))
             return null;
+
+        if (_loadedItemsByPath.TryGetValue(itemPath, out var loadedItem))
+            return loadedItem;
 
         var item = GD.Load<PlayerItem>(itemPath);
         if (item != null)
-            _loadedItemsById[itemId] = item;
+            _loadedItemsByPath[itemPath] = item;
 
         return item;
     }
 
-    private PlayerArmor LoadArmor(string armorId) {
-        if (_loadedArmorById.TryGetValue(armorId, out var loadedArmor))
-            return loadedArmor;
-
-        if (!ArmorResourcePaths.TryGetValue(armorId, out var armorPath))
+    private PlayerArmor LoadArmor(string armorPath) {
+        if (string.IsNullOrWhiteSpace(armorPath))
             return null;
+
+        if (_loadedArmorByPath.TryGetValue(armorPath, out var loadedArmor))
+            return loadedArmor;
 
         var armor = GD.Load<PlayerArmor>(armorPath);
         if (armor != null)
-            _loadedArmorById[armorId] = armor;
+            _loadedArmorByPath[armorPath] = armor;
 
         return armor;
     }
@@ -1161,12 +1563,34 @@ public partial class ArenaMatch : Node2D {
         }
     }
 
-    private void UpdateItemRecoveries(double delta) {
+    private void UpdateShotIntervals(double delta) {
         foreach (var globalId in _playersByGlobalId.Keys) {
-            _itemRecoverySecondsByGlobalId[globalId] = Mathf.Max(
-                _itemRecoverySecondsByGlobalId.TryGetValue(globalId, out var recoverySeconds) ? recoverySeconds - delta : 0.0,
+            _shotIntervalSecondsByGlobalId[globalId] = Mathf.Max(
+                _shotIntervalSecondsByGlobalId.TryGetValue(globalId, out var shotIntervalSeconds) ? shotIntervalSeconds - delta : 0.0,
                 0.0);
         }
+
+        foreach (var loadoutEntry in _loadoutsByGlobalId) {
+            var selectedItem = loadoutEntry.Value.SelectedItem;
+            var wasReloading = selectedItem is PlayerWeapon && loadoutEntry.Value.IsWeaponReloading(selectedItem);
+            loadoutEntry.Value.UpdateTimers(delta);
+            var isReloading = selectedItem is PlayerWeapon && loadoutEntry.Value.IsWeaponReloading(selectedItem);
+            UpdatePlayerReloadControlState(loadoutEntry.Key, wasReloading, isReloading);
+        }
+    }
+
+    private void UpdatePlayerReloadControlState(int globalId, bool wasReloading, bool isReloading) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || player.IsDead())
+            return;
+
+        if (isReloading) {
+            if (player.ControlState is PlayerControlState.Gameplay or PlayerControlState.Aim)
+                player.SetControlState(PlayerControlState.Reload);
+            return;
+        }
+
+        if (wasReloading && player.ControlState == PlayerControlState.Reload)
+            player.SetControlState(PlayerControlState.Gameplay);
     }
 
     private void UpdateRespawns(double delta) {
@@ -1218,7 +1642,7 @@ public partial class ArenaMatch : Node2D {
         _movementStatesByGlobalId[globalId] = GetNoInputState();
         _aimStatesByGlobalId[globalId] = new QuantizedInputState(0, InputStrength.Full);
         _isAimingByGlobalId[globalId] = false;
-        _itemRecoverySecondsByGlobalId[globalId] = 0.0;
+        _shotIntervalSecondsByGlobalId[globalId] = 0.0;
         _wasUseHeldByGlobalId[globalId] = false;
         _suppressUseUntilReleasedByGlobalId[globalId] = true;
         _respawnSecondsByGlobalId[globalId] = -1.0f;
@@ -1302,7 +1726,7 @@ public partial class ArenaMatch : Node2D {
             return;
         }
 
-        if (_itemRecoverySecondsByGlobalId[globalId] > 0.0)
+        if (_shotIntervalSecondsByGlobalId[globalId] > 0.0)
             return;
 
         if (wasUseHeld && !IsHeldUseAllowed(item))
@@ -1316,7 +1740,7 @@ public partial class ArenaMatch : Node2D {
     }
 
     private bool IsLocalItemUseHeld(int globalId) {
-        if (_itemMenuPanel != null && _itemMenuPanel.Visible)
+        if ((_debugBuyMenuPanel != null && _debugBuyMenuPanel.Visible) || (_buyRadialMenu != null && _buyRadialMenu.Visible))
             return false;
 
         if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || !player.CanUseItems)
@@ -1347,6 +1771,12 @@ public partial class ArenaMatch : Node2D {
             return;
 
         var loadout = GetOrCreateLoadout(globalId);
+        if (loadout.IsWeaponReloading(item)) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "LocalItemUseRejected", $"global={globalId} item={item.ItemId} reason=reloading");
+            UpdateStatusLabel();
+            return;
+        }
+
         if (loadout.GetMaxUses(item) > 0 && loadout.GetCurrentUses(item) <= 0) {
             GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "LocalItemUseRejected", $"global={globalId} item={item.ItemId} reason=empty");
             UpdateStatusLabel();
@@ -1362,7 +1792,7 @@ public partial class ArenaMatch : Node2D {
         player.ShowActionAimDirection(aimDirection, ActionAimDisplaySeconds);
         var aimStrength = _aimStrengthByGlobalId.TryGetValue(globalId, out var strength) ? strength : 1.0f;
         if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
-            ApplyItemUsePushbackAndRecovery(globalId, item);
+            ApplyItemUsePushbackAndShotInterval(globalId, item);
             GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestUsePlayerItem", $"global={globalId} item={item.ItemId} aim=({aimDirection.X:0.000},{aimDirection.Y:0.000}) strength={aimStrength:0.000}");
             RpcId(1, nameof(RpcRequestUsePlayerItem), globalId, aimDirection.X, aimDirection.Y, aimStrength);
         }
@@ -1372,14 +1802,74 @@ public partial class ArenaMatch : Node2D {
         }
     }
 
-    private void ApplyItemUsePushbackAndRecovery(int globalId, PlayerItem item) {
+    private void RequestLocalReload(int globalId) {
+        if (!_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || player.IsDead() || !player.CanUseItems)
+            return;
+
+        var loadout = GetOrCreateLoadout(globalId);
+        if (loadout.SelectedItem is not PlayerWeapon weapon) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "ReloadRejected", $"global={globalId} reason=selectedItemNotWeapon");
+            return;
+        }
+
+        if (!CanStartReload(loadout, weapon)) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "ReloadRejected", $"global={globalId} item={weapon.ItemId} ammo={loadout.GetCurrentUses(weapon)}/{loadout.GetMaxUses(weapon)} reloading={loadout.IsWeaponReloading(weapon)} recovering={loadout.IsWeaponReloadRecovering(weapon)}");
+            return;
+        }
+
+        if (_networking.IsClient && _networking.HasActiveNetworkPeer) {
+            loadout.TryStartWeaponReload(weapon);
+            player.SetControlState(PlayerControlState.Reload);
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcSend, "RpcRequestReloadPlayerItem", $"global={globalId} item={weapon.ItemId}");
+            RpcId(1, nameof(RpcRequestReloadPlayerItem), globalId);
+            return;
+        }
+
+        ExecuteValidatedReload(globalId, true);
+    }
+
+    private static bool CanStartReload(PlayerLoadoutState loadout, PlayerWeapon weapon) {
+        return loadout != null
+            && weapon != null
+            && !loadout.IsWeaponReloading(weapon)
+            && !loadout.IsWeaponReloadRecovering(weapon)
+            && loadout.GetCurrentUses(weapon) < loadout.GetMaxUses(weapon);
+    }
+
+    private void ExecuteValidatedReload(int globalId, bool syncToPeers) {
+        var loadout = GetOrCreateLoadout(globalId);
+        if (loadout.SelectedItem is not PlayerWeapon weapon)
+            return;
+
+        if (!loadout.TryStartWeaponReload(weapon)) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "ReloadRejected", $"global={globalId} item={weapon.ItemId} ammo={loadout.GetCurrentUses(weapon)}/{loadout.GetMaxUses(weapon)}");
+            return;
+        }
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "ReloadStarted", $"global={globalId} item={weapon.ItemId} remaining={loadout.GetWeaponReloadRemainingSeconds(weapon):0.00}");
+        if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player) && !player.IsDead())
+            player.SetControlState(PlayerControlState.Reload);
+
+        if (syncToPeers && CanSendHostRpc())
+            Rpc(nameof(RpcSyncPlayerReload), globalId, weapon.ResourcePath);
+    }
+
+    private void ApplyItemUsePushbackAndShotInterval(int globalId, PlayerItem item) {
         if (item is not IPlayerUsable usable)
             return;
 
         if (_accuracyStatesByGlobalId.TryGetValue(globalId, out var accuracyState))
             accuracyState.ApplyUsePushback();
 
-        _itemRecoverySecondsByGlobalId[globalId] = Mathf.Max(usable.RecoverySeconds, 0.0f);
+        _shotIntervalSecondsByGlobalId[globalId] = GetShotIntervalSeconds(item);
+    }
+
+    private static float GetShotIntervalSeconds(PlayerItem item) {
+        return item switch {
+            PlayerItemShootable shootable => shootable.ShotsPerSecond > 0.0f ? 1.0f / shootable.ShotsPerSecond : 0.0f,
+            PlayerItemProjectile projectile => projectile.ShotsPerSecond > 0.0f ? 1.0f / projectile.ShotsPerSecond : 0.0f,
+            _ => 0.0f,
+        };
     }
 
     private void ExecuteValidatedItemUse(int globalId, Vector2 aimDirection, float aimStrength, bool syncToPeers) {
@@ -1398,13 +1888,19 @@ public partial class ArenaMatch : Node2D {
         var startPosition = player.GlobalPosition + (normalizedAim * 10.0f);
         player.ShowActionAimDirection(normalizedAim, ActionAimDisplaySeconds);
         var loadout = GetOrCreateLoadout(globalId);
+        if (loadout.IsWeaponReloading(item)) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "ItemUseRejected", $"global={globalId} item={item.ItemId} reason=reloading");
+            UpdateStatusLabel();
+            return;
+        }
+
         if (!loadout.TryConsumeUse(item)) {
             GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "ItemUseRejected", $"global={globalId} item={item.ItemId} reason=empty");
             UpdateStatusLabel();
             return;
         }
 
-        ApplyItemUsePushbackAndRecovery(globalId, item);
+        ApplyItemUsePushbackAndShotInterval(globalId, item);
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.ItemUse, "ItemUseAccepted", $"global={globalId} item={item.ItemId} usesLeft={loadout.GetCurrentUses(item)} aim=({normalizedAim.X:0.000},{normalizedAim.Y:0.000}) strength={aimStrength:0.000}");
 
         if (item is PlayerItemThrowable throwable)
@@ -1596,13 +2092,13 @@ public partial class ArenaMatch : Node2D {
         return null;
     }
 
-    private LocalInputVectors GetLocalInputVectors(LocalPlayerData localPlayerData, DamageTestPlayer player) {
+    private LocalInputVectors GetLocalInputVectors(int globalId, LocalPlayerData localPlayerData, DamageTestPlayer player) {
         return localPlayerData.InputType switch {
             LocalPlayerData.LocalInputType.KeyboardMouse => new LocalInputVectors(
                 GetKeyboardMovementInput(),
                 GetGlobalMousePosition() - player.GlobalPosition,
                 false,
-                IsKeyboardMouseAiming()),
+                IsKeyboardMouseAiming(globalId)),
             LocalPlayerData.LocalInputType.Gamepad => new LocalInputVectors(
                 GetGamepadMovementInput(localPlayerData.DeviceId),
                 GetGamepadAimInput(localPlayerData.DeviceId),
@@ -1674,8 +2170,10 @@ public partial class ArenaMatch : Node2D {
         return Input.IsKeyPressed(Key.Shift);
     }
 
-    private static bool IsKeyboardMouseAiming() {
-        return Input.IsKeyPressed(Key.Ctrl) || Input.IsMouseButtonPressed(MouseButton.Right);
+    private bool IsKeyboardMouseAiming(int globalId) {
+        return _playersByGlobalId.TryGetValue(globalId, out var player)
+            && IsInstanceValid(player)
+            && player.ControlState == PlayerControlState.Aim;
     }
 
     private static QuantizedInputState QuantizeInput(Vector2 input, QuantizedInputState previousState) {
@@ -1902,12 +2400,21 @@ public partial class ArenaMatch : Node2D {
         if (!IsPlayerStateRequestAllowed(globalId))
             return;
 
-        if (_itemRecoverySecondsByGlobalId.TryGetValue(globalId, out var recoverySeconds) && recoverySeconds > 0.0) {
-            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "RpcRequestUsePlayerItemRejected", $"global={globalId} reason=recovery recovery={recoverySeconds:0.000}");
+        if (_shotIntervalSecondsByGlobalId.TryGetValue(globalId, out var shotIntervalSeconds) && shotIntervalSeconds > 0.0) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "RpcRequestUsePlayerItemRejected", $"global={globalId} reason=shotInterval interval={shotIntervalSeconds:0.000}");
             return;
         }
 
         ExecuteValidatedItemUse(globalId, new Vector2(aimX, aimY), Mathf.Clamp(aimStrength, 0.0f, 1.0f), true);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcRequestReloadPlayerItem(int globalId) {
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcRequestReloadPlayerItem", $"from={Multiplayer.GetRemoteSenderId()} global={globalId}");
+        if (!IsPlayerStateRequestAllowed(globalId))
+            return;
+
+        ExecuteValidatedReload(globalId, true);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -1947,7 +2454,7 @@ public partial class ArenaMatch : Node2D {
 
         player.BeginSpawn(new Vector2(worldX, worldY));
         _movementStatesByGlobalId[globalId] = GetNoInputState();
-        _itemRecoverySecondsByGlobalId[globalId] = 0.0;
+        _shotIntervalSecondsByGlobalId[globalId] = 0.0;
         _respawnSecondsByGlobalId[globalId] = -1.0f;
         _spawnSecondsByGlobalId[globalId] = spawnSeconds;
         if (_loadoutsByGlobalId.TryGetValue(globalId, out var loadout))
@@ -2053,6 +2560,22 @@ public partial class ArenaMatch : Node2D {
         }
     }
 
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RpcSyncPlayerReload(int globalId, string itemId) {
+        var weapon = LoadItem(itemId) as PlayerWeapon;
+        if (weapon == null)
+            return;
+
+        if (GetOrCreateLoadout(globalId).TryStartWeaponReload(weapon)
+            && _playersByGlobalId.TryGetValue(globalId, out var player)
+            && IsInstanceValid(player)
+            && !player.IsDead())
+            player.SetControlState(PlayerControlState.Reload);
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.RpcReceive, "RpcSyncPlayerReload", $"global={globalId} item={itemId}");
+        UpdateStatusLabel();
+    }
+
     private void ShowSyncedActionAim(int globalId, Vector2 direction) {
         if (_playersByGlobalId.TryGetValue(globalId, out var player) && IsInstanceValid(player))
             player.ShowActionAimDirection(direction, ActionAimDisplaySeconds);
@@ -2154,6 +2677,7 @@ public partial class ArenaMatch : Node2D {
     }
 
     private void OnLobbyStateChanged() {
+        RefreshItemThemeLibraries();
         AutoAssignLanTestTeams();
         SyncPlayersWithNetworkData();
         foreach (var globalId in _playersByGlobalId.Keys) {
@@ -2209,7 +2733,8 @@ public partial class ArenaMatch : Node2D {
         if (_networking == null)
             return;
 
-        _statusLabel.Text = $"Arena Match\nPeers connected: {GetConnectedPeerCount()}\nControls: B item menu | arrows/d-pad + Enter/A select | left mouse / Xbox RT use\nObjective: {GetObjectiveText()}\nPlayers: {GetPlayerText()}";
+        _statusLabel.Text = $"Arena Match\nPeers connected: {GetConnectedPeerCount()}\nControls: B item menu | Tab/Select scoreboard | arrows/d-pad + Enter/A select | left mouse / Xbox RT use";
+        UpdateObjectiveStatusHud();
         UpdateLocalPlayersHud();
     }
 
@@ -2233,6 +2758,7 @@ public partial class ArenaMatch : Node2D {
             var selectedItem = loadout.SelectedItem;
             var maxUses = loadout.GetMaxUses(selectedItem);
             var currentUses = maxUses > 0 ? loadout.GetCurrentUses(selectedItem) : 0;
+            var overlayState = GetPlayerHudOverlayState(player, playerData, loadout, selectedItem);
 
             _localPlayersHud.SetPlayerState(
                 globalId,
@@ -2248,7 +2774,11 @@ public partial class ArenaMatch : Node2D {
                 maxUses,
                 selectedItem?.AmmoCaliber ?? PlayerItem.AmmoCaliberType.Standard,
                 GetGadgetHudText(loadout),
-                teamColor);
+                teamColor,
+                overlayState.State,
+                overlayState.Text,
+                overlayState.Icon,
+                overlayState.Progress);
         }
 
         _localPlayersHud.EndRefresh();
@@ -2258,7 +2788,65 @@ public partial class ArenaMatch : Node2D {
         if (player == null || player.IsDead())
             return "DEAD";
 
-        return player.ControlState == PlayerControlState.Spawning ? "SPAWN" : "ALIVE";
+        return player.ControlState switch {
+            PlayerControlState.Spawning => "SPAWN",
+            PlayerControlState.Reload => "RELOAD",
+            _ => "ALIVE",
+        };
+    }
+
+    private (PlayerHudCard.HudOverlayState State, string Text, Texture2D Icon, float Progress) GetPlayerHudOverlayState(
+        DamageTestPlayer player,
+        PlayerData playerData,
+        PlayerLoadoutState loadout,
+        PlayerItem selectedItem) {
+        if (player == null || player.IsDead())
+            return (PlayerHudCard.HudOverlayState.Dead, "DEAD", null, 0.0f);
+
+        if (player.ControlState == PlayerControlState.Spawning)
+            return (PlayerHudCard.HudOverlayState.Spawning, "SPAWNING", null, 0.0f);
+
+        if (selectedItem is PlayerWeapon && loadout.IsWeaponReloading(selectedItem)) {
+            return (
+                PlayerHudCard.HudOverlayState.Reloading,
+                "RELOADING",
+                GetReloadPromptIcon(playerData),
+                loadout.GetWeaponReloadProgress(selectedItem));
+        }
+
+        if (selectedItem is PlayerWeapon && loadout.IsWeaponReloadRecovering(selectedItem)) {
+            return (
+                PlayerHudCard.HudOverlayState.ReloadRecovering,
+                "COOLDOWN",
+                null,
+                loadout.GetWeaponReloadRecoveryProgress(selectedItem));
+        }
+
+        if (selectedItem is PlayerWeapon && loadout.GetMaxUses(selectedItem) > 0 && loadout.GetCurrentUses(selectedItem) <= 0) {
+            return (
+                PlayerHudCard.HudOverlayState.ReloadAvailable,
+                "RELOAD",
+                GetReloadPromptIcon(playerData),
+                0.0f);
+        }
+
+        if (selectedItem is PlayerGadget && loadout.IsGadgetReloadRecovering(selectedItem)) {
+            return (
+                PlayerHudCard.HudOverlayState.GadgetReloadRecovering,
+                "COOLDOWN",
+                null,
+                loadout.GetGadgetReloadRecoveryProgress(selectedItem));
+        }
+
+        return (PlayerHudCard.HudOverlayState.None, string.Empty, null, 0.0f);
+    }
+
+    private Texture2D GetReloadPromptIcon(PlayerData playerData) {
+        var localPlayerData = playerData == null ? null : GetLocalPlayerData(playerData.LocalId);
+        var iconPath = localPlayerData?.InputType == LocalPlayerData.LocalInputType.Gamepad
+            ? GamepadReloadIconPath
+            : KeyboardReloadIconPath;
+        return UiResourceLoader.LoadIconTexture(iconPath);
     }
 
     private string GetGadgetHudText(PlayerLoadoutState loadout) {
@@ -2287,35 +2875,21 @@ public partial class ArenaMatch : Node2D {
             : "neutral";
     }
 
-    private string GetPlayerText() {
-        var playerTexts = new List<string>();
-        foreach (var playerEntry in _playersByGlobalId) {
-            var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(playerEntry.Key);
-            var ownerText = playerData == null ? "peer ?" : $"peer {playerData.PeerId}:local {playerData.LocalId}";
-            var inputText = GetPlayerInputText(playerEntry.Key);
-            var itemText = _itemsByGlobalId.TryGetValue(playerEntry.Key, out var item) ? item.DisplayName : "none";
-            var accuracyText = _accuracyStatesByGlobalId.TryGetValue(playerEntry.Key, out var accuracyState) ? $" acc {accuracyState.CurrentAccuracy:0.000}" : string.Empty;
-            var loadoutText = _loadoutsByGlobalId.TryGetValue(playerEntry.Key, out var loadout) ? $" {loadout.GetLoadoutText()}" : string.Empty;
-            playerTexts.Add($"P{playerEntry.Key} {ownerText} {inputText} item {itemText}{accuracyText}{loadoutText}");
-        }
+    private void UpdateObjectiveStatusHud() {
+        if (_objectiveStatusHud == null || !IsInstanceValid(_objectiveStatusHud))
+            return;
 
-        return playerTexts.Count == 0 ? "waiting" : string.Join(", ", playerTexts);
+        _objectiveStatusHud.SetObjectiveState("OBJECTIVE", GetObjectiveText(), GetObjectiveStatusColor());
     }
 
-    private string GetPlayerInputText(int globalId) {
-        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
-        if (playerData == null || !playerData.IsLocalPlayer)
-            return "remote";
+    private Color GetObjectiveStatusColor() {
+        if (_objectiveIsContested)
+            return new Color(1.0f, 0.62f, 0.12f);
 
-        var localPlayerData = GetLocalPlayerDataForGlobalId(globalId);
-        if (localPlayerData == null)
-            return "input ?";
+        if (_objectiveControllingTeamId >= 0)
+            return TeamVisuals.GetTeamColor(GetPaletteTeamId(Mathf.Clamp(_objectiveControllingTeamId, MultiplayerData.MinTeamId, MultiplayerData.MaxTeamId)));
 
-        return localPlayerData.InputType switch {
-            LocalPlayerData.LocalInputType.KeyboardMouse => "keyboard+mouse",
-            LocalPlayerData.LocalInputType.Gamepad => $"gamepad {localPlayerData.DeviceId}",
-            _ => "input none",
-        };
+        return new Color(0.55f, 0.62f, 0.72f);
     }
 
     private string GetNetworkDebugText() {

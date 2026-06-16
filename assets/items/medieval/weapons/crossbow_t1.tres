@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="PlayerItemShootable" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/PlayerItemShootable.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/items/medieval/weapons/crossbow_t1.svg" id="2_texture"]
+[ext_resource type="Resource" path="res://assets/projectiles/data/arrow_heavy.tres" id="3_projectile"]
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "crossbow_t1"
+DisplayName = "Crossbow"
+Theme = 2
+Cost = 600
+Weight = 3.2
+HeldTexture = ExtResource("2_texture")
+AmmoCaliber = 1
+ReloadRecoverySeconds = 2.6
+ReloadTimeSeconds = 1.6
+Range = 760.0
+AimDisplayRange = 260.0
+AimMoveSpeedMultiplier = 0.78
+DefaultAccuracy = 0.025
+MovementAccuracy = 0.11
+AccuracyPushback = 0.035
+ShotAccuracyRecovery = 0.26
+MovementAccuracyRecovery = 0.55
+MaxInaccuracy = 0.22
+Projectile = ExtResource("3_projectile")
+MagazineSize = 1
+ShotsPerSecond = 0.75

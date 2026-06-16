@@ -94,19 +94,19 @@ This is now the dedicated player movement, aim, and item/action test bed.
 - Client instances register one active keyboard/mouse local player: `LocalId 0`.
 - Runtime player targets are built from `Networking.MultiplayerData.Players`, keyed only by `GlobalId`, and resolve `PeerId`/`LocalId` through `MultiplayerData.GetPlayerByGlobalId(...)`.
 - Expected player mapping with one host and one client is host `P0 peer 1:local 0` and client `P1 peer <clientPeer>:local 0`.
-- `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images from `assets/players/` and a `Pistol-T1` weapon `Sprite2D` from `assets/items/modern/weapons/`. The weapon is offset from the body and rotated toward the active aim display vector.
+- `DamageTestPlayer` creates temporary SVG visual children: `BodySprite` for front/back body images from `assets/players/` and a selected/default held-item `Sprite2D` from the active item theme library. The weapon is offset from the body and rotated toward the active aim display vector.
 - `DamageTestPlayer` stores separate local and estimated aim vectors. Owned/local players display their locally calculated exact aim immediately. Remote/non-owned player display uses the replicated quantized estimated aim.
 - The player body sprite flips only by `BodySprite.Scale.X`; root scale, collision, label, and weapon positioning are not flipped through the root node. The body switches to the back SVG only when aim is sufficiently upward.
 - Player room movement uses Godot physics bodies: players are `CharacterBody2D`, the center prop is `StaticBody2D`, and wall movement collision comes from the rendered `WallLayer` `TileMapLayer`.
 - Local input first resolves to generic movement and aim vectors, then those vectors are quantized into 16 direction buckets and three strength states: `None`, `Some`, and `Full`. Keyboard/mouse and gamepad only differ at the vector-read step.
-- Local input also resolves an explicit active-aiming state. Keyboard/mouse is actively aiming while `Ctrl` or right mouse button is held. Gamepad is actively aiming while the right stick is outside the aim deadzone.
+- Local input also resolves an explicit active-aiming state. Keyboard/mouse toggles the local player between `PlayerControlState.Gameplay` and `PlayerControlState.Aim` on each `Ctrl` or right mouse button press. Gamepad is actively aiming while the right stick is outside the aim deadzone.
 - The debug aim indicator only draws while the local player is actively aiming, and server movement applies the selected item's `AimMoveSpeedMultiplier` while aiming.
 - For the current prototype, clients do not predict or simulate player movement locally. Clients send movement input vectors only when their quantized movement state changes, the host/server validates ownership, quantizes the vector, and the host/server is the only peer that simulates movement.
 - Aim state changes replicate independently from movement state changes. Aiming does not force movement updates. For gamepad players with no active right-stick aim, the aim state follows movement-state direction/strength changes.
 - Local aim display is allowed to be more exact than replicated aim state. Future shoot/throw actions should send their exact aim vector at action time and can use that exact vector to update the acting object's local aim display.
 - Accepted movement-state syncs include the server position, and the host/server also broadcasts moving player positions every server physics tick while movement continues. Clients directly apply server positions with no interpolation or local prediction for now.
-- `B` opens a temporary test item grid for equipping one of the currently loaded modern item resources on the local player. Keyboard/mouse and controller players use the same menu path instead of comma/period cycling or spacebar use testing.
-- `DamageTestPlayer` now exposes a reusable `PlayerControlState`. The item grid switches local players to `Menu` state while open, which blocks movement, aim, and item-use input so controller UI navigation does not also move the player.
+- `V`/Xbox `Y` opens the scene-backed radial buy menu for buying/equipping modern weapons, gadgets, or armor on the local player. `B` remains a debug buy/equip grid for direct test selection.
+- `DamageTestPlayer` now exposes a reusable `PlayerControlState`. Buy UIs switch local players to `Menu` state while open, which blocks movement, aim, and item-use input so UI navigation does not also move the player.
 - Spawn/respawn placement is not yet overlap-safe. `MoveAndSlide()` should not be relied on to push a player out of an initial overlap; add a circular physics-space spawn query and nearby free-floor fallback before relying on respawns in real gameplay.
 
 Player item room controls:
@@ -115,11 +115,12 @@ Player item room controls:
 - Client player movement: keyboard `WASD` or arrow keys in each client window. Client `LocalId 0` uses keyboard/mouse input for this LAN test.
 - Host/local aim: mouse direction from the player body.
 - Client aim: mouse direction from the player body in each client window.
-- Active aiming is separate from aim direction. Keyboard/mouse uses `Ctrl` or right mouse button.
+- Active aiming is separate from aim direction. Keyboard/mouse toggles `PlayerControlState.Gameplay` <=> `PlayerControlState.Aim` with `Ctrl` or right mouse button.
 - While actively aiming, movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier`.
-- `B`: open or close the item grid. Keyboard `B` and Xbox controller `B` both toggle it.
-- Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: select an item from the grid.
-- Opening the item grid locks local gameplay input through `PlayerControlState.Menu`; closing it restores `PlayerControlState.Gameplay`.
+- `V` or Xbox controller `Y`: open or close the radial buy menu. First ring: `Weapons`, `Gadgets`, `Armor`, `Cancel`.
+- `B`: open or close the debug buy/equip grid. Keyboard `B` and Xbox controller `B` both toggle it.
+- Arrow keys, d-pad, left stick UI navigation, mouse direction, `Enter`, mouse click, or controller `A`: select from the radial buy menu or debug grid.
+- Opening either buy UI locks local gameplay input through `PlayerControlState.Menu`; closing it restores `PlayerControlState.Gameplay`.
 - Left mouse button or Xbox right trigger: use the currently selected item.
 - Item-use replication now also drives a short action-aim visual on `DamageTestPlayer`, so the held item points toward the exact shot/throw direction for about half a second on other devices.
 

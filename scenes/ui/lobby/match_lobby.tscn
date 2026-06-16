@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://ljf73j0tqr80"]
+[gd_scene load_steps=13 format=3 uid="uid://ljf73j0tqr80"]
 
 [ext_resource type="Script" uid="uid://cntbrwj3glqof" path="res://scripts/ui/MatchLobby.cs" id="1_matchlobby"]
 [ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_panel.tres" id="3_lobby_panel"]
@@ -9,6 +9,8 @@
 [ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_config_category.tres" id="9_config_category"]
 [ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_apply_button.tres" id="10_apply_style"]
 [ext_resource type="StyleBox" path="res://assets/ui/styles/lobby_revert_button.tres" id="11_revert_style"]
+[ext_resource type="Texture2D" path="res://assets/ui/config_theme.svg" id="12_config_theme"]
+[ext_resource type="Texture2D" path="res://assets/ui/config_loadout.svg" id="13_config_loadout"]
 
 [node name="MatchLobby" type="Control" unique_id=222781379]
 layout_mode = 3
@@ -246,6 +248,44 @@ text = "All"
 horizontal_alignment = 1
 mouse_filter = 2
 
+[node name="ThemeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="Content" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/ThemeButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/ThemeButton/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Theme"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/ThemeButton/Content"]
+custom_minimum_size = Vector2(22, 22)
+layout_mode = 2
+texture = ExtResource("12_config_theme")
+mouse_filter = 2
+stretch_mode = 5
+
+[node name="ValueLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/ThemeButton/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "All"
+horizontal_alignment = 1
+mouse_filter = 2
+
 [node name="GameSection" type="PanelContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout" unique_id=806594850]
 layout_mode = 2
 theme_override_styles/panel = ExtResource("9_config_category")
@@ -259,16 +299,59 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 15
 text = "Game"
 
-[node name="GameModeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent" unique_id=358873034]
-custom_minimum_size = Vector2(0, 76)
+[node name="GameOptions" type="HBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent"]
 layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GameModeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions" unique_id=358873034]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 13
-text = "Mode
+text = "Game Mode
 Custom"
 icon = ExtResource("8_config_game")
 icon_alignment = 1
 vertical_icon_alignment = 0
 expand_icon = true
+
+[node name="LoadoutModeButton" type="Button" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions"]
+custom_minimum_size = Vector2(0, 84)
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="Content" type="VBoxContainer" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/LoadoutModeButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/LoadoutModeButton/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Loadout"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="Icon" type="TextureRect" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/LoadoutModeButton/Content"]
+custom_minimum_size = Vector2(22, 22)
+layout_mode = 2
+texture = ExtResource("13_config_loadout")
+mouse_filter = 2
+stretch_mode = 5
+
+[node name="ValueLabel" type="Label" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/LoadoutModeButton/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "All"
+horizontal_alignment = 1
+mouse_filter = 2
 
 [node name="RandomOrderCheckBox" type="CheckBox" parent="MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent" unique_id=1181391373]
 layout_mode = 2

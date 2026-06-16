@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemThemeDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/ItemThemeDefinition.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/ui/theme_medieval.svg" id="2_icon"]
+[ext_resource type="Resource" path="res://assets/items/medieval/weapons/bow_t0.tres" id="3_default"]
+
+[resource]
+script = ExtResource("1_script")
+Id = "medieval"
+DisplayName = "Medieval"
+Description = "Medieval theme with bows, crossbows, bombs, armor, and future melee-focused items."
+Icon = ExtResource("2_icon")
+RootFolder = "res://assets/items/medieval"
+DefaultStarterItem = ExtResource("3_default")
+SortOrder = 10

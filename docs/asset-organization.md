@@ -12,6 +12,7 @@ This document tracks project asset folder rules so temporary and production asse
 - `assets/network/`: network/debug UI icons and related network visuals.
 - `assets/tiles/`: tile atlases and TileSet resources.
 - `assets/shaders/`: shader resources.
+- `assets/ui/`: shared menu, HUD, lobby, match-config, team, mode, and loadout icons.
 
 ## Items Versus Projectiles
 
@@ -31,6 +32,7 @@ Examples:
 - `assets/items/modern/weapons/rocketlauncher.svg`: the carried rocket launcher item.
 - `assets/projectiles/rockets/rocket.svg`: the rocket fired by the launcher.
 - `assets/items/modern/weapons/pistol_t1.svg`: the `Pistol-T1` visual currently used by `DamageTestPlayer`.
+- `assets/items/modern/weapons/pistol_t0.svg`: the weak modern default starter pistol.
 - `assets/projectiles/bullets/bullet.svg`: a visible bullet or tracer if one is added later.
 - `assets/items/modern/throwables/nade_explosive.svg`: a carried grenade item.
 - `assets/projectiles/grenades/thrown_grenade.svg`: the spawned grenade body if the thrown world object needs a separate visual.
@@ -40,10 +42,13 @@ Examples:
 - `assets/items/modern/weapons/`: modern pistols, SMGs, ARs, rifles, rocket launchers, grenade launchers, and similar carried/equipped weapons.
 - `assets/items/modern/throwables/`: modern hand grenades and similar carried throwable items.
 - `assets/items/modern/armor/`: modern armor item visuals that overlay the base player body.
+- `assets/items/medieval/weapons/`: medieval bows, crossbows, and future melee weapons.
+- `assets/items/medieval/throwables/`: medieval thrown gadgets such as bombs.
+- `assets/items/medieval/armor/`: medieval armor item visuals that overlay the base player body.
 - `assets/items/modern/inventory/`: future modern backpacks, holsters, pouches, straps, and other carry-equipment visuals.
 - `assets/items/modern/consumables/`: future modern stims, medkits, and other instant-use carried items.
 
-The first item/action content pass is modern-only, so item art is grouped under `assets/items/modern/`. Future themes should get their own theme folder, such as `assets/items/medieval/`, when that content is intentionally started.
+Each item theme owns its own folder plus one theme definition under `assets/items/themes/`. The global catalog is `assets/items/item_theme_catalog.tres`. Theme definitions point to their item root folders and default starter items; actual item membership is discovered from folder contents.
 
 ## Current Modern Item SVGs
 

@@ -29,7 +29,9 @@ The root `README.md` should stay concise and newcomer-friendly. Detailed technic
 
 | Plan | Doc |
 | --- | --- |
-| Player items, simplified armor-driven loadouts, weapons, gadgets, ammo reloads, and gadget refreshes | [Player Items And Loadout Plan](player-items-inventory-plan.md) |
+| Player items, simplified armor-driven loadouts, weapons, gadgets, ammo reloads, and gadget recoveries | [Player Items And Loadout Plan](player-items-inventory-plan.md) |
+| Match-level gear acquisition modes and loadout persistence rules | [Loadout Modes](loadout-modes.md) |
+| Modern and medieval item theme libraries, default starter weapons, and future melee direction | [Item Themes](item-themes.md) |
 | Local player stats/equipment HUD | [Player HUD UI Plan](player-hud-ui-plan.md) |
 | First modern weapon, armor, throwable, and projectile content pass | [Modern Item Content Plan](modern-item-content-plan.md) |
 
@@ -39,7 +41,7 @@ The root `README.md` should stay concise and newcomer-friendly. Detailed technic
 - Primary active gameplay test bed: `scenes/tests/test_player_item_room_lan.tscn`.
 - Destruction-focused LAN test bed: `scenes/tests/test_map_destruction_logic_lan.tscn`.
 - Current technical direction: build data/resource-driven gameplay systems first, keep UI reusable, and keep multiplayer behavior shaped around server authority.
-- Current next work: rework ammo so item `.tres` resources own base weapon reload and gadget refresh cooldowns, while armor applies percentage cooldown modifiers instead of granting extra magazines or gadget uses.
+- Current next work: move lobby-started gameplay toward the real match slice, including consuming lobby-selected setup such as map, game mode, item themes, and loadout mode.
 
 ## Maintenance Rules
 

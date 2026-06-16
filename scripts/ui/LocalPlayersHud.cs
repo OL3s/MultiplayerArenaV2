@@ -36,10 +36,14 @@ public partial class LocalPlayersHud : HBoxContainer {
         int maxAmmo,
         PlayerItem.AmmoCaliberType ammoCaliber,
         string gadgetText,
-        Color teamColor) {
+        Color teamColor,
+        PlayerHudCard.HudOverlayState overlayState = PlayerHudCard.HudOverlayState.None,
+        string overlayText = "",
+        Texture2D overlayIcon = null,
+        float overlayProgress = 0.0f) {
         var card = GetOrCreateCard(globalId, backendTeamId, displayTeamId, teamColor);
         card.Visible = true;
-        card.SetPlayerState(localId, displayName, statusText, currentHealth, maxHealth, itemIcon, currentAmmo, maxAmmo, ammoCaliber, gadgetText, teamColor);
+        card.SetPlayerState(localId, displayName, statusText, currentHealth, maxHealth, itemIcon, currentAmmo, maxAmmo, ammoCaliber, gadgetText, teamColor, overlayState, overlayText, overlayIcon, overlayProgress);
     }
 
     public void EndRefresh() {

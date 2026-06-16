@@ -1,0 +1,37 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/BuyRadialSegment.cs" id="1_buy_radial_segment"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.05, 0.06, 0.08, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.42, 0.48, 0.58, 0.95)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[node name="BuyRadialSegment" type="PanelContainer"]
+custom_minimum_size = Vector2(82, 58)
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+script = ExtResource("1_buy_radial_segment")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="Icon" type="TextureRect" parent="Content"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+stretch_mode = 5
+
+[node name="Label" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Item"
+horizontal_alignment = 1
+clip_text = true

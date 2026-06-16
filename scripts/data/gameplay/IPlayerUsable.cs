@@ -3,8 +3,6 @@ using Godot;
 public interface IPlayerUsable {
     PlayerItemObjective UseObjective { get; }
 
-    float RecoverySeconds { get; }
-
     float Range { get; }
 
     float AimDisplayRange { get; }

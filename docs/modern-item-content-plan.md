@@ -1,12 +1,11 @@
 # Modern Item Content Plan
 
-This document tracks the first planned modern item content set. The first implementation pass is modern-only; future themes can be added later through the same generic item, inventory, projectile, and objective systems.
+This document tracks the modern item content set. The first item/action implementation pass was modern-only; the project now also has a small medieval theme slice documented in `docs/item-themes.md`.
 
 ## Scope Rule
 
-- Build the first playable item/action content around modern weapons, launchers, and grenades only.
+- Keep modern content focused on ranged weapons, launchers, grenades, and armor.
 - Keep code and data names generic where they describe behavior, such as `Shootable`, `Throwable`, `Projectile`, `Armor`, `InventoryBag`, `Consumable`, and `Objective`.
-- Do not create medieval content, medieval assets, or medieval balancing during the first item/action slice.
 - Do not hardcode modern-only concepts into base systems when a generic behavior or slot category works.
 
 ## Carried Items Versus Projectiles
@@ -38,6 +37,8 @@ Modern items should have two SVG visual roles:
 - Showcase visual: the readable UI image used in store, buy-wheel, inventory, debug menu, tooltip, and item selection UI.
 
 The existing weapon and throwable SVG files are currently in-use visuals. Their `width` and `height` are set to approximate in-game pixel sizes so Godot imports them at player-scale dimensions. Future showcase SVGs should be added separately, preferably with a `_showcase.svg` suffix, instead of scaling these tiny held visuals up for UI. Armor already has first-pass in-use overlays plus separate store/presentation images.
+
+`assets/items/themes/modern.tres` is the modern theme definition. It points to `assets/items/modern/` as the item root and marks `pistol_t0` as the modern default starter weapon. The runtime discovers modern items by scanning that root folder instead of maintaining duplicated item id/path lists.
 
 Weapon in-use SVGs:
 
@@ -91,7 +92,7 @@ Throwable resources:
 - `assets/items/modern/throwables/nade_incendiary.tres`
 - `assets/items/modern/throwables/nade_smoke.tres`
 
-These resources currently define item id, display name, theme, cost, weight, held/in-use texture, recovery time, range/display range, aim movement multiplier, accuracy handling stats, magazine/fire-rate values for weapons/launchers, base reload cooldown values for weapons/launchers, base refresh cooldown values for gadgets, and throw range values for grenades. Weapon/gadget slot capacity and reload/refresh cooldown multipliers come from equipped armor, not separate inventory providers or magazine reserve buckets. Add a showcase/presentation texture field when store, inventory, buy-wheel, debug menu, or tooltip UI needs readable item images.
+These resources currently define item id, display name, theme, cost, weight, held/in-use texture, range/display range, aim movement multiplier, accuracy handling stats, magazine/fire-rate values for weapons/launchers, reload time and reload recovery values for weapons/launchers, gadget reload recovery through `ReloadRecoverySeconds`, and throw range values for grenades. Weapon/gadget slot capacity, `WeaponReloadTimeMultiplier`, `WeaponReloadRecoveryMultiplier`, and `GadgetReloadRecoveryMultiplier` come from equipped armor, not separate inventory providers or magazine reserve buckets. Add a showcase/presentation texture field when store, inventory, buy-wheel, debug menu, or tooltip UI needs readable item images.
 
 Current fixed firing behavior:
 
@@ -103,6 +104,7 @@ Current fixed firing behavior:
 
 Tiered hitscan or fast-projectile weapons:
 
+- `Pistol-T0` / `Starter Pistol`: modern-only default fallback, intentionally worse than purchasable weapons.
 - `Pistol-T1`
 - `Pistol-T2`
 - `Pistol-T3`
@@ -145,7 +147,7 @@ Throwable resources should also include throw range data. Gamepad aim-vector str
 
 Suggested order:
 
-- `Pistol-T1` as the first shootable weapon.
+- `Pistol-T0` as the default starter fallback and `Pistol-T1` as the first meaningful buy/equip upgrade.
 - `NadeExplosive` as the first throwable area-damage item.
 - `Rocketlauncher` or `Grenadelauncher-T1` after projectile spawning is ready.
 - Remaining currently imaged items after the common item, projectile, reload, cost, weight, and carry-capacity data paths exist: all pistol, SMG, AR, rifle, launcher, and grenade tiers/variants listed above.

@@ -12,6 +12,7 @@ This document tracks current test scenes, test controls, launch commands, and ru
 - Touching or clicking the visible empty player card in the main menu joins one local touchscreen player using `LocalPlayerData.LocalInputType.Touch` and `assets/inputicons/device_touch.svg`. Main menu lobby API guards allow at most one keyboard/mouse player and at most one touch player.
 - Local-only match lobby mode does not open a network peer or bind a server port. Its lobby UI hides connection settings, keeps map/game Match Config editable, and exposes `FFA`/`TEAM` local player team assignment buttons.
 - Non-local host lobby mode exposes `Autofill 2 Teams`, `Autofill 3 Teams`, and `Autofill 4 Teams` actions. Autofill keeps all players from the same network peer/device together on one team.
+- Match Config groups biome, structure, and item theme in the Map section. It groups game mode and loadout mode in the Game section. Loadout mode is currently setup/UI only; player/item room respawn behavior still preserves equipped loadout and refills uses.
 
 ## Destruction Logic Test
 
@@ -70,12 +71,13 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Spawns players through the structure-driven `GameplaySpawnManager`; team assignment decides which team spawn tiles are used.
 - Uses the same `DamageTestPlayer.GlobalId -> PlayerData` ownership lookup pattern as the old LAN player test path.
 - Player movement is currently server-authoritative and intentionally simple: clients send movement input vectors when quantized movement state changes, only the host/server simulates movement, and clients directly apply server movement-state plus every-physics-tick moving-position updates without interpolation or local prediction.
-- Player visuals use temporary SVG player body sprites in `assets/players/` plus the `Pistol-T1` item image in `assets/items/modern/weapons/`.
+- Player visuals use temporary SVG player body sprites in `assets/players/` plus the selected/default item image from the active item theme library.
 - Player held-item visuals now come from the selected modern item `.tres` resource's `HeldTexture`.
-- The temporary `B` item grid displays each item's `ShowcaseTexture` when present and falls back to `HeldTexture` for older resources.
-- The temporary `B` item grid also includes `Light Armor` and `Heavy Armor`; their buttons use store/showcase art, while selection applies the armor overlay texture on top of the player body.
-- Planned next UI slice: add reusable `scenes/ui/player_stats_panel.tscn` and `scenes/ui/local_players_hud.tscn` so the test room can display name, avatar, kills, health, selected item, armor, weapon slots, gadget slots, loaded ammo, reload/refresh cooldowns, and empty slots for up to 4 local players.
-- The item room uses a simplified armor-driven loadout model. Armor decides whether a second weapon is available, how many gadget slots are available, and which percentage multipliers apply to item-defined weapon reload and gadget refresh cooldowns.
+- The `B` debug buy/equip grid displays each item's `ShowcaseTexture` when present and falls back to `HeldTexture` for older resources.
+- The `B` debug buy/equip grid also includes `Light Armor` and `Heavy Armor`; their buttons use store/showcase art, while selection applies the armor overlay texture on top of the player body.
+- Planned next UI slice: add reusable `scenes/ui/player_stats_panel.tscn` and `scenes/ui/local_players_hud.tscn` so the test room can display name, avatar, kills, health, selected item, armor, weapon slots, gadget slots, loaded ammo, reload/recovery cooldowns, and empty slots for up to 4 local players.
+- The item room uses a simplified armor-driven loadout model. Armor decides whether a second weapon is available, how many gadget slots are available, and which percentage multipliers apply to item-defined weapon reload duration and gadget reload recovery.
+- Lobby item theme selection decides which item theme libraries populate the player default weapon and buy menus. Modern defaults to the intentionally weak `pistol_t0`; medieval defaults to `bow_t0` when only medieval is selected.
 - The old backstrap, inventory-provider, ammo-rig, and separate magazine-bucket model is intentionally not used.
 - The selected map structure controls the test room area layout, team objective centers, team spawn tiles around each objective, and temporary item spawn marker positions through `StructureGenerationData`. `Arena` uses a fixed plus-shape layout; `Plains` uses a larger open layout; `Square` uses a simple square room for mode/test iteration.
 - The player/item LAN test currently forces `Square`, starts one host/server and one client by default, auto-assigns two teams, and spawns the two players on opposite left/right team bases.
@@ -83,7 +85,7 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Spawn platforms map to team-local player slots `1-4`, only show platforms for players currently on that team, and hide the whole team base marker when the team has no players.
 - The room has one separate core neutral center objective from `scenes/gameplay/objectives/neutral_objective.tscn`. It owns a wider outer `Area2D` and a smaller inner `Area2D`; the inner area currently shows occupancy/contest state only. It does not award score; game modes should own scoring behavior. This mirrors the intended runtime contract: neutral objectives can exist in every game mode, even when ignored, and modes decide how or whether to use them.
 - Future secondary neutral objectives should use the same neutral objective scene but be placed at spread-out structure-generated spots. These are candidate/random objective points for modes such as future hold-the-zone behavior, not active by default.
-- Player death currently runs through a first respawn flow: 1-second dead timer, reset health/ammo/recovery, teleport to team spawn, 1-second immobilized invulnerable spawn state, then normal gameplay.
+- Player death currently runs through a first respawn flow: 1-second dead timer, reset health/ammo/fire interval, teleport to team spawn, 1-second immobilized invulnerable spawn state, then normal gameplay.
 - The room detects team wipes through a first `TeamWiped` event/log hook. Actual game-mode-specific wipe behavior is still deferred.
 - Players controlled by the local process show a yellow SVG arrow marker above the body and an `L#` label, where `#` displays the backend local player id `0-3` as `1-4`.
 - Player/item LAN tests instantiate `scenes/ui/hud/local_players_hud.tscn` in the bottom-left corner. It shows up to four local player pill cards left to right with local id, status, health, selected item ammo pips, and gadget summary. Networked tests wrap the local cards in a team-colored container with the display team id on the right.
@@ -96,14 +98,21 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Client player movement: keyboard `WASD` or arrow keys in each client window. Client `LocalId 0` uses keyboard/mouse input for this LAN test.
 - Host/local aim: mouse direction from the player body.
 - Client aim: mouse direction from the player body in each client window.
-- Active aiming is separate from aim direction. Keyboard/mouse is actively aiming while `Ctrl` or right mouse button is held.
+- Active aiming is separate from aim direction. Keyboard/mouse toggles the local player between `PlayerControlState.Gameplay` and `PlayerControlState.Aim` on each `Ctrl` or right mouse button press; the toggle is ignored while in menu/spawn states. Gamepad active aiming is still driven by holding the right stick outside the aim deadzone.
 - The debug aim indicator only draws while actively aiming, and movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier` while actively aiming.
-- `B`: open or close the test item grid. Keyboard `B` and Xbox controller `B` both toggle it.
-- Arrow keys, d-pad, left stick UI navigation, `Enter`, mouse click, or controller `A`: choose an item from the grid and equip it as the local player's current test item.
-- Choosing an armor entry from the same grid equips that armor overlay on the local player instead of changing the held item.
-- While the item grid is open, the local player's gameplay input is put in `PlayerControlState.Menu`, which stops movement, aim updates, and item use until the menu closes.
-- Left mouse button or Xbox right trigger: use the selected item. Single-fire weapons and gadgets use once per press; full-auto weapons repeat while held after `RecoverySeconds`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`. Weapon shots consume loaded ammo before execution, gadgets start their refresh timer when used, and unavailable items are rejected by the host/server.
-- Reload input: starts the selected weapon's item-defined reload cooldown when the weapon is not full and not already reloading. Armor applies a percentage multiplier to that cooldown.
+- `V` or Xbox controller `Y`: open or close the scene-backed radial buy menu around the first local player. The first ring contains `Weapons`, `Gadgets`, `Armor`, and `Cancel`; category rings list purchasable modern items or armor plus `Back`.
+- `B`: open or close the debug buy/equip grid. Keyboard `B` and Xbox controller `B` both toggle it.
+- `Tab` or Xbox controller select/back: toggle the compact scoreboard overlay with player ids, peer/local ownership, team, score, kills, deaths, and assists. Scoreboard player pills are tinted by team and local-device players use a stronger white outline for accessibility.
+- `R` or Xbox controller `X`: start reloading the selected weapon when it is not full and not already reloading.
+- The scoreboard uses editable HUD scenes: `scenes/ui/hud/scoreboard_overlay.tscn` and `scenes/ui/hud/scoreboard_player_row.tscn`.
+- The objective state is shown through `scenes/ui/hud/objective_status_hud.tscn` at the top of the screen, with panel color changing for neutral, contested, or team-owned states.
+- Player HUD pills use their own overlay layer for local player state prompts such as `DEAD`, `SPAWNING`, `RELOAD`, `RELOADING`, and recovery `COOLDOWN`, instead of showing those prompts in the global status label. The base status label is also color-coded so `ALIVE`, `SPAWN`, and `RELOAD` are visible when no overlay covers the card.
+- The buy menu is scene-backed by `scenes/ui/buy/player_buy_radial_menu.tscn` and `scenes/ui/buy/buy_radial_segment.tscn`. It anchors around one local player and uses nested category/item rings instead of a global screen-blocking overlay.
+- Arrow keys, d-pad, left stick UI navigation, mouse direction, `Enter`, mouse click, or controller `A`: choose an item from the radial buy menu or debug grid and equip it as the local player's current item.
+- Choosing an armor entry from the radial buy menu or debug grid equips that armor overlay on the local player instead of changing the held item.
+- While either buy UI is open, the local player's gameplay input is put in `PlayerControlState.Menu`, which stops movement, aim updates, and item use until the menu closes.
+- Left mouse button or Xbox right trigger: use the selected item. Single-fire weapons and gadgets use once per press; full-auto weapons repeat according to `ShotsPerSecond`. Shootable weapons spawn `GenericBullet`, throwables spawn `GenericThrownItem`, and launcher weapons spawn `GenericLaunchedProjectile`. Weapon shots consume loaded ammo before execution, gadgets use `ReloadRecoverySeconds` as their reload recovery timer, and unavailable items are rejected by the host/server.
+- Reload input: starts the selected weapon's item-defined reload timer when the weapon is not full, not already reloading, and not in reload recovery. Armor applies `WeaponReloadTimeMultiplier` to reload time. Reload completion starts `ReloadRecoverySeconds` with `WeaponReloadRecoveryMultiplier`, which blocks the next reload but does not block firing.
 - Item-use sync includes the exact action direction. The acting player's held item is forced toward that direction for about half a second on other peers so shots and throws read from the same aim direction that executed the action.
 - Thrown grenades now travel toward their full throw-distance target and bounce from sampled wall/prop/player collision instead of shortening the throw range to the first obstruction. The thrown visual has a ground shadow under the arc.
 - Throwables can activate when they hit the ground through `ActivateOnGroundImpact`. The explosive grenade keeps fuse-timed behavior, while incendiary and smoke grenades currently activate on ground impact.
@@ -111,8 +120,8 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 Current player/item test-scene follow-up:
 
 - Tune and harden the generic bullet, thrown-item, and launched-projectile execution data.
-- Add reload input handling for item-defined weapon reload cooldowns with armor multipliers.
-- Add item-defined refresh timers for gadgets after use with armor multipliers.
+- Add reload input handling for item-defined weapon reload and recovery timers with armor multipliers.
+- Add item-defined reload recovery timers for gadgets after use with armor multipliers.
 - Add a reusable local player stats HUD scene stack and wire it to the player/item room test runtime.
 - Improve the temporary equipment menu so weapon/gadget slot assignment is clearer.
 - Replace temporary item spawn markers with real item pickup/spawn behavior.

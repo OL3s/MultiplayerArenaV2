@@ -1,0 +1,168 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/ScoreboardOverlay.cs" id="1_scoreboard_overlay"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.04, 0.05, 0.07, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.42, 0.52, 0.95)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header"]
+bg_color = Color(0.18, 0.23, 0.31, 0.95)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 10.0
+content_margin_right = 10.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_empty"]
+
+[node name="ScoreboardOverlay" type="PanelContainer"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -444.0
+offset_top = -282.0
+offset_right = 444.0
+offset_bottom = 282.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+script = ExtResource("1_scoreboard_overlay")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Scoreboard"
+horizontal_alignment = 1
+
+[node name="Header" type="PanelContainer" parent="Margin/Layout"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_header")
+
+[node name="Row" type="HBoxContainer" parent="Margin/Layout/Header"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PlayerLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.0
+theme_override_font_sizes/font_size = 13
+text = "Player"
+vertical_alignment = 1
+clip_text = true
+
+[node name="PeerLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.8
+theme_override_font_sizes/font_size = 13
+text = "Peer"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="LocalLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.8
+theme_override_font_sizes/font_size = 13
+text = "Local"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="IdLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.7
+theme_override_font_sizes/font_size = 13
+text = "ID"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="TeamLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.8
+theme_override_font_sizes/font_size = 13
+text = "Team"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="ScoreLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 13
+text = "Score"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="KillsLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.6
+theme_override_font_sizes/font_size = 13
+text = "K"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="DeathsLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.6
+theme_override_font_sizes/font_size = 13
+text = "D"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="AssistsLabel" type="Label" parent="Margin/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.6
+theme_override_font_sizes/font_size = 13
+text = "A"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+
+[node name="ScoreboardScroll" type="ScrollContainer" parent="Margin/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_empty")
+horizontal_scroll_mode = 0
+
+[node name="Rows" type="VBoxContainer" parent="Margin/Layout/ScoreboardScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4

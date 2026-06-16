@@ -13,8 +13,15 @@ public partial class MatchLobby : Control {
     private const string ConfirmationOverlayScenePath = "res://scenes/ui/overlays/confirmation_overlay.tscn";
     private const string ConfigBiomeIconPath = "res://assets/ui/config_biome.svg";
     private const string ConfigStructureIconPath = "res://assets/ui/config_structure.svg";
+    private const string ConfigThemeIconPath = "res://assets/ui/config_theme.svg";
+    private const string ConfigLoadoutIconPath = "res://assets/ui/config_loadout.svg";
+    private const string LoadoutBuyOnSpawnIconPath = "res://assets/ui/loadout_buy_on_spawn.svg";
+    private const string LoadoutPersistentBudgetIconPath = "res://assets/ui/loadout_persistent_budget.svg";
+    private const string LoadoutRandomRespawnIconPath = "res://assets/ui/loadout_random_respawn.svg";
+    private const string LoadoutMirrorIconPath = "res://assets/ui/loadout_mirror.svg";
     private const string BiomeWoodsIconPath = "res://assets/ui/biome_woods.svg";
     private const string BiomeArenaIconPath = "res://assets/ui/biome_arena.svg";
+    private const string BiomeMedievalIconPath = "res://assets/ui/theme_medieval.svg";
     private const string StructureArenaIconPath = "res://assets/ui/structure_arena.svg";
     private const string StructurePlainsIconPath = "res://assets/ui/structure_plains.svg";
     private const string StructureSquareIconPath = "res://assets/ui/structure_square.svg";
@@ -33,6 +40,13 @@ public partial class MatchLobby : Control {
     private static readonly BiomeConfig.BiomeType[] AvailableBiomes = {
         BiomeConfig.BiomeType.Woods,
         BiomeConfig.BiomeType.Arena,
+        BiomeConfig.BiomeType.Medieval,
+    };
+    private static readonly LoadoutModeConfig.LoadoutModeType[] AvailableLoadoutModes = {
+        LoadoutModeConfig.LoadoutModeType.BuyOnSpawn,
+        LoadoutModeConfig.LoadoutModeType.PersistentBudget,
+        LoadoutModeConfig.LoadoutModeType.RandomOnRespawn,
+        LoadoutModeConfig.LoadoutModeType.MirrorLoadout,
     };
     private static readonly string[] AvailableStructureIconPaths = {
         StructureArenaIconPath,
@@ -42,14 +56,21 @@ public partial class MatchLobby : Control {
     private static readonly string[] AvailableBiomeIconPaths = {
         BiomeWoodsIconPath,
         BiomeArenaIconPath,
+        BiomeMedievalIconPath,
     };
-
+    private static readonly string[] AvailableLoadoutModeIconPaths = {
+        LoadoutBuyOnSpawnIconPath,
+        LoadoutPersistentBudgetIconPath,
+        LoadoutRandomRespawnIconPath,
+        LoadoutMirrorIconPath,
+    };
     private PackedScene _lobbyPlayerCardScene;
     private PackedScene _lobbyTeamContainerScene;
     private PackedScene _lobbyEmptyPlayerSlotScene;
     private PackedScene _configSelectionOverlayScene;
     private PackedScene _gameModePlaylistOverlayScene;
     private PackedScene _confirmationOverlayScene;
+    private readonly List<ItemThemeDefinition> _availableItemThemes = new();
     private bool _isRefreshingConfig;
     private string _lastShownConfigApplyMessage = string.Empty;
 
@@ -58,6 +79,7 @@ public partial class MatchLobby : Control {
         _lobbyTeamContainerScene = GD.Load<PackedScene>(LobbyTeamContainerScenePath);
         _lobbyPlayerCardScene = GD.Load<PackedScene>(LobbyPlayerCardScenePath);
         _lobbyEmptyPlayerSlotScene = GD.Load<PackedScene>(LobbyEmptyPlayerSlotScenePath);
+        RefreshAvailableItemThemes();
         GetNetworking().LobbyStateChanged += RefreshLobbyState;
         GetNetworking().ConnectionStateChanged += RefreshLobbyState;
         GetNetworking().ConfigApplyStateChanged += OnConfigApplyStateChanged;
@@ -132,12 +154,26 @@ public partial class MatchLobby : Control {
         revertButton.Modulate = revertButton.Disabled ? new Color(0.45f, 0.45f, 0.45f) : Colors.White;
     }
 
+    private void RefreshAvailableItemThemes() {
+        _availableItemThemes.Clear();
+        _availableItemThemes.AddRange(ItemThemeRegistry.GetAvailableThemes());
+    }
+
+    private ItemThemeDefinition GetItemThemeDefinition(string themePath) {
+        foreach (var theme in _availableItemThemes) {
+            if (theme.ResourcePath == themePath)
+                return theme;
+        }
+
+        return null;
+    }
+
     private void FocusDefaultControl() {
         UiFocusHelper.EnsureFocusWithin(
             this,
             new NodePath("MainLayout/Actions/StartButton"),
             new NodePath("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton"),
-            new NodePath("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameModeButton"),
+            new NodePath("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/GameModeButton"),
             new NodePath("MainLayout/Actions/BackButton"));
     }
 
@@ -274,7 +310,9 @@ public partial class MatchLobby : Control {
     private void InitializeConfigControls() {
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/BiomeButton").Pressed += OnBiomePressed;
         GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/StructureButton").Pressed += OnStructurePressed;
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameModeButton").Pressed += OnGameModePressed;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/ThemeButton").Pressed += OnThemePressed;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/GameModeButton").Pressed += OnGameModePressed;
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/LoadoutModeButton").Pressed += OnLoadoutModePressed;
         GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/RandomOrderCheckBox").Toggled += OnRandomOrderToggled;
     }
 
@@ -293,7 +331,17 @@ public partial class MatchLobby : Control {
             "Structure",
             DescribeStructures(setupConfig.MapConfig),
             GetStructureButtonIconPath(setupConfig.MapConfig));
-        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameModeButton").Text = $"Mode\n{DescribeGameModes(setupConfig)}";
+        ConfigureMapOptionButton(
+            "MainLayout/LobbyBody/ConfigPanel/ConfigLayout/MapSection/MapContent/MapOptions/ThemeButton",
+            "Theme",
+            DescribeItemThemes(setupConfig.ItemThemeConfig),
+            GetItemThemeButtonIconPath(setupConfig.ItemThemeConfig));
+        GetNode<Button>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/GameModeButton").Text = $"Game Mode\n{DescribeGameModes(setupConfig)}";
+        ConfigureMapOptionButton(
+            "MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/GameOptions/LoadoutModeButton",
+            "Loadout",
+            DescribeLoadoutModes(setupConfig.LoadoutModeConfig),
+            GetLoadoutModeButtonIconPath(setupConfig.LoadoutModeConfig));
         GetNode<CheckBox>("MainLayout/LobbyBody/ConfigPanel/ConfigLayout/GameSection/GameContent/RandomOrderCheckBox").ButtonPressed = setupConfig.GameplayScoring.RandomizeGameModeOrder;
         _isRefreshingConfig = false;
     }
@@ -319,10 +367,26 @@ public partial class MatchLobby : Control {
         return GetStructureIconPath(mapConfig.EnabledStructureTypes[0]);
     }
 
+    private string GetItemThemeButtonIconPath(ItemThemeConfig itemThemeConfig) {
+        if (itemThemeConfig?.EnabledThemeDefinitionPaths.Count != 1)
+            return ConfigThemeIconPath;
+
+        var iconPath = ItemThemeRegistry.GetThemeIconPath(GetItemThemeDefinition(itemThemeConfig.EnabledThemeDefinitionPaths[0]));
+        return string.IsNullOrWhiteSpace(iconPath) ? ConfigThemeIconPath : iconPath;
+    }
+
+    private static string GetLoadoutModeButtonIconPath(LoadoutModeConfig loadoutModeConfig) {
+        if (loadoutModeConfig?.EnabledLoadoutModes.Count != 1)
+            return ConfigLoadoutIconPath;
+
+        return GetLoadoutModeIconPath(loadoutModeConfig.EnabledLoadoutModes[0]);
+    }
+
     private static string GetBiomeIconPath(BiomeConfig.BiomeType biomeType) {
         return biomeType switch {
             BiomeConfig.BiomeType.Woods => BiomeWoodsIconPath,
             BiomeConfig.BiomeType.Arena => BiomeArenaIconPath,
+            BiomeConfig.BiomeType.Medieval => BiomeMedievalIconPath,
             _ => ConfigBiomeIconPath,
         };
     }
@@ -336,6 +400,16 @@ public partial class MatchLobby : Control {
         };
     }
 
+    private static string GetLoadoutModeIconPath(LoadoutModeConfig.LoadoutModeType loadoutModeType) {
+        return loadoutModeType switch {
+            LoadoutModeConfig.LoadoutModeType.BuyOnSpawn => LoadoutBuyOnSpawnIconPath,
+            LoadoutModeConfig.LoadoutModeType.PersistentBudget => LoadoutPersistentBudgetIconPath,
+            LoadoutModeConfig.LoadoutModeType.RandomOnRespawn => LoadoutRandomRespawnIconPath,
+            LoadoutModeConfig.LoadoutModeType.MirrorLoadout => LoadoutMirrorIconPath,
+            _ => ConfigLoadoutIconPath,
+        };
+    }
+
     private static void EnsureRandomSeedMode(SetupConfig setupConfig) {
         if (setupConfig?.MapConfig == null)
             return;
@@ -343,8 +417,8 @@ public partial class MatchLobby : Control {
         setupConfig.MapConfig.SelectedSeedMode = MapGenerationConfig.SeedMode.AlwaysRandom;
     }
 
-    private static void EnsureMvpMapSelections(SetupConfig setupConfig) {
-        if (setupConfig?.MapConfig == null || setupConfig.BiomeConfig == null)
+    private void EnsureMvpMapSelections(SetupConfig setupConfig) {
+        if (setupConfig?.MapConfig == null || setupConfig.BiomeConfig == null || setupConfig.ItemThemeConfig == null || setupConfig.LoadoutModeConfig == null)
             return;
 
         for (var i = setupConfig.MapConfig.EnabledStructureTypes.Count - 1; i >= 0; i--) {
@@ -363,7 +437,26 @@ public partial class MatchLobby : Control {
         if (setupConfig.BiomeConfig.EnabledBiomes.Count == 0) {
             setupConfig.BiomeConfig.AddBiome(BiomeConfig.BiomeType.Woods);
             setupConfig.BiomeConfig.AddBiome(BiomeConfig.BiomeType.Arena);
+            setupConfig.BiomeConfig.AddBiome(BiomeConfig.BiomeType.Medieval);
         }
+
+        for (var i = setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths.Count - 1; i >= 0; i--) {
+            if (!IsAvailableItemThemePath(setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths[i]))
+                setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths.RemoveAt(i);
+        }
+
+        if (setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths.Count == 0)
+            foreach (var themePath in ItemThemeRegistry.GetDefaultEnabledThemePaths())
+                setupConfig.ItemThemeConfig.AddThemePath(themePath);
+
+        for (var i = setupConfig.LoadoutModeConfig.EnabledLoadoutModes.Count - 1; i >= 0; i--) {
+            if (!IsAvailableLoadoutMode(setupConfig.LoadoutModeConfig.EnabledLoadoutModes[i]))
+                setupConfig.LoadoutModeConfig.EnabledLoadoutModes.RemoveAt(i);
+        }
+
+        if (setupConfig.LoadoutModeConfig.EnabledLoadoutModes.Count == 0)
+            foreach (var loadoutMode in AvailableLoadoutModes)
+                setupConfig.LoadoutModeConfig.AddLoadoutMode(loadoutMode);
     }
 
     private static bool IsAvailableStructure(MapGenerationConfig.StructureType structureType) {
@@ -378,6 +471,24 @@ public partial class MatchLobby : Control {
     private static bool IsAvailableBiome(BiomeConfig.BiomeType biomeType) {
         foreach (var availableBiome in AvailableBiomes) {
             if (availableBiome == biomeType)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsAvailableItemThemePath(string itemThemePath) {
+        foreach (var availableTheme in _availableItemThemes) {
+            if (availableTheme.ResourcePath == itemThemePath)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsAvailableLoadoutMode(LoadoutModeConfig.LoadoutModeType loadoutModeType) {
+        foreach (var availableLoadoutMode in AvailableLoadoutModes) {
+            if (availableLoadoutMode == loadoutModeType)
                 return true;
         }
 
@@ -420,6 +531,23 @@ public partial class MatchLobby : Control {
             });
     }
 
+    private void OnThemePressed() {
+        ShowSelectionOverlay(
+            "Item Themes",
+            GetItemThemeDisplayNames(),
+            GetItemThemeIconPaths(),
+            index => GetEditableSetupConfig().ItemThemeConfig.HasThemePath(_availableItemThemes[index].ResourcePath),
+            (index, enabled) => {
+                var itemThemePath = _availableItemThemes[index].ResourcePath;
+                if (enabled)
+                    GetEditableSetupConfig().ItemThemeConfig.AddThemePath(itemThemePath);
+                else
+                    GetEditableSetupConfig().ItemThemeConfig.RemoveThemePath(itemThemePath);
+
+                RefreshLobbyState();
+            });
+    }
+
     private void OnGameModePressed() {
         var overlay = SceneOverlay.GetOrCreate(this);
         _gameModePlaylistOverlayScene ??= LoadPackedScene(GameModePlaylistOverlayScenePath);
@@ -435,6 +563,23 @@ public partial class MatchLobby : Control {
             ClearGameModeEntries);
         playlistOverlay.RefreshList(GetEditableSetupConfig());
         overlay.AddOverlay(playlistOverlay);
+    }
+
+    private void OnLoadoutModePressed() {
+        ShowSelectionOverlay(
+            "Loadout Modes",
+            GetLoadoutModeDisplayNames(),
+            AvailableLoadoutModeIconPaths,
+            index => GetEditableSetupConfig().LoadoutModeConfig.HasLoadoutMode(AvailableLoadoutModes[index]),
+            (index, enabled) => {
+                var loadoutMode = AvailableLoadoutModes[index];
+                if (enabled)
+                    GetEditableSetupConfig().LoadoutModeConfig.AddLoadoutMode(loadoutMode);
+                else
+                    GetEditableSetupConfig().LoadoutModeConfig.RemoveLoadoutMode(loadoutMode);
+
+                RefreshLobbyState();
+            });
     }
 
     private void OnRandomOrderToggled(bool enabled) {
@@ -514,11 +659,24 @@ public partial class MatchLobby : Control {
         return DescribeSelection(biomeConfig.EnabledBiomes.Count, AvailableBiomes.Length, biomeConfig.EnabledBiomes.Count == 1 ? biomeConfig.EnabledBiomes[0].ToString() : "Biome");
     }
 
+    private string DescribeItemThemes(ItemThemeConfig itemThemeConfig) {
+        var count = itemThemeConfig.EnabledThemeDefinitionPaths.Count;
+        var singleTheme = count == 1 ? GetItemThemeDefinition(itemThemeConfig.EnabledThemeDefinitionPaths[0]) : null;
+        return DescribeSelection(count, _availableItemThemes.Count, singleTheme?.DisplayName ?? "Theme");
+    }
+
     private static string DescribeStructures(MapGenerationConfig mapConfig) {
         return DescribeSelection(
             mapConfig.EnabledStructureTypes.Count,
             AvailableStructureTypes.Length,
             mapConfig.EnabledStructureTypes.Count == 1 ? FormatStructureName(mapConfig.EnabledStructureTypes[0]) : "Structure");
+    }
+
+    private static string DescribeLoadoutModes(LoadoutModeConfig loadoutModeConfig) {
+        return DescribeSelection(
+            loadoutModeConfig.EnabledLoadoutModes.Count,
+            AvailableLoadoutModes.Length,
+            loadoutModeConfig.EnabledLoadoutModes.Count == 1 ? FormatLoadoutModeName(loadoutModeConfig.EnabledLoadoutModes[0]) : "Loadout");
     }
 
     private static string[] GetStructureDisplayNames() {
@@ -537,8 +695,44 @@ public partial class MatchLobby : Control {
         return displayNames;
     }
 
+    private string[] GetItemThemeDisplayNames() {
+        var displayNames = new string[_availableItemThemes.Count];
+        for (var i = 0; i < _availableItemThemes.Count; i++)
+            displayNames[i] = _availableItemThemes[i].DisplayName;
+
+        return displayNames;
+    }
+
+    private string[] GetItemThemeIconPaths() {
+        var iconPaths = new string[_availableItemThemes.Count];
+        for (var i = 0; i < _availableItemThemes.Count; i++) {
+            var iconPath = ItemThemeRegistry.GetThemeIconPath(_availableItemThemes[i]);
+            iconPaths[i] = string.IsNullOrWhiteSpace(iconPath) ? ConfigThemeIconPath : iconPath;
+        }
+
+        return iconPaths;
+    }
+
+    private static string[] GetLoadoutModeDisplayNames() {
+        var displayNames = new string[AvailableLoadoutModes.Length];
+        for (var i = 0; i < AvailableLoadoutModes.Length; i++)
+            displayNames[i] = FormatLoadoutModeName(AvailableLoadoutModes[i]);
+
+        return displayNames;
+    }
+
     private static string FormatStructureName(MapGenerationConfig.StructureType structureType) {
         return structureType.ToString();
+    }
+
+    private static string FormatLoadoutModeName(LoadoutModeConfig.LoadoutModeType loadoutModeType) {
+        return loadoutModeType switch {
+            LoadoutModeConfig.LoadoutModeType.BuyOnSpawn => "Buy On Spawn",
+            LoadoutModeConfig.LoadoutModeType.PersistentBudget => "Persistent Budget",
+            LoadoutModeConfig.LoadoutModeType.RandomOnRespawn => "Random Respawn",
+            LoadoutModeConfig.LoadoutModeType.MirrorLoadout => "Mirror Loadout",
+            _ => loadoutModeType.ToString(),
+        };
     }
 
     private static string DescribeGameModes(SetupConfig setupConfig) {
@@ -641,6 +835,8 @@ public partial class MatchLobby : Control {
         return setupConfig != null
             && setupConfig.BiomeConfig.EnabledBiomes.Count > 0
             && setupConfig.MapConfig.EnabledStructureTypes.Count > 0
+            && setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths.Count > 0
+            && setupConfig.LoadoutModeConfig.EnabledLoadoutModes.Count > 0
             && GetConfiguredGameModeCount(setupConfig) > 0;
     }
 
@@ -721,6 +917,12 @@ public partial class MatchLobby : Control {
 
         if (setupConfig.MapConfig.EnabledStructureTypes.Count == 0)
             return "Select at least one structure before starting.";
+
+        if (setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths.Count == 0)
+            return "Select at least one item theme before starting.";
+
+        if (setupConfig.LoadoutModeConfig.EnabledLoadoutModes.Count == 0)
+            return "Select at least one loadout mode before starting.";
 
         if (GetConfiguredGameModeCount(setupConfig) == 0)
             return "Add at least one game mode before starting.";

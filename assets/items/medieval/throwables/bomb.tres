@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="PlayerItemThrowable" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/PlayerItemThrowable.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/items/medieval/throwables/bomb.svg" id="2_texture"]
+[ext_resource type="PackedScene" path="res://scenes/gameplay/projectiles/generic_thrown_item.tscn" id="3_thrown_scene"]
+[ext_resource type="Script" path="res://scripts/data/combat/DamageResource.cs" id="4_damage_script"]
+
+[sub_resource type="Resource" id="DamageResource_1"]
+script = ExtResource("4_damage_script")
+DamageValues = { 0: 70.0 }
+
+[resource]
+script = ExtResource("1_script")
+ItemId = "bomb"
+DisplayName = "Bomb"
+Theme = 2
+Cost = 300
+Weight = 1.0
+HeldTexture = ExtResource("2_texture")
+ReloadRecoverySeconds = 10.0
+Range = 140.0
+AimDisplayRange = 140.0
+AimMoveSpeedMultiplier = 0.90
+DefaultAccuracy = 0.10
+MovementAccuracy = 0.10
+AccuracyPushback = 0.04
+ShotAccuracyRecovery = 0.14
+MovementAccuracyRecovery = 0.60
+MaxInaccuracy = 0.28
+ThrowableScene = ExtResource("3_thrown_scene")
+ThrowSpeed = 420.0
+MinThrowRange = 32.0
+ThrowStrengthAffectsRange = true
+FuseSeconds = 2.4
+Damage = SubResource("DamageResource_1")
+ExecuteObjectiveOnRest = false
+ActivateOnGroundImpact = false
