@@ -95,6 +95,11 @@ public partial class ServerBrowserOverlay : Control {
     }
 
     private void OnClosePressed() {
+        if (GetParent() is SceneOverlay sceneOverlay) {
+            sceneOverlay.CloseTopOverlay();
+            return;
+        }
+
         QueueFree();
     }
 }

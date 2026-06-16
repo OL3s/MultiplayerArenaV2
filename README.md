@@ -30,6 +30,12 @@ Validate that Godot can start the project without opening the editor window:
 ./tools/verify-startup.sh
 ```
 
+Runtime `GameLog` output is short by default. Add `--verbose` after Godot's user-argument separator for full timestamp/process/peer/source context:
+
+```bash
+godot --path . -- --verbose
+```
+
 ## Documentation Index
 
 AI assistants working on this project should keep this index and the referenced docs updated as work progresses. Store relevant decisions, current implementation notes, deferred follow-ups, test scene notes, and future-reference context in the appropriate doc instead of leaving that knowledge only in chat history.

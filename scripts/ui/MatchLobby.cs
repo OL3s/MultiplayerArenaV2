@@ -434,7 +434,7 @@ public partial class MatchLobby : Control {
             RemoveGameModeEntry,
             ClearGameModeEntries);
         playlistOverlay.RefreshList(GetEditableSetupConfig());
-        overlay.AddOverlay(playlistOverlay, true);
+        overlay.AddOverlay(playlistOverlay);
     }
 
     private void OnRandomOrderToggled(bool enabled) {
@@ -453,7 +453,7 @@ public partial class MatchLobby : Control {
 
         var selectionOverlay = _configSelectionOverlayScene.Instantiate<ConfigSelectionOverlay>();
         selectionOverlay.Configure(title, options, optionIconPaths, isSelected, onToggled);
-        overlay.AddOverlay(selectionOverlay, true);
+        overlay.AddOverlay(selectionOverlay);
     }
 
     private void ShowMessageOverlay(string title, string message) {
@@ -507,7 +507,7 @@ public partial class MatchLobby : Control {
         margin.AddChild(content);
         panel.AddChild(margin);
         centerContainer.AddChild(panel);
-        overlay.AddOverlay(overlayRoot, true);
+        overlay.AddOverlay(overlayRoot);
     }
 
     private static string DescribeBiomes(BiomeConfig biomeConfig) {
@@ -775,7 +775,7 @@ public partial class MatchLobby : Control {
 
         var confirmationOverlay = _confirmationOverlayScene.Instantiate<ConfirmationOverlay>();
         confirmationOverlay.Configure(title, message, confirmText, cancelText, onConfirmed);
-        overlay.AddOverlay(confirmationOverlay, true);
+        overlay.AddOverlay(confirmationOverlay);
     }
 
     private static PackedScene LoadPackedScene(string scenePath) {

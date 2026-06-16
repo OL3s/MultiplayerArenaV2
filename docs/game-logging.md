@@ -10,10 +10,20 @@ Use the shared `GameLog` API instead of calling `GD.Print()` directly from gamep
 
 ## Format
 
-`GameLog` prints one event per line:
+`GameLog` prints one short event per line by default:
 
 ```text
-[000421][12:04:31.482][Pid=18422][Role=Server][Mode=Lan][Peer=1][Scope=PlayerItemRoom][Type=RpcReceive][Event=RpcRequestUsePlayerItem] global=1 item=pistol_t1 aim=(0.980,-0.180) strength=1.000
+[Server][PlayerItemRoom/RpcReceive][RpcRequestUsePlayerItem] global=1 item=pistol_t1 aim=(0.980,-0.180) strength=1.000
+```
+
+Pass `--verbose` as a Godot user argument after `--` to include sequence, timestamp, process id, peer id, source file/line/member, and explicit field names:
+
+```bash
+godot --path . -- --verbose
+```
+
+```text
+[000421][12:04:31.482][Pid=18422][Role=Server][Mode=Lan][Peer=1][Source=ArenaMatch.cs:1245:RpcRequestUsePlayerItem][Scope=PlayerItemRoom][Type=RpcReceive][Event=RpcRequestUsePlayerItem] global=1 item=pistol_t1 aim=(0.980,-0.180) strength=1.000
 ```
 
 Fields:
@@ -24,26 +34,13 @@ Fields:
 - `Role`: `Local`, `Server`, `Client`, `HeadlessServer`, or `Unknown`.
 - `Mode`: current `Networking.NetworkMode` when available.
 - `Peer`: local Godot multiplayer peer id, or `-1` before a network peer exists.
+- `Source`: source file, line, and member that emitted the log. Verbose output only.
 - `Scope`: system that produced the event.
 - `Type`: event category.
 - `Event`: stable short event name.
 - Details: key/value-style free text specific to the event.
 
-## Simple Output
-
-Pass `--simple` as a Godot user argument after `--` to shorten `GameLog` output:
-
-```bash
-godot --path . -- --simple
-```
-
-Simple output keeps only the essential log identity:
-
-```text
-[Server][PlayerItemRoom/RpcReceive][RpcRequestUsePlayerItem] global=1 item=pistol_t1 aim=(0.980,-0.180) strength=1.000
-```
-
-Use simple output when reading normal development logs by eye. Use the default full output when mixed host/client processes in one terminal need process id, timestamp, peer id, and mode context.
+Use default short output when reading normal development logs by eye. Use `--verbose` when mixed host/client processes in one terminal need process id, timestamp, peer id, mode context, and source location.
 
 ## API
 

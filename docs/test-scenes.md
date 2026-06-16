@@ -167,10 +167,10 @@ CLIENTS=1 PORT=7800 START_DELAY=3 ./tools/testing/launch-player-item-room-lan.sh
 
 The scripts write logs to `.tmp/test-logs/` and keep the terminal attached. Press `Ctrl+C` in that terminal to stop all spawned instances.
 
-Add `--simple` after Godot's user-argument separator when launching manually to shorten `GameLog` lines:
+`GameLog` lines are short by default. Add `--verbose` after Godot's user-argument separator when launching manually to include sequence, timestamp, process id, peer id, source location, and mode context:
 
 ```bash
-godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host --simple
+godot --path . res://scenes/tests/test_player_item_room_lan.tscn -- --role host --verbose
 ```
 
 Use the general tools for import and startup verification:

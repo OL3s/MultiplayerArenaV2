@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Godot;
 
@@ -56,25 +58,44 @@ public enum GameLogRole {
 public static class GameLog {
     private static long _sequence;
     private static Networking _networking;
-    private static bool? _simpleOutputEnabled;
+    private static bool? _verboseOutputEnabled;
 
     public static void RegisterNetworking(Networking networking) {
         _networking = networking;
     }
 
-    public static void Print(GameLogScope scope, GameLogType type, string eventName, string details = "") {
-        GD.Print(BuildLine(scope, type, eventName, details));
+    public static void Print(
+        GameLogScope scope,
+        GameLogType type,
+        string eventName,
+        string details = "",
+        [CallerFilePath] string filePath = "",
+        [CallerLineNumber] int lineNumber = 0,
+        [CallerMemberName] string memberName = "") {
+        GD.Print(BuildLine(scope, type, eventName, details, filePath, lineNumber, memberName));
     }
 
-    public static void Warn(GameLogScope scope, string eventName, string details = "") {
-        GD.PushWarning(BuildLine(scope, GameLogType.Warning, eventName, details));
+    public static void Warn(
+        GameLogScope scope,
+        string eventName,
+        string details = "",
+        [CallerFilePath] string filePath = "",
+        [CallerLineNumber] int lineNumber = 0,
+        [CallerMemberName] string memberName = "") {
+        GD.PushWarning(BuildLine(scope, GameLogType.Warning, eventName, details, filePath, lineNumber, memberName));
     }
 
-    public static void Error(GameLogScope scope, string eventName, string details = "") {
-        GD.PushError(BuildLine(scope, GameLogType.Error, eventName, details));
+    public static void Error(
+        GameLogScope scope,
+        string eventName,
+        string details = "",
+        [CallerFilePath] string filePath = "",
+        [CallerLineNumber] int lineNumber = 0,
+        [CallerMemberName] string memberName = "") {
+        GD.PushError(BuildLine(scope, GameLogType.Error, eventName, details, filePath, lineNumber, memberName));
     }
 
-    private static string BuildLine(GameLogScope scope, GameLogType type, string eventName, string details) {
+    private static string BuildLine(GameLogScope scope, GameLogType type, string eventName, string details, string filePath, int lineNumber, string memberName) {
         var sequence = Interlocked.Increment(ref _sequence);
         var networking = GetNetworking();
         var mode = networking?.CurrentMode.ToString() ?? "Unknown";
@@ -83,24 +104,30 @@ public static class GameLog {
         var time = DateTime.Now.ToString("HH:mm:ss.fff");
         var suffix = string.IsNullOrWhiteSpace(details) ? string.Empty : $" {details}";
 
-        if (IsSimpleOutputEnabled())
-            return $"[{role}][{scope}/{type}][{eventName}]{suffix}";
+        if (IsVerboseOutputEnabled())
+            return $"[{sequence:000000}][{time}][Pid={OS.GetProcessId()}][Role={role}][Mode={mode}][Peer={peerId}][Source={FormatSource(filePath, lineNumber, memberName)}][Scope={scope}][Type={type}][Event={eventName}]{suffix}";
 
-        return $"[{sequence:000000}][{time}][Pid={OS.GetProcessId()}][Role={role}][Mode={mode}][Peer={peerId}][Scope={scope}][Type={type}][Event={eventName}]{suffix}";
+        return $"[{role}][{scope}/{type}][{eventName}]{suffix}";
     }
 
-    private static bool IsSimpleOutputEnabled() {
-        if (_simpleOutputEnabled.HasValue)
-            return _simpleOutputEnabled.Value;
+    private static string FormatSource(string filePath, int lineNumber, string memberName) {
+        var fileName = string.IsNullOrWhiteSpace(filePath) ? "unknown" : Path.GetFileName(filePath);
+        var member = string.IsNullOrWhiteSpace(memberName) ? "unknown" : memberName;
+        return $"{fileName}:{lineNumber}:{member}";
+    }
+
+    private static bool IsVerboseOutputEnabled() {
+        if (_verboseOutputEnabled.HasValue)
+            return _verboseOutputEnabled.Value;
 
         foreach (var argument in OS.GetCmdlineUserArgs()) {
-            if (argument == "--simple") {
-                _simpleOutputEnabled = true;
+            if (argument == "--verbose") {
+                _verboseOutputEnabled = true;
                 return true;
             }
         }
 
-        _simpleOutputEnabled = false;
+        _verboseOutputEnabled = false;
         return false;
     }
 

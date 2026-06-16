@@ -48,7 +48,7 @@ public partial class SceneOverlay : CanvasLayer {
         return overlay;
     }
 
-    public void AddOverlay(Control overlay, bool useBlur = false) {
+    public void AddOverlay(Control overlay) {
         if (overlay == null) {
             GD.PushWarning("Overlay control is null, cannot add.");
             return;
@@ -56,22 +56,16 @@ public partial class SceneOverlay : CanvasLayer {
 
         EnsureBlurBackdrop();
 
-        if (useBlur) {
-            overlay.SetMeta("uses_blur_backdrop", true);
-            ShowBlurBackdrop();
-            overlay.TreeExited += HideBlurBackdropIfUnused;
-        }
-
         var overlayId = overlay.GetInstanceId();
         _overlayFocusRestoreTargets[overlayId] = GetViewport()?.GuiGetFocusOwner();
 
         AddChild(overlay);
-        MoveOverlayToFront(overlay);
+        RefreshBlurBackdrop();
         overlay.TreeExited += () => OnOverlayTreeExited(overlayId);
         CallDeferred(MethodName.FocusTopOverlay);
     }
 
-    public void AddOverlay(PackedScene overlayScene, bool useBlur = false) {
+    public void AddOverlay(PackedScene overlayScene) {
         if (overlayScene == null) {
             GD.PushWarning("Overlay scene is null, cannot add.");
             return;
@@ -82,7 +76,7 @@ public partial class SceneOverlay : CanvasLayer {
             return;
         }
 
-        AddOverlay(overlay, useBlur);
+        AddOverlay(overlay);
     }
 
     public void CloseTopOverlay() {
@@ -95,7 +89,7 @@ public partial class SceneOverlay : CanvasLayer {
             break;
         }
 
-        HideBlurBackdropIfUnused();
+        RefreshBlurBackdrop();
     }
 
     public void CloseAllOverlays() {
@@ -106,7 +100,7 @@ public partial class SceneOverlay : CanvasLayer {
             child.QueueFree();
         }
 
-        HideBlurBackdropIfUnused();
+        RefreshBlurBackdrop();
     }
 
     private void EnsureBlurBackdrop() {
@@ -129,10 +123,6 @@ public partial class SceneOverlay : CanvasLayer {
         MoveChild(_blurBackdrop, 0);
     }
 
-    private void MoveOverlayToFront(Control overlay) {
-        MoveChild(overlay, GetChildCount() - 1);
-    }
-
     private void FocusTopOverlay() {
         if (!IsInsideTree())
             return;
@@ -152,6 +142,7 @@ public partial class SceneOverlay : CanvasLayer {
         }
 
         CallDeferred(MethodName.RefreshFocusAfterOverlay);
+        CallDeferred(MethodName.RefreshBlurBackdrop);
     }
 
     private void RefreshFocusAfterOverlay() {
@@ -230,25 +221,22 @@ public partial class SceneOverlay : CanvasLayer {
             && control.IsVisibleInTree();
     }
 
-    private void ShowBlurBackdrop() {
+    private void RefreshBlurBackdrop() {
         if (!GodotObject.IsInstanceValid(_blurBackdrop))
             return;
 
-        _blurBackdrop.Visible = true;
-        MoveChild(_blurBackdrop, GetChildCount() - 1);
-    }
-
-    private void HideBlurBackdropIfUnused() {
-        if (!GodotObject.IsInstanceValid(_blurBackdrop))
-            return;
+        var hasOverlay = false;
 
         for (var i = 0; i < GetChildCount(); i++) {
             var child = GetChild(i);
-            if (child != _blurBackdrop && child.HasMeta("uses_blur_backdrop"))
-                return;
+            if (child == _blurBackdrop || child.IsQueuedForDeletion())
+                continue;
+
+            hasOverlay = true;
+            break;
         }
 
-        _blurBackdrop.Visible = false;
+        _blurBackdrop.Visible = hasOverlay;
         MoveChild(_blurBackdrop, 0);
     }
 

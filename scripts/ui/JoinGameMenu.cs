@@ -53,6 +53,9 @@ public partial class JoinGameMenu : Control {
 
     private async void OnBrowseLocalPressed() {
         var listings = await GetNetworking().DiscoverLocalServerListingsAsync();
+        if (listings.Count == 0)
+            GameLog.Print(GameLogScope.UI, GameLogType.ApiCall, "BrowseLocalServersEmpty");
+
         ShowServerBrowser(
             "Local Servers",
             listings.Count > 0 ? $"{listings.Count} local server(s) found." : "Searching local network.",
@@ -62,6 +65,9 @@ public partial class JoinGameMenu : Control {
 
     private void OnBrowseServersPressed() {
         var listings = GetNetworking().GetOnlineServerListings();
+        if (listings.Count == 0)
+            GameLog.Print(GameLogScope.UI, GameLogType.ApiCall, "BrowseOnlineServersEmpty");
+
         ShowServerBrowser(
             "Online Servers",
             "Online browsing is waiting on a matchmaking service.",
@@ -83,6 +89,7 @@ public partial class JoinGameMenu : Control {
             return;
         }
 
+        GameLog.Print(GameLogScope.UI, GameLogType.ApiCall, "QuickmatchServersEmpty");
         ShowMessageOverlay("Quickplay", "No local or online matches found.");
     }
 
@@ -93,7 +100,7 @@ public partial class JoinGameMenu : Control {
 
         if (_joinAddressPopup.GetParent() != overlay) {
             _joinAddressPopup.GetParent()?.RemoveChild(_joinAddressPopup);
-            overlay.AddOverlay(_joinAddressPopup, true);
+            overlay.AddOverlay(_joinAddressPopup);
         }
 
         _joinAddressPopup.Visible = true;
@@ -151,7 +158,7 @@ public partial class JoinGameMenu : Control {
 
         var browserOverlay = _serverBrowserOverlayScene.Instantiate<ServerBrowserOverlay>();
         browserOverlay.Configure(title, statusText, listings, emptyMessage, listing => ConnectToServer(listing, ResolveJoinType(title)));
-        sceneOverlay.AddOverlay(browserOverlay, true);
+        sceneOverlay.AddOverlay(browserOverlay);
     }
 
     private void ShowMessageOverlay(string title, string message) {

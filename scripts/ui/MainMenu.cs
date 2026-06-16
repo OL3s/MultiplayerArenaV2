@@ -444,7 +444,7 @@ public partial class MainMenu : Control {
         if (sceneOverlay == null)
             return;
 
-        sceneOverlay.AddOverlay(_testScenesOverlayScene.Instantiate<Control>(), true);
+        sceneOverlay.AddOverlay(_testScenesOverlayScene.Instantiate<Control>());
     }
 
     private void OnSettingsPressed() {
@@ -558,7 +558,7 @@ public partial class MainMenu : Control {
 
         var confirmationOverlay = _confirmationOverlayScene.Instantiate<ConfirmationOverlay>();
         confirmationOverlay.Configure(title, message, confirmText, cancelText, onConfirmed);
-        sceneOverlay.AddOverlay(confirmationOverlay, true);
+        sceneOverlay.AddOverlay(confirmationOverlay);
     }
 
 }

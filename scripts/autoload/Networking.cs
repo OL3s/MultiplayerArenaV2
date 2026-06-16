@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Godot;
@@ -475,6 +476,8 @@ public partial class Networking : Node {
     }
 
     public bool BeginDirectClientConnection(string address, int port) {
+        PrintMultiplayerLog(GameLogType.ApiCall, "BeginDirectClientConnection", $"target={address}:{port}");
+
         if (string.IsNullOrWhiteSpace(address) || port <= 0 || port > 65535) {
             PrintMultiplayerLog(GameLogType.Warning, "DirectClientConnectionRejected", $"address={address} port={port}");
             return false;
@@ -1669,12 +1672,22 @@ public partial class Networking : Node {
         return HasNetworkPeer() ? Multiplayer.GetPeers().Length : 0;
     }
 
-    private void PrintMultiplayerLog(string message) {
-        PrintMultiplayerLog(GameLogType.StateChange, "Multiplayer", message);
+    private void PrintMultiplayerLog(
+        string message,
+        [CallerFilePath] string filePath = "",
+        [CallerLineNumber] int lineNumber = 0,
+        [CallerMemberName] string memberName = "") {
+        PrintMultiplayerLog(GameLogType.StateChange, "Multiplayer", message, filePath, lineNumber, memberName);
     }
 
-    private void PrintMultiplayerLog(GameLogType type, string eventName, string details = "") {
-        GameLog.Print(GameLogScope.Networking, type, eventName, details);
+    private void PrintMultiplayerLog(
+        GameLogType type,
+        string eventName,
+        string details = "",
+        [CallerFilePath] string filePath = "",
+        [CallerLineNumber] int lineNumber = 0,
+        [CallerMemberName] string memberName = "") {
+        GameLog.Print(GameLogScope.Networking, type, eventName, details, filePath, lineNumber, memberName);
     }
 
     private void EmitLobbyStateChanged() {
