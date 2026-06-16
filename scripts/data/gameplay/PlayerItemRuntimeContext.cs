@@ -19,6 +19,8 @@ public sealed class PlayerItemRuntimeContext {
 
     public Action ArenaChanged { get; set; }
 
+    public Action<int, int> PlayerKilled { get; set; }
+
     public ProjectileSweepHit FindFirstHit(
         Vector2 from,
         Vector2 to,
@@ -54,7 +56,7 @@ public sealed class PlayerItemRuntimeContext {
         switch (hit.Kind) {
             case ProjectileHitKind.Player:
                 if (hit.Target is DamageTestPlayer player && GodotObject.IsInstanceValid(player))
-                    player.ApplyDamage(damageContainer);
+                    ApplyDamageToPlayer(player, damageContainer);
                 break;
             case ProjectileHitKind.Prop:
                 if (hit.Target is LevelProp prop && GodotObject.IsInstanceValid(prop))
@@ -187,7 +189,7 @@ public sealed class PlayerItemRuntimeContext {
             if (player == null || !GodotObject.IsInstanceValid(player) || player.IsDead() || !player.IsInsideWorldRadius(center, radius))
                 continue;
 
-            player.ApplyDamage(CreateDamageContainer(damage.Scaled(player.GetRadiusDamageMultiplier(center, radius))));
+            ApplyDamageToPlayer(player, CreateDamageContainer(damage.Scaled(player.GetRadiusDamageMultiplier(center, radius))));
         }
     }
 
@@ -201,6 +203,18 @@ public sealed class PlayerItemRuntimeContext {
 
             prop.ApplyDamage(CreateDamageContainer(damage.Scaled(prop.GetRadiusDamageMultiplier(center, radius))));
         }
+    }
+
+    private void ApplyDamageToPlayer(DamageTestPlayer player, DamageContainer damageContainer) {
+        if (player == null || !GodotObject.IsInstanceValid(player) || player.IsDead())
+            return;
+
+        var victimGlobalId = player.GlobalId;
+        var wasAlive = !player.IsDead();
+        if (!player.ApplyDamage(damageContainer) || !wasAlive || !player.IsDead())
+            return;
+
+        PlayerKilled?.Invoke(OwnerGlobalId, victimGlobalId);
     }
 
     private void ApplyRadiusDamageToWalls(Vector2 center, float radius, DamageResource damage) {

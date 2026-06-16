@@ -159,7 +159,13 @@ public partial class SetupConfig : Resource {
             string.Join(";", gameModes),
             string.Join(",", itemThemes),
             string.Join(",", loadoutModes),
-            LoadoutModeConfig.StartingBudget);
+            LoadoutModeConfig.StartingCredits,
+            LoadoutModeConfig.CreditsPerKill,
+            LoadoutModeConfig.CreditsPerSpawn,
+            (int)MapConfig.SelectedStructureType,
+            (int)BiomeConfig.SelectedBiome,
+            EscapeNetworkValue(ItemThemeConfig.SelectedThemeDefinitionPath),
+            (int)LoadoutModeConfig.SelectedLoadoutMode);
     }
 
     public static bool TryDeserializeForNetwork(string serializedSetupConfig, out SetupConfig setupConfig) {
@@ -251,8 +257,26 @@ public partial class SetupConfig : Resource {
             }
         }
 
-        if (parts.Length > 16 && int.TryParse(parts[16], out var startingBudget))
-            setupConfig.LoadoutModeConfig.StartingBudget = startingBudget;
+        if (parts.Length > 16 && int.TryParse(parts[16], out var startingCredits))
+            setupConfig.LoadoutModeConfig.StartingCredits = startingCredits;
+
+        if (parts.Length > 17 && int.TryParse(parts[17], out var creditsPerKill))
+            setupConfig.LoadoutModeConfig.CreditsPerKill = creditsPerKill;
+
+        if (parts.Length > 18 && int.TryParse(parts[18], out var creditsPerSpawn))
+            setupConfig.LoadoutModeConfig.CreditsPerSpawn = creditsPerSpawn;
+
+        if (parts.Length > 19 && int.TryParse(parts[19], out var selectedStructureType))
+            setupConfig.MapConfig.SelectedStructureType = (MapGenerationConfig.StructureType)selectedStructureType;
+
+        if (parts.Length > 20 && int.TryParse(parts[20], out var selectedBiome))
+            setupConfig.BiomeConfig.SelectedBiome = (BiomeConfig.BiomeType)selectedBiome;
+
+        if (parts.Length > 21)
+            setupConfig.ItemThemeConfig.SelectedThemeDefinitionPath = UnescapeNetworkValue(parts[21]);
+
+        if (parts.Length > 22 && int.TryParse(parts[22], out var selectedLoadoutMode))
+            setupConfig.LoadoutModeConfig.SelectedLoadoutMode = (LoadoutModeConfig.LoadoutModeType)selectedLoadoutMode;
 
         setupConfig.EnsureDefaultSelections();
         return true;
@@ -280,23 +304,36 @@ public partial class SetupConfig : Resource {
             MapConfig.EnabledStructureTypes.Add(MapGenerationConfig.StructureType.Arena);
         }
 
+        if (!MapConfig.HasStructureType(MapConfig.SelectedStructureType))
+            MapConfig.SelectedStructureType = MapConfig.EnabledStructureTypes[0];
+
         if (BiomeConfig.EnabledBiomes.Count == 0) {
             BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Woods);
             BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Arena);
             BiomeConfig.EnabledBiomes.Add(BiomeConfig.BiomeType.Medieval);
         }
 
+        if (!BiomeConfig.HasBiome(BiomeConfig.SelectedBiome))
+            BiomeConfig.SelectedBiome = BiomeConfig.EnabledBiomes[0];
+
         if (ItemThemeConfig.EnabledThemeDefinitionPaths.Count == 0) {
             foreach (var themePath in ItemThemeRegistry.GetDefaultEnabledThemePaths())
                 ItemThemeConfig.EnabledThemeDefinitionPaths.Add(themePath);
         }
+
+        if (!ItemThemeConfig.HasThemePath(ItemThemeConfig.SelectedThemeDefinitionPath))
+            ItemThemeConfig.SelectedThemeDefinitionPath = ItemThemeConfig.EnabledThemeDefinitionPaths[0];
 
         if (LoadoutModeConfig.EnabledLoadoutModes.Count == 0) {
             LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.BuyOnSpawn);
             LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.PersistentBudget);
             LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.RandomOnRespawn);
             LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.MirrorLoadout);
+            LoadoutModeConfig.EnabledLoadoutModes.Add(LoadoutModeConfig.LoadoutModeType.MapPickups);
         }
+
+        if (!LoadoutModeConfig.HasLoadoutMode(LoadoutModeConfig.SelectedLoadoutMode))
+            LoadoutModeConfig.SelectedLoadoutMode = LoadoutModeConfig.EnabledLoadoutModes[0];
     }
 
     private static string GetGameModeDisplayName(GameModeConfig.GameModeType modeType) {

@@ -21,5 +21,8 @@ public partial class ItemThemeDefinition : Resource {
     public PlayerItem DefaultStarterItem { get; set; }
 
     [Export]
+    public Godot.Collections.Array<ItemBuyMenuGroup> BuyMenuGroups { get; set; } = new();
+
+    [Export]
     public int SortOrder { get; set; }
 }

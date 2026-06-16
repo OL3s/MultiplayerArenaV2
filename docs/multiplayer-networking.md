@@ -189,16 +189,20 @@ Autofill is not rendered as a team container. It is a separate host lobby action
 
 Match setup should be resource-driven. `SetupConfig` owns the selected/available game modes, loadout modes, map generation settings, biome settings, item theme settings, player limits, address/port, and team behavior.
 
+Lobby multi-select config values are candidate pools, not simultaneous runtime choices. Game Mode is the exception: it is a persistent playlist/rotation. When the host starts a match, and later whenever the active Game Mode playlist iteration advances, the host resolves exactly one active structure, biome, item theme, and loadout mode from their configured pools and serializes those resolved choices to peers.
+
+Naming follow-up: current code still uses `Enabled...` for candidate pools and `Selected...` for resolved active outcomes. The intended durable model is `Available...`/`Current...`: each config resource owns an available outcome list plus one current outcome, and exposes a helper that resolves a random current outcome from the available list. Do not add separate files for that state unless a future persistence requirement appears.
+
 Game modes are represented as `GameModeConfig` resources in an array so multiple modes can be enabled for voting, rotation, quickmatch filtering, or future playlist logic. Map and biome setup are separate resources so procedural generation can grow without turning `SetupConfig` into a large flat object.
 
 The match lobby config UI should edit these resources directly through grouped sections for internet settings, map/biome settings, and game settings. For the MVP lobby, map seeds are always random and the seed picker is intentionally hidden. `MapGenerationConfig` still keeps seed fields for later debug/custom-match flows, but the normal match lobby should normalize `SelectedSeedMode` to `AlwaysRandom`.
 
 MVP map setup should stay intentionally narrow while the first playable slice is being chased:
 
-- Structures: `Arena`, `Plains`, and `Square` are exposed in the match lobby. Structure selection is the gameplay-layout choice and should drive area shape, team base/objective centers, team spawn placement around those objectives, core neutral objective placement, secondary neutral objective candidate placement, and item spawn placement. `Arena` is currently the fixed non-random plus-shape structure; `Square` is the simple square-room test structure.
-- Biomes: `Woods`, `Arena`, and `Medieval` are exposed in the match lobby.
-- Item themes: `Modern` and `Medieval` are exposed in the match lobby and sync through `SetupConfig.ItemThemeConfig`.
-- Loadout modes: `Buy On Spawn`, `Persistent Budget`, `Random Respawn`, and `Mirror Loadout` are exposed in the match lobby Game section and sync through `SetupConfig.LoadoutModeConfig`. The config/UI structure is present; full gameplay behavior is deferred to the loadout-mode runtime pass.
+- Structures: `Arena`, `Plains`, and `Square` are exposed in the match lobby as a candidate pool. The host resolves one `MapGenerationConfig.SelectedStructureType` for the active match/iteration. The active structure drives area shape, team base/objective centers, team spawn placement around those objectives, core neutral objective placement, secondary neutral objective candidate placement, and item spawn placement. `Arena` is currently the fixed non-random plus-shape structure; `Square` is the simple square-room test structure.
+- Biomes: `Woods`, `Arena`, and `Medieval` are exposed in the match lobby as a candidate pool. The host resolves one `BiomeConfig.SelectedBiome` for the active match/iteration.
+- Item themes: `Modern` and `Medieval` are exposed in the match lobby as a candidate pool and sync through `SetupConfig.ItemThemeConfig`. The host resolves one `ItemThemeConfig.SelectedThemeDefinitionPath`; gameplay and buy menus load only that theme.
+- Loadout modes: `Buy On Spawn`, `Persistent Budget`, `Random Respawn`, `Mirror Loadout`, and `Map Pickups` are exposed in the match lobby Game section as a candidate pool and sync through `SetupConfig.LoadoutModeConfig`. The host resolves one `LoadoutModeConfig.SelectedLoadoutMode`. First-pass Credits behavior exists for the Credit-based modes; random, mirror, and map-pickup runtime behavior is still deferred to the loadout-mode runtime pass.
 - The structure and biome enums should only contain implemented/actively targeted values. Add new enum values one at a time when the corresponding map generation/content work starts.
 - The structure/biome selector overlay should show option icons, include `All` and `None` actions, and keep `Close` disabled until at least one option is selected.
 - Match Config map option buttons show the category label above the icon and the selected value below it. They use the generic category icon for multi-selection/all states, and switch to the selected option icon when exactly one biome or structure is selected.
@@ -216,6 +220,8 @@ Join IP uses the reusable `SceneOverlay` blur backdrop when its address panel is
 ## RPC Update Methods
 
 The `Networking` autoload exposes simple RPC update methods for shared multiplayer state. These methods should use basic arguments instead of sending complex objects directly, which keeps the netcode easier to reason about and compatible with Godot's RPC system.
+
+When the host starts a match, `StartMatchScene(...)` resolves the authoritative map seed, serializes the full `SetupConfig`, and passes that serialized setup into `RpcLoadMatchScene(...)`. Each peer applies that setup immediately before changing to the match scene so `ArenaMatch._Ready()` consumes the same final game mode, loadout mode, structure, biome, item theme, and seed state on every process.
 
 Current public update methods:
 

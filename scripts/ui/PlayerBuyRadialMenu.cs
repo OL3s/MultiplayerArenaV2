@@ -8,7 +8,6 @@ public partial class PlayerBuyRadialMenu : Control {
 
     public enum EntryKind {
         Category,
-        Subcategory,
         Item,
         Back,
         Close,
@@ -89,7 +88,7 @@ public partial class PlayerBuyRadialMenu : Control {
     private void RefreshSegmentSelection() {
         for (var i = 0; i < _segments.Count; i++) {
             var entry = _entries[i];
-            _segments[i].SetEntry(entry.Label, entry.Icon, i == _selectedIndex, entry.Enabled);
+            _segments[i].SetEntry(entry.Label, entry.Icon, i == _selectedIndex, entry.Enabled, entry.Kind == EntryKind.Close);
         }
     }
 

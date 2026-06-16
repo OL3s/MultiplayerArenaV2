@@ -4,7 +4,7 @@ This document tracks gameplay item themes and their content libraries.
 
 ## Theme Selection
 
-The lobby exposes item themes beside biome and structure. `SetupConfig.ItemThemeConfig` syncs enabled themes over the network, and `ArenaMatch` loads item ids/resource paths from theme library resources.
+The lobby exposes item themes beside biome and structure. `SetupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths` is a candidate pool, not a list of simultaneously active themes. When the host starts a match or a future game-mode iteration, it resolves one authoritative `SelectedThemeDefinitionPath`; `ArenaMatch` loads item ids/resource paths from only that selected theme library.
 
 Current theme definitions:
 
@@ -12,7 +12,23 @@ Current theme definitions:
 - Modern: `assets/items/themes/modern.tres`
 - Medieval: `assets/items/themes/medieval.tres`
 
-Each theme definition owns metadata, icon, item root folder, and a direct default starter item reference. Buy/debug menus scan the selected theme root folders for `PlayerItem` resources instead of reading duplicated id/path lists.
+Each theme definition owns metadata, icon, item root folder, direct default starter item reference, and radial buy menu groups. Buy/debug menus scan the selected theme root folder for `PlayerItem` resources instead of reading duplicated id/path lists.
+
+The runtime radial buy menu does not choose between themes. The host-resolved active theme is already known when the match scene loads, so the buy menu opens directly to that theme's buy groups.
+
+## Buy Menu Groups
+
+Theme-owned buy hierarchy lives in `ItemThemeDefinition.BuyMenuGroups`, backed by `ItemBuyMenuGroup` resources under `assets/items/themes/buy_groups/`.
+
+`ItemBuyMenuGroup` supports nested groups and rule-based item matching:
+
+- `ChildGroups`: deeper radial menu rings, such as modern `Weapons -> Pistols/SMGs/ARs/Rifles/Launchers`.
+- `AcceptedKinds`: broad filtering for weapons, gadgets, armor, or any item.
+- `ItemIdPrefixes`: optional item id prefix filtering.
+- `ResourcePathPrefixes`: optional path prefix filtering.
+- `IncludeStarterItems`: controls whether the theme's default starter item appears in that group.
+
+Radial group labels and icons come from the group resource. Buy category icons live under `assets/ui/buy/`; item entries use each item resource's showcase texture when available. Cancel entries use `assets/ui/buy/buy_cancel.svg` and a red-tinted segment style.
 
 ## Source Of Truth
 
@@ -22,8 +38,9 @@ Preferred pattern:
 
 - A catalog points to theme definitions.
 - A theme definition points to its root folder and starter item resource.
+- A theme definition points to its buy menu group resources.
 - Runtime scans the root folder and loads `PlayerItem` resources.
-- UI labels/icons come from loaded resources.
+- UI labels/icons come from loaded item and buy group resources.
 
 Avoid:
 
@@ -43,8 +60,8 @@ Medieval is now started as a first data slice, but it is still placeholder range
 
 Current medieval items:
 
-- `bow_t0`: default starter/training bow.
-- `bow_t1`: stronger bow.
+- `bow_t0`: default starter/training bow with a small multi-arrow magazine.
+- `bow_t1`: stronger bow with a larger multi-arrow magazine.
 - `crossbow_t1`: heavier single-shot crossbow using the heavy ammo caliber display for now.
 - `bomb`: throwable gadget.
 - `leather_armor`: first armor variant.

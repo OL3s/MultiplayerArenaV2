@@ -12,7 +12,7 @@ This document tracks project asset folder rules so temporary and production asse
 - `assets/network/`: network/debug UI icons and related network visuals.
 - `assets/tiles/`: tile atlases and TileSet resources.
 - `assets/shaders/`: shader resources.
-- `assets/ui/`: shared menu, HUD, lobby, match-config, team, mode, and loadout icons.
+- `assets/ui/`: shared menu, HUD, lobby, match-config, team, mode, loadout, and buy-menu icons.
 
 ## Items Versus Projectiles
 
@@ -48,7 +48,11 @@ Examples:
 - `assets/items/modern/inventory/`: future modern backpacks, holsters, pouches, straps, and other carry-equipment visuals.
 - `assets/items/modern/consumables/`: future modern stims, medkits, and other instant-use carried items.
 
-Each item theme owns its own folder plus one theme definition under `assets/items/themes/`. The global catalog is `assets/items/item_theme_catalog.tres`. Theme definitions point to their item root folders and default starter items; actual item membership is discovered from folder contents.
+Each item theme owns its own folder plus one theme definition under `assets/items/themes/`. The global catalog is `assets/items/item_theme_catalog.tres`. Theme definitions point to their item root folders, default starter items, and buy menu group resources; actual item membership is discovered from folder contents.
+
+Theme buy group resources live under `assets/items/themes/buy_groups/`. They describe the radial buy hierarchy and item filtering rules for a theme, not a single player-owned item.
+
+Buy menu category/action icons live under `assets/ui/buy/`. These icons are generic UI concepts such as weapons, gadgets, armor, launchers, bows, and cancel. They are distinct from item showcase art, which stays beside item resources under `assets/items/`.
 
 ## Current Modern Item SVGs
 

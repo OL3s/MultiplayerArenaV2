@@ -22,6 +22,7 @@ public partial class GameModePlaylistOverlay : PanelContainer {
     private Action<int> _onRemove;
     private Action _onClear;
     private PackedScene _catalogTileScene;
+    private bool _hasGameModes;
 
     public override void _Ready() {
         _catalogTileScene = GD.Load<PackedScene>(GameModeCatalogTileScenePath);
@@ -47,8 +48,10 @@ public partial class GameModePlaylistOverlay : PanelContainer {
 
     public void RefreshList(SetupConfig setupConfig) {
         var list = GetNode<VBoxContainer>("Content/ListPanel/Scroll/List");
-        var hasGameModes = setupConfig != null && setupConfig.GameModes.Count > 0;
-        GetNode<Button>("Content/ListPanel/Footer/ClearButton").Disabled = !hasGameModes;
+        _hasGameModes = setupConfig != null && setupConfig.GameModes.Count > 0;
+        GetNode<Button>("Content/ListPanel/Footer/ClearButton").Disabled = !_hasGameModes;
+        SetBackButtonState("Content/ListPanel/Footer/CloseButton", _hasGameModes);
+        SetBackButtonState("Content/CatalogPanel/CatalogFooter/CatalogBackButton", _hasGameModes);
 
         foreach (var child in list.GetChildren()) {
             list.RemoveChild(child);
@@ -129,6 +132,7 @@ public partial class GameModePlaylistOverlay : PanelContainer {
     private void ShowCatalogPanel() {
         GetNode<Control>("Content/ListPanel").Visible = false;
         GetNode<Control>("Content/CatalogPanel").Visible = true;
+        SetBackButtonState("Content/CatalogPanel/CatalogFooter/CatalogBackButton", _hasGameModes);
         UiFocusHelper.FocusFirstAvailable(GetNode<Control>("Content/CatalogPanel"));
     }
 
@@ -136,6 +140,12 @@ public partial class GameModePlaylistOverlay : PanelContainer {
         GetNode<Control>("Content/CatalogPanel").Visible = false;
         GetNode<Control>("Content/ListPanel").Visible = true;
         GetNode<Button>("Content/ListPanel/Footer/AddButton").GrabFocus();
+    }
+
+    private void SetBackButtonState(string buttonPath, bool enabled) {
+        var button = GetNode<Button>(buttonPath);
+        button.Disabled = !enabled;
+        button.Modulate = enabled ? Colors.White : new Color(0.45f, 0.45f, 0.45f);
     }
 
     private static string GetGameModeDisplayName(GameModeConfig gameMode) {

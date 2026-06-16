@@ -569,14 +569,16 @@ public partial class Networking : Node {
             return false;
         }
 
+        ResolveAuthoritativeMatchSelections(MultiplayerData.SetupConfig);
         PrepareAuthoritativeMapSeed(MultiplayerData.SetupConfig);
         SyncCachedSetupConfig();
-        PrintMultiplayerLog(GameLogType.StateChange, "StartMatchScene", $"scene={matchScenePath} seed={MultiplayerData.SetupConfig.MapConfig?.FixedSeed ?? 0}");
+        var serializedSetupConfig = MultiplayerData.SetupConfig.SerializeForNetwork();
+        PrintMultiplayerLog(GameLogType.StateChange, "StartMatchScene", $"scene={matchScenePath} structure={MultiplayerData.SetupConfig.MapConfig?.SelectedStructureType} biome={MultiplayerData.SetupConfig.BiomeConfig?.SelectedBiome} theme={MultiplayerData.SetupConfig.ItemThemeConfig?.SelectedThemeDefinitionPath} loadout={MultiplayerData.SetupConfig.LoadoutModeConfig?.SelectedLoadoutMode} seed={MultiplayerData.SetupConfig.MapConfig?.FixedSeed ?? 0}");
 
         if (IsNetworkedSession)
-            Rpc(nameof(RpcLoadMatchScene), matchScenePath);
+            Rpc(nameof(RpcLoadMatchScene), matchScenePath, serializedSetupConfig);
         else
-            RpcLoadMatchScene(matchScenePath);
+            RpcLoadMatchScene(matchScenePath, serializedSetupConfig);
 
         return true;
     }
@@ -803,6 +805,27 @@ public partial class Networking : Node {
         PrintMultiplayerLog(GameLogType.StateChange, "AuthoritativeMapSeedResolved", $"seed={setupConfig.MapConfig.FixedSeed}");
     }
 
+    private void ResolveAuthoritativeMatchSelections(SetupConfig setupConfig) {
+        if (setupConfig == null)
+            return;
+
+        setupConfig.EnsureDefaultSelections();
+        if (setupConfig.MapConfig?.EnabledStructureTypes.Count > 0)
+            setupConfig.MapConfig.SelectedStructureType = setupConfig.MapConfig.EnabledStructureTypes[GetRandomIndex(setupConfig.MapConfig.EnabledStructureTypes.Count)];
+        if (setupConfig.BiomeConfig?.EnabledBiomes.Count > 0)
+            setupConfig.BiomeConfig.SelectedBiome = setupConfig.BiomeConfig.EnabledBiomes[GetRandomIndex(setupConfig.BiomeConfig.EnabledBiomes.Count)];
+        if (setupConfig.ItemThemeConfig?.EnabledThemeDefinitionPaths.Count > 0)
+            setupConfig.ItemThemeConfig.SelectedThemeDefinitionPath = setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths[GetRandomIndex(setupConfig.ItemThemeConfig.EnabledThemeDefinitionPaths.Count)];
+        if (setupConfig.LoadoutModeConfig?.EnabledLoadoutModes.Count > 0)
+            setupConfig.LoadoutModeConfig.SelectedLoadoutMode = setupConfig.LoadoutModeConfig.EnabledLoadoutModes[GetRandomIndex(setupConfig.LoadoutModeConfig.EnabledLoadoutModes.Count)];
+
+        PrintMultiplayerLog(GameLogType.StateChange, "MatchSelectionsResolved", $"structure={setupConfig.MapConfig?.SelectedStructureType} biome={setupConfig.BiomeConfig?.SelectedBiome} theme={setupConfig.ItemThemeConfig?.SelectedThemeDefinitionPath} loadout={setupConfig.LoadoutModeConfig?.SelectedLoadoutMode}");
+    }
+
+    private static int GetRandomIndex(int count) {
+        return count <= 1 ? 0 : (int)(GD.Randi() % (uint)count);
+    }
+
     public void UpdatePlayer(
         int globalId,
         int peerId,
@@ -1006,10 +1029,21 @@ public partial class Networking : Node {
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RpcLoadMatchScene(string matchScenePath) {
+    public void RpcLoadMatchScene(string matchScenePath, string serializedSetupConfig) {
         if (string.IsNullOrWhiteSpace(matchScenePath)) {
             PrintMultiplayerLog(GameLogType.Validation, "RpcLoadMatchSceneRejected", "reason=emptyScenePath");
             return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(serializedSetupConfig)) {
+            if (SetupConfig.TryDeserializeForNetwork(serializedSetupConfig, out var setupConfig)) {
+                MultiplayerData.SetupConfig.CopyFrom(setupConfig);
+                SyncCachedSetupConfig();
+                PrintMultiplayerLog(GameLogType.Sync, "MatchSceneSetupApplied", $"seed={MultiplayerData.SetupConfig.MapConfig?.FixedSeed ?? 0}");
+            }
+            else {
+                PrintMultiplayerLog(GameLogType.Validation, "MatchSceneSetupApplyRejected", "reason=deserializeFailed");
+            }
         }
 
         PrintMultiplayerLog(GameLogType.RpcReceive, "RpcLoadMatchScene", $"scene={matchScenePath}");

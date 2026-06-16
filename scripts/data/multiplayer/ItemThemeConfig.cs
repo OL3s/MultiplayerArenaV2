@@ -5,6 +5,9 @@ public partial class ItemThemeConfig : Resource {
     [Export]
     public Godot.Collections.Array<string> EnabledThemeDefinitionPaths { get; set; } = new();
 
+    [Export]
+    public string SelectedThemeDefinitionPath { get; set; } = string.Empty;
+
     public void AddThemePath(string themeDefinitionPath) {
         if (string.IsNullOrWhiteSpace(themeDefinitionPath) || HasThemePath(themeDefinitionPath))
             return;
@@ -29,7 +32,9 @@ public partial class ItemThemeConfig : Resource {
     }
 
     public ItemThemeConfig Clone() {
-        var clone = new ItemThemeConfig();
+        var clone = new ItemThemeConfig {
+            SelectedThemeDefinitionPath = SelectedThemeDefinitionPath,
+        };
         foreach (var themePath in EnabledThemeDefinitionPaths)
             clone.EnabledThemeDefinitionPaths.Add(themePath);
 

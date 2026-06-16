@@ -45,6 +45,14 @@ public partial class TeamSpawnBaseMarker : Node2D {
         ApplySlotVisibility();
     }
 
+    public bool ContainsSpawnPosition(Vector2 worldPosition) {
+        return GlobalPosition.DistanceSquaredTo(worldPosition) <= SpawnRadius * SpawnRadius;
+    }
+
+    public bool ContainsObjectivePosition(Vector2 worldPosition) {
+        return GlobalPosition.DistanceSquaredTo(worldPosition) <= ObjectiveRadius * ObjectiveRadius;
+    }
+
     private void ApplySlotVisibility() {
         for (var i = 1; i <= MaxVisibleSlots; i++) {
             var slot = GetNodeOrNull<Node2D>($"Slot{i}");

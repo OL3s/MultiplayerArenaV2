@@ -19,9 +19,9 @@ public partial class InGamePlayerData : Resource {
 
 `PlayerItem` is the shared purchasable/display base for weapons, gadgets, and armor. It owns item id, display name, theme, cost, weight, held texture, and showcase texture. Weapons and gadgets are intentionally separate resource families instead of sharing a single equipable base class.
 
-Theme selection is lobby-configured through `SetupConfig.ItemThemeConfig`. Runtime item membership comes from `ItemThemeDefinition` roots and folder scanning, not hardcoded duplicate id/path arrays. See `docs/item-themes.md`.
+Theme selection is lobby-configured through `SetupConfig.ItemThemeConfig`. The lobby selection is a candidate pool; match start resolves one active theme and runtime item membership comes from that selected `ItemThemeDefinition` root and folder scanning, not hardcoded duplicate id/path arrays. See `docs/item-themes.md`.
 
-Loadout acquisition is now lobby-configured through `SetupConfig.LoadoutModeConfig`. The first config/UI pass exposes `Buy On Spawn`, `Persistent Budget`, `Random Respawn`, and `Mirror Loadout`; the actual economy, randomization, and loadout-reset behavior is still runtime follow-up work. See `docs/loadout-modes.md`.
+Loadout acquisition is now lobby-configured through `SetupConfig.LoadoutModeConfig`. The config/UI exposes `Buy On Spawn`, `Persistent Budget`, `Random Respawn`, `Mirror Loadout`, and `Map Pickups`. `ArenaMatch` now initializes first-pass per-player Credits from `StartingCredits` and uses item costs to disable/reject unaffordable radial buy entries in Credit-based modes; deeper randomization, mirrored-loadout behavior, and map pickup spawning are still follow-up work. See `docs/loadout-modes.md`.
 
 ## Armor-Driven Capacity And Timing
 
@@ -123,13 +123,18 @@ Primary test bed:
 
 The `B` item grid remains a debug buy/equipment menu, not the primary buy UI. The primary test-room buy UI is the scene-backed radial menu opened with `V` or Xbox controller `Y`.
 
+In lobby-started `scenes/gameplay/arena_match.tscn`, the old debug grid is disabled. Keyboard `B` opens the same radial buy menu as `V`, and buying is allowed only while the player is inside the wide team spawn/base range. If more than one item theme is selected in the lobby, the host resolves one active theme before the match scene loads; the buy menu never asks players to choose a theme at runtime.
+
 Current behavior:
 
 - The selected lobby item themes decide which theme libraries populate the default starter, radial buy menu, and debug buy/equip grid.
 - Selecting a weapon equips it into the simplified weapon slots and makes it active.
 - Selecting a grenade/gadget equips it into the simplified gadget slots and makes it active.
 - Selecting armor applies the armor overlay, clamps unavailable weapon/gadget slots, and changes future reload/recovery multipliers.
-- The radial buy menu first shows `Weapons`, `Gadgets`, `Armor`, and `Cancel`, then category-specific item rings with `Back`.
+- The radial buy menu is theme-aware, but it only sees the host-resolved active theme. It opens at that theme's configured buy groups, then group-specific item rings with `Back`.
+- Buy groups are data-owned by `ItemThemeDefinition.BuyMenuGroups` and `ItemBuyMenuGroup` resources. Groups can nest and filter items by accepted kind, item id prefix, resource path prefix, and whether the theme starter item should be included.
+- Empty buy groups are disabled for the selected theme. Empty item rings show a disabled `Empty` entry instead of silently presenting a blank menu.
+- Radial item entries show item cost and the active local player's current Credits in `BuyOnSpawn` and `PersistentBudget`. Entries above the player's current Credits are disabled and selection is rejected if Credits changed before confirmation.
 - Item use is server-authoritative in the LAN test path: clients request use, the host validates ownership, fire interval, death/control state, loaded ammo or gadget readiness, then executes and syncs the result.
 - If a weapon has no loaded ammo, the host rejects firing until reload completes.
 - If a gadget is in reload recovery, the host rejects gadget use until recovery completes.
@@ -155,13 +160,19 @@ Every item can have separate visuals:
 
 Armor uses the same split. Its held texture is the player-body overlay, while its showcase texture is the readable store/debug image.
 
-## Purchase Direction
+## Purchase Behavior
 
-The first radial buy menu pass is implemented in the player/item room. Purchase validation should continue to use the same simplified armor capacity rules:
+The radial buy menu is implemented in the shared `ArenaMatch` runtime. Purchase validation uses the same simplified armor capacity rules:
 
 - Buying a weapon requires an available weapon slot from armor capacity.
 - Buying a gadget requires an available gadget slot from armor capacity.
 - Buying/equipping armor may remove excess weapons/gadgets if the new armor has fewer slots.
+- `BuyOnSpawn` and `PersistentBudget` buys require enough Credits from the local per-player Credit pool initialized from `LoadoutModeConfig.StartingCredits`.
+- Successful Credit-mode buys deduct the selected item's `Cost` after the equip request is accepted locally.
+- `BuyOnSpawn` awards `LoadoutModeConfig.CreditsPerKill` Credits on player kills and `CreditsPerSpawn` when respawn finishes, so repeated deaths still build buying power over time.
+- `PersistentBudget` does not award kill or spawn Credits and is finite.
+- `RandomOnRespawn`, `MirrorLoadout`, and `MapPickups` do not use Credits for current buy-menu affordability checks.
+- `MapPickups` should eventually spawn weapons, gear, and gadgets at inactive secondary neutral objective locations, never at the single main center objective.
 - Restocking at round start, respawn, or buy zones should refill loaded weapon ammo and mark gadgets ready without changing armor's cooldown role.
 
 ## Deferred Or Removed
@@ -178,7 +189,7 @@ Removed from the active design:
 
 Deferred future work:
 
-- Buy-zone/round-start restrictions and money/cost enforcement for the radial buy menu.
+- Server-authoritative synchronized Credits state for LAN clients; current Credit enforcement is first-pass local runtime state in `ArenaMatch`.
 - Full HUD presentation for weapon/gadget slots, loaded ammo, reload timers, gadget readiness, and reload recovery timers.
 - Additional armor variants with different protection/capacity tradeoffs.
 - Medieval melee-focused item runtime; current medieval content is placeholder ranged/gadget/armor data until melee is implemented.

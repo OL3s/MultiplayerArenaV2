@@ -24,5 +24,5 @@ ShotAccuracyRecovery = 0.22
 MovementAccuracyRecovery = 0.75
 MaxInaccuracy = 0.25
 Projectile = ExtResource("3_projectile")
-MagazineSize = 1
+MagazineSize = 8
 ShotsPerSecond = 1.35

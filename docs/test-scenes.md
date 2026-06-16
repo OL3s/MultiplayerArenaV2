@@ -12,7 +12,7 @@ This document tracks current test scenes, test controls, launch commands, and ru
 - Touching or clicking the visible empty player card in the main menu joins one local touchscreen player using `LocalPlayerData.LocalInputType.Touch` and `assets/inputicons/device_touch.svg`. Main menu lobby API guards allow at most one keyboard/mouse player and at most one touch player.
 - Local-only match lobby mode does not open a network peer or bind a server port. Its lobby UI hides connection settings, keeps map/game Match Config editable, and exposes `FFA`/`TEAM` local player team assignment buttons.
 - Non-local host lobby mode exposes `Autofill 2 Teams`, `Autofill 3 Teams`, and `Autofill 4 Teams` actions. Autofill keeps all players from the same network peer/device together on one team.
-- Match Config groups biome, structure, and item theme in the Map section. It groups game mode and loadout mode in the Game section. Loadout mode is currently setup/UI only; player/item room respawn behavior still preserves equipped loadout and refills uses.
+- Match Config groups biome, structure, and item theme in the Map section. It groups game mode and loadout mode in the Game section. Loadout mode now includes first-pass Credit behavior for `BuyOnSpawn` and `PersistentBudget`; random, mirror, and map-pickup runtime behavior is still follow-up work.
 
 ## Destruction Logic Test
 
@@ -75,16 +75,17 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Player held-item visuals now come from the selected modern item `.tres` resource's `HeldTexture`.
 - The `B` debug buy/equip grid displays each item's `ShowcaseTexture` when present and falls back to `HeldTexture` for older resources.
 - The `B` debug buy/equip grid also includes `Light Armor` and `Heavy Armor`; their buttons use store/showcase art, while selection applies the armor overlay texture on top of the player body.
+- The old `B` debug buy/equip grid is enabled only by direct test wrapper scenes through `ArenaMatch.EnableDebugBuyMenu`. Lobby-started `scenes/gameplay/arena_match.tscn` uses the radial buy menu instead.
 - Planned next UI slice: add reusable `scenes/ui/player_stats_panel.tscn` and `scenes/ui/local_players_hud.tscn` so the test room can display name, avatar, kills, health, selected item, armor, weapon slots, gadget slots, loaded ammo, reload/recovery cooldowns, and empty slots for up to 4 local players.
 - The item room uses a simplified armor-driven loadout model. Armor decides whether a second weapon is available, how many gadget slots are available, and which percentage multipliers apply to item-defined weapon reload duration and gadget reload recovery.
-- Lobby item theme selection decides which item theme libraries populate the player default weapon and buy menus. Modern defaults to the intentionally weak `pistol_t0`; medieval defaults to `bow_t0` when only medieval is selected.
+- Lobby item theme selection is a candidate pool. Match start resolves one active item theme, and only that selected theme library populates the player default weapon and buy menus. Modern defaults to the intentionally weak `pistol_t0`; medieval defaults to `bow_t0` when selected.
 - The old backstrap, inventory-provider, ammo-rig, and separate magazine-bucket model is intentionally not used.
 - The selected map structure controls the test room area layout, team objective centers, team spawn tiles around each objective, and temporary item spawn marker positions through `StructureGenerationData`. `Arena` uses a fixed plus-shape layout; `Plains` uses a larger open layout; `Square` uses a simple square room for mode/test iteration.
 - The player/item LAN test currently forces `Square`, starts one host/server and one client by default, auto-assigns two teams, and spawns the two players on opposite left/right team bases.
 - Team bases use `scenes/gameplay/objectives/team_spawn_base_marker.tscn`. The scene is centered on the team objective/core, owns a larger spawn `Area2D`, owns a smaller objective `Area2D`, and packs the four labeled spawn platforms in a `+` around the core.
 - Spawn platforms map to team-local player slots `1-4`, only show platforms for players currently on that team, and hide the whole team base marker when the team has no players.
 - The room has one separate core neutral center objective from `scenes/gameplay/objectives/neutral_objective.tscn`. It owns a wider outer `Area2D` and a smaller inner `Area2D`; the inner area currently shows occupancy/contest state only. It does not award score; game modes should own scoring behavior. This mirrors the intended runtime contract: neutral objectives can exist in every game mode, even when ignored, and modes decide how or whether to use them.
-- Future secondary neutral objectives should use the same neutral objective scene but be placed at spread-out structure-generated spots. These are candidate/random objective points for modes such as future hold-the-zone behavior, not active by default.
+- Future secondary neutral objectives should use the same neutral objective scene but be placed at spread-out structure-generated spots. These are candidate/random objective points for modes such as future hold-the-zone behavior, not active by default. The main center neutral objective is a separate single core objective; loadout modes such as `MapPickups` should only use inactive secondary neutral objectives for item spawns, never the center core objective.
 - Player death currently runs through a first respawn flow: 1-second dead timer, reset health/ammo/fire interval, teleport to team spawn, 1-second immobilized invulnerable spawn state, then normal gameplay.
 - The room detects team wipes through a first `TeamWiped` event/log hook. Actual game-mode-specific wipe behavior is still deferred.
 - Players controlled by the local process show a yellow SVG arrow marker above the body and an `L#` label, where `#` displays the backend local player id `0-3` as `1-4`.
@@ -100,14 +101,17 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - Client aim: mouse direction from the player body in each client window.
 - Active aiming is separate from aim direction. Keyboard/mouse toggles the local player between `PlayerControlState.Gameplay` and `PlayerControlState.Aim` on each `Ctrl` or right mouse button press; the toggle is ignored while in menu/spawn states. Gamepad active aiming is still driven by holding the right stick outside the aim deadzone.
 - The debug aim indicator only draws while actively aiming, and movement speed is multiplied by the selected item's `AimMoveSpeedMultiplier` while actively aiming.
-- `V` or Xbox controller `Y`: open or close the scene-backed radial buy menu around the first local player. The first ring contains `Weapons`, `Gadgets`, `Armor`, and `Cancel`; category rings list purchasable modern items or armor plus `Back`.
+- `V` or Xbox controller `Y`: open or close the scene-backed radial buy menu around the first local player. The first ring contains the host-resolved active theme's configured buy groups plus `Cancel`; leaf buy group rings list purchasable items for that selected theme plus `Back`.
 - `B`: open or close the debug buy/equip grid. Keyboard `B` and Xbox controller `B` both toggle it.
 - `Tab` or Xbox controller select/back: toggle the compact scoreboard overlay with player ids, peer/local ownership, team, score, kills, deaths, and assists. Scoreboard player pills are tinted by team and local-device players use a stronger white outline for accessibility.
 - `R` or Xbox controller `X`: start reloading the selected weapon when it is not full and not already reloading.
 - The scoreboard uses editable HUD scenes: `scenes/ui/hud/scoreboard_overlay.tscn` and `scenes/ui/hud/scoreboard_player_row.tscn`.
 - The objective state is shown through `scenes/ui/hud/objective_status_hud.tscn` at the top of the screen, with panel color changing for neutral, contested, or team-owned states.
 - Player HUD pills use their own overlay layer for local player state prompts such as `DEAD`, `SPAWNING`, `RELOAD`, `RELOADING`, and recovery `COOLDOWN`, instead of showing those prompts in the global status label. The base status label is also color-coded so `ALIVE`, `SPAWN`, and `RELOAD` are visible when no overlay covers the card.
-- The buy menu is scene-backed by `scenes/ui/buy/player_buy_radial_menu.tscn` and `scenes/ui/buy/buy_radial_segment.tscn`. It anchors around one local player and uses nested category/item rings instead of a global screen-blocking overlay.
+- The buy menu is scene-backed by `scenes/ui/buy/player_buy_radial_menu.tscn` and `scenes/ui/buy/buy_radial_segment.tscn`. It anchors around one local player and uses nested group/item rings instead of a global screen-blocking overlay.
+- Buy group hierarchy comes from `ItemThemeDefinition.BuyMenuGroups` and `ItemBuyMenuGroup` resources under `assets/items/themes/buy_groups/`. Buy group/action SVGs live under `assets/ui/buy/`; item entries use item showcase art.
+- Radial item entries show cost and current Credits from `LoadoutModeConfig.StartingCredits` in `BuyOnSpawn` and `PersistentBudget`. Entries the player cannot afford are disabled, and selection is rejected if the player cannot afford the item at confirmation time. `BuyOnSpawn` currently awards `CreditsPerKill` on player kills and `CreditsPerSpawn` when respawn finishes; `PersistentBudget` is finite and does not award kill/spawn Credits. `RandomOnRespawn`, `MirrorLoadout`, and `MapPickups` do not use Credits for affordability. Cancel entries use a red-tinted segment style.
+- In lobby-started `arena_match.tscn`, keyboard `B` also opens the radial buy menu. The radial buy menu can only open and accept purchases while the local player is inside the wide spawn range of that player's team spawn/base marker.
 - Arrow keys, d-pad, left stick UI navigation, mouse direction, `Enter`, mouse click, or controller `A`: choose an item from the radial buy menu or debug grid and equip it as the local player's current item.
 - Choosing an armor entry from the radial buy menu or debug grid equips that armor overlay on the local player instead of changing the held item.
 - While either buy UI is open, the local player's gameplay input is put in `PlayerControlState.Menu`, which stops movement, aim updates, and item use until the menu closes.
@@ -123,7 +127,7 @@ Current player/item test-scene follow-up:
 - Add reload input handling for item-defined weapon reload and recovery timers with armor multipliers.
 - Add item-defined reload recovery timers for gadgets after use with armor multipliers.
 - Add a reusable local player stats HUD scene stack and wire it to the player/item room test runtime.
-- Improve the temporary equipment menu so weapon/gadget slot assignment is clearer.
+- Improve weapon/gadget slot assignment feedback in the HUD and buy flow.
 - Replace temporary item spawn markers with real item pickup/spawn behavior.
 
 ## Example CLI Usage

@@ -1,8 +1,11 @@
-[gd_resource type="Resource" script_class="ItemThemeDefinition" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="ItemThemeDefinition" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/gameplay/ItemThemeDefinition.cs" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/ui/theme_medieval.svg" id="2_icon"]
 [ext_resource type="Resource" path="res://assets/items/medieval/weapons/bow_t0.tres" id="3_default"]
+[ext_resource type="Resource" path="res://assets/items/themes/buy_groups/medieval_weapons.tres" id="4_weapons"]
+[ext_resource type="Resource" path="res://assets/items/themes/buy_groups/medieval_gadgets.tres" id="5_gadgets"]
+[ext_resource type="Resource" path="res://assets/items/themes/buy_groups/medieval_armor.tres" id="6_armor"]
 
 [resource]
 script = ExtResource("1_script")
@@ -12,4 +15,5 @@ Description = "Medieval theme with bows, crossbows, bombs, armor, and future mel
 Icon = ExtResource("2_icon")
 RootFolder = "res://assets/items/medieval"
 DefaultStarterItem = ExtResource("3_default")
+BuyMenuGroups = Array[Resource]([ExtResource("4_weapons"), ExtResource("5_gadgets"), ExtResource("6_armor")])
 SortOrder = 10

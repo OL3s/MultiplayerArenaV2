@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemBuyMenuGroup" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gameplay/ItemBuyMenuGroup.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/ui/buy/buy_weapons.svg" id="2_icon"]
+[ext_resource type="Resource" path="res://assets/items/themes/buy_groups/modern_pistols.tres" id="3_pistols"]
+[ext_resource type="Resource" path="res://assets/items/themes/buy_groups/modern_smgs.tres" id="4_smgs"]
+[ext_resource type="Resource" path="res://assets/items/themes/buy_groups/modern_ars.tres" id="5_ars"]
+[ext_resource type="Resource" path="res://assets/items/themes/buy_groups/modern_rifles.tres" id="6_rifles"]
+[ext_resource type="Resource" path="res://assets/items/themes/buy_groups/modern_launchers.tres" id="7_launchers"]
+
+[resource]
+script = ExtResource("1_script")
+Id = "modern_weapons"
+DisplayName = "Weapons"
+Icon = ExtResource("2_icon")
+ChildGroups = Array[Resource]([ExtResource("3_pistols"), ExtResource("4_smgs"), ExtResource("5_ars"), ExtResource("6_rifles"), ExtResource("7_launchers")])
+AcceptedKinds = Array[int]([1])

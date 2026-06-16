@@ -30,10 +30,16 @@ public partial class ArenaMatch : Node2D {
     private const string ObjectiveStatusHudScenePath = "res://scenes/ui/hud/objective_status_hud.tscn";
     private const string KeyboardReloadIconPath = "res://assets/inputicons/keyboard/key_r.svg";
     private const string GamepadReloadIconPath = "res://assets/inputicons/xbox/button_x.svg";
+    private const string BuyCancelIconPath = "res://assets/ui/buy/buy_cancel.svg";
     private enum InputStrength {
         None,
         Some,
         Full,
+    }
+
+    private enum BuyMenuState {
+        Categories,
+        Items,
     }
 
     private readonly struct QuantizedInputState {
@@ -95,6 +101,7 @@ public partial class ArenaMatch : Node2D {
     private readonly Dictionary<int, double> _shotIntervalSecondsByGlobalId = new();
     private readonly Dictionary<int, bool> _wasUseHeldByGlobalId = new();
     private readonly Dictionary<int, bool> _suppressUseUntilReleasedByGlobalId = new();
+    private readonly Dictionary<int, int> _creditsByGlobalId = new();
     private readonly Dictionary<int, float> _respawnSecondsByGlobalId = new();
     private readonly Dictionary<int, float> _spawnSecondsByGlobalId = new();
     private readonly Dictionary<int, int> _playerTeamIdsByGlobalId = new();
@@ -123,6 +130,11 @@ public partial class ArenaMatch : Node2D {
     private PackedScene _scoreboardOverlayScene;
     private PackedScene _objectiveStatusHudScene;
     private int _activeBuyMenuGlobalId = -1;
+    private BuyMenuState _buyMenuState = BuyMenuState.Categories;
+    private ItemThemeDefinition _activeBuyTheme;
+    private ItemBuyMenuGroup _activeBuyGroup;
+    private string _activeBuyCategoryId = string.Empty;
+    private readonly List<ItemBuyMenuGroup> _buyGroupStack = new();
 
     [Export]
     public string ClientAddress { get; set; } = "127.0.0.1";
@@ -141,6 +153,9 @@ public partial class ArenaMatch : Node2D {
 
     [Export]
     public bool ForceTestSetupOverrides { get; set; }
+
+    [Export]
+    public bool EnableDebugBuyMenu { get; set; }
 
     public event Action<int> TeamWiped;
 
@@ -177,7 +192,8 @@ public partial class ArenaMatch : Node2D {
         _networking.ConnectionStateChanged += OnConnectionStateChanged;
         _networking.LobbyStateChanged += OnLobbyStateChanged;
         BuildLocalPlayersHud();
-        BuildDebugBuyMenu();
+        if (EnableDebugBuyMenu)
+            BuildDebugBuyMenu();
         BuildBuyRadialMenu();
         BuildScoreboard();
         BuildObjectiveStatusHud();
@@ -227,13 +243,13 @@ public partial class ArenaMatch : Node2D {
             return;
         }
 
-        if (IsBuyMenuToggleEvent(@event)) {
+        if (IsBuyMenuToggleEvent(@event) || (!EnableDebugBuyMenu && IsDebugBuyMenuToggleEvent(@event))) {
             ToggleBuyMenu();
             GetViewport().SetInputAsHandled();
             return;
         }
 
-        if (IsDebugBuyMenuToggleEvent(@event)) {
+        if (EnableDebugBuyMenu && IsDebugBuyMenuToggleEvent(@event)) {
             ToggleDebugBuyMenu();
             GetViewport().SetInputAsHandled();
             return;
@@ -382,6 +398,7 @@ public partial class ArenaMatch : Node2D {
         setupConfig.MapConfig.FixedSeed = MapSeedOverride;
         setupConfig.MapConfig.EnabledStructureTypes.Clear();
         setupConfig.MapConfig.EnabledStructureTypes.Add(MapGenerationConfig.StructureType.Square);
+        setupConfig.MapConfig.SelectedStructureType = MapGenerationConfig.StructureType.Square;
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "TestSetupOverridesApplied", $"mode={GameModeOverride} id={setupConfig.GameModeId} structure=Square seed={MapSeedOverride}");
     }
 
@@ -581,6 +598,9 @@ public partial class ArenaMatch : Node2D {
     }
 
     private void OpenDebugBuyMenu() {
+        if (!EnableDebugBuyMenu)
+            return;
+
         if (_debugBuyMenuPanel == null)
             return;
 
@@ -622,10 +642,15 @@ public partial class ArenaMatch : Node2D {
         if (globalId < 0 || !_playersByGlobalId.TryGetValue(globalId, out var player) || !IsInstanceValid(player) || player.IsDead())
             return;
 
+        if (!CanPlayerUseBuyMenu(globalId, player)) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "BuyMenuOpenRejected", $"global={globalId} reason=outsideTeamSpawnArea");
+            return;
+        }
+
         CloseDebugBuyMenu();
         _activeBuyMenuGlobalId = globalId;
         PositionBuyRadialMenu(player);
-        SetBuyCategoryEntries();
+        SetBuyRootEntries();
         _buyRadialMenu.Visible = true;
         SetLocalPlayersControlState(PlayerControlState.Menu);
         StopLocalPlayerGameplayInput(globalId);
@@ -639,6 +664,11 @@ public partial class ArenaMatch : Node2D {
         var wasVisible = _buyRadialMenu.Visible;
         _buyRadialMenu.Visible = false;
         _activeBuyMenuGlobalId = -1;
+        _activeBuyTheme = null;
+        _activeBuyGroup = null;
+        _activeBuyCategoryId = string.Empty;
+        _buyGroupStack.Clear();
+        _buyMenuState = BuyMenuState.Categories;
         if (wasVisible) {
             SetLocalPlayersControlState(PlayerControlState.Gameplay);
             GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "BuyMenuClosed");
@@ -673,15 +703,6 @@ public partial class ArenaMatch : Node2D {
         return _buyRadialMenu.GetLocalMousePosition();
     }
 
-    private void SetBuyCategoryEntries() {
-        _buyRadialMenu.SetEntries("BUY", new[] {
-            new PlayerBuyRadialMenu.Entry { Id = "weapons", Label = "Weapons", Kind = PlayerBuyRadialMenu.EntryKind.Category },
-            new PlayerBuyRadialMenu.Entry { Id = "gadgets", Label = "Gadgets", Kind = PlayerBuyRadialMenu.EntryKind.Category },
-            new PlayerBuyRadialMenu.Entry { Id = "armor", Label = "Armor", Kind = PlayerBuyRadialMenu.EntryKind.Category },
-            new PlayerBuyRadialMenu.Entry { Id = "cancel", Label = "Cancel", Kind = PlayerBuyRadialMenu.EntryKind.Close },
-        });
-    }
-
     private void OnBuyRadialEntrySelected(PlayerBuyRadialMenu.Entry entry) {
         if (entry == null)
             return;
@@ -692,62 +713,422 @@ public partial class ArenaMatch : Node2D {
         }
 
         if (entry.Kind == PlayerBuyRadialMenu.EntryKind.Back) {
-            SetBuyCategoryEntries();
+            NavigateBuyMenuBack();
             return;
         }
 
         if (entry.Kind == PlayerBuyRadialMenu.EntryKind.Category) {
-            SetBuyItemEntries(entry.Id);
+            var group = GetBuyGroupById(entry.Id["group:".Length..]);
+            if (group == null)
+                return;
+
+            if (group.ChildGroups.Count > 0)
+                SetBuyGroupEntries(_activeBuyTheme, group);
+            else
+                SetBuyItemEntries(_activeBuyTheme, group);
             return;
         }
 
         if (entry.Kind != PlayerBuyRadialMenu.EntryKind.Item)
             return;
 
+        if (!_playersByGlobalId.TryGetValue(_activeBuyMenuGlobalId, out var player) || !IsInstanceValid(player) || !CanPlayerUseBuyMenu(_activeBuyMenuGlobalId, player)) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "BuyMenuSelectionRejected", $"global={_activeBuyMenuGlobalId} reason=outsideTeamSpawnArea");
+            CloseBuyMenu();
+            return;
+        }
+
+        var boughtItem = LoadBuyEntryItem(entry);
+        if (boughtItem == null || !CanAffordItem(_activeBuyMenuGlobalId, boughtItem)) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "BuyMenuSelectionRejected", $"global={_activeBuyMenuGlobalId} reason=notAffordable item={boughtItem?.ItemId ?? entry.Id}");
+            return;
+        }
+
+        if (!CanEquipBuyItem(_activeBuyMenuGlobalId, boughtItem)) {
+            GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Validation, "BuyMenuSelectionRejected", $"global={_activeBuyMenuGlobalId} reason=noArmorCapacity item={boughtItem.ItemId}");
+            return;
+        }
+
         if (entry.Id.StartsWith("armor:"))
             ApplyLocalArmorSelection(_activeBuyMenuGlobalId, entry.Id["armor:".Length..]);
         else if (entry.Id.StartsWith("item:"))
             ApplyLocalItemSelection(_activeBuyMenuGlobalId, entry.Id["item:".Length..]);
 
+        SpendCredits(_activeBuyMenuGlobalId, boughtItem.Cost);
+
         SuppressLocalItemUseUntilReleased();
         CloseBuyMenu();
     }
 
-    private void SetBuyItemEntries(string categoryId) {
-        var entries = new List<PlayerBuyRadialMenu.Entry>();
-        entries.Add(new PlayerBuyRadialMenu.Entry { Id = "back", Label = "Back", Kind = PlayerBuyRadialMenu.EntryKind.Back });
+    private void SetBuyRootEntries() {
+        SetBuyCategoryEntries(_activeItemThemes.Count > 0 ? _activeItemThemes[0] : null);
+    }
 
-        if (categoryId == "armor") {
-            foreach (var armorPath in _activeArmorPaths) {
-                var armor = LoadArmor(armorPath);
-                entries.Add(new PlayerBuyRadialMenu.Entry {
-                    Id = $"armor:{armorPath}",
-                    Label = armor?.DisplayName ?? armorPath.GetFile().GetBaseName(),
-                    Icon = armor?.GetShowcaseTexture(),
-                    Kind = PlayerBuyRadialMenu.EntryKind.Item,
-                });
-            }
+    private void SetBuyCategoryEntries(ItemThemeDefinition theme = null) {
+        _buyGroupStack.Clear();
+        SetBuyGroupEntries(theme, null);
+    }
 
-            _buyRadialMenu.SetEntries("ARMOR", entries);
+    private void NavigateBuyMenuBack() {
+        if (_buyMenuState == BuyMenuState.Items) {
+            var parentGroup = _buyGroupStack.Count > 1 ? _buyGroupStack[^2] : null;
+            if (_buyGroupStack.Count > 0)
+                _buyGroupStack.RemoveAt(_buyGroupStack.Count - 1);
+
+            SetBuyGroupEntries(_activeBuyTheme, parentGroup, false);
             return;
         }
 
-        foreach (var itemPath in _activeItemPaths) {
-            var item = LoadItem(itemPath);
-            if (categoryId == "weapons" && item is not PlayerWeapon)
-                continue;
-            if (categoryId == "gadgets" && item is not PlayerGadget)
-                continue;
-
-            entries.Add(new PlayerBuyRadialMenu.Entry {
-                Id = $"item:{itemPath}",
-                Label = item?.DisplayName ?? itemPath.GetFile().GetBaseName(),
-                Icon = item?.GetShowcaseTexture(),
-                Kind = PlayerBuyRadialMenu.EntryKind.Item,
-            });
+        if (_buyMenuState == BuyMenuState.Categories && _buyGroupStack.Count > 0) {
+            _buyGroupStack.RemoveAt(_buyGroupStack.Count - 1);
+            var parentGroup = _buyGroupStack.Count > 0 ? _buyGroupStack[^1] : null;
+            SetBuyGroupEntries(_activeBuyTheme, parentGroup, false);
+            return;
         }
 
-        _buyRadialMenu.SetEntries(categoryId == "weapons" ? "WEAPONS" : "GADGETS", entries);
+        CloseBuyMenu();
+    }
+
+    private void SetBuyGroupEntries(ItemThemeDefinition theme, ItemBuyMenuGroup parentGroup, bool pushParent = true) {
+        _buyMenuState = BuyMenuState.Categories;
+        _activeBuyTheme = theme;
+        _activeBuyGroup = parentGroup;
+        _activeBuyCategoryId = parentGroup?.Id ?? string.Empty;
+
+        if (parentGroup != null && pushParent && (_buyGroupStack.Count == 0 || _buyGroupStack[^1] != parentGroup))
+            _buyGroupStack.Add(parentGroup);
+
+        var groups = parentGroup?.ChildGroups ?? theme?.BuyMenuGroups;
+        var entries = new List<PlayerBuyRadialMenu.Entry>();
+        if (parentGroup != null)
+            entries.Add(new PlayerBuyRadialMenu.Entry { Id = "back", Label = "Back", Kind = PlayerBuyRadialMenu.EntryKind.Back });
+
+        if (groups != null) {
+            foreach (var group in groups) {
+                if (group == null)
+                    continue;
+
+                entries.Add(new PlayerBuyRadialMenu.Entry {
+                    Id = $"group:{group.Id}",
+                    Label = group.DisplayName,
+                    Icon = group.Icon,
+                    Kind = PlayerBuyRadialMenu.EntryKind.Category,
+                    Enabled = HasBuyGroupItems(theme, group),
+                });
+            }
+        }
+
+        entries.Add(CreateCancelEntry());
+        _buyRadialMenu.SetEntries(parentGroup?.DisplayName.ToUpperInvariant() ?? theme?.DisplayName.ToUpperInvariant() ?? "BUY", entries);
+    }
+
+    private void SetBuyItemEntries(ItemThemeDefinition theme, ItemBuyMenuGroup group) {
+        _buyMenuState = BuyMenuState.Items;
+        _activeBuyTheme = theme;
+        _activeBuyGroup = group;
+        _activeBuyCategoryId = group?.Id ?? string.Empty;
+        if (group != null && (_buyGroupStack.Count == 0 || _buyGroupStack[^1] != group))
+            _buyGroupStack.Add(group);
+
+        var entries = new List<PlayerBuyRadialMenu.Entry>();
+        entries.Add(new PlayerBuyRadialMenu.Entry { Id = "back", Label = "Back", Kind = PlayerBuyRadialMenu.EntryKind.Back });
+        var itemCount = 0;
+
+        foreach (var itemPath in GetBuyGroupItemPaths(theme, group)) {
+            var item = LoadBuyItem(itemPath);
+            if (item == null)
+                continue;
+
+            var entryPrefix = item is PlayerArmor ? "armor" : "item";
+            entries.Add(new PlayerBuyRadialMenu.Entry {
+                Id = $"{entryPrefix}:{itemPath}",
+                Label = FormatBuyItemLabel(item),
+                Icon = item.GetShowcaseTexture(),
+                Kind = PlayerBuyRadialMenu.EntryKind.Item,
+                Enabled = CanAffordItem(_activeBuyMenuGlobalId, item),
+            });
+            itemCount++;
+        }
+
+        AddEmptyBuyEntryIfNeeded(entries, itemCount);
+        _buyRadialMenu.SetEntries(group?.DisplayName.ToUpperInvariant() ?? "ITEMS", entries);
+    }
+
+    private static void AddEmptyBuyEntryIfNeeded(List<PlayerBuyRadialMenu.Entry> entries, int itemCount) {
+        if (itemCount > 0)
+            return;
+
+        entries.Add(new PlayerBuyRadialMenu.Entry {
+            Id = "empty",
+            Label = "Empty",
+            Kind = PlayerBuyRadialMenu.EntryKind.Item,
+            Enabled = false,
+        });
+    }
+
+    private List<string> GetThemeFilteredPaths(List<string> paths, ItemThemeDefinition theme) {
+        var filteredPaths = new List<string>();
+        foreach (var path in paths) {
+            if (theme == null || IsPathInTheme(path, theme))
+                filteredPaths.Add(path);
+        }
+
+        return filteredPaths;
+    }
+
+    private static bool IsPathInTheme(string resourcePath, ItemThemeDefinition theme) {
+        if (theme == null)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(resourcePath) || string.IsNullOrWhiteSpace(theme.RootFolder))
+            return false;
+
+        var rootFolder = theme.RootFolder.EndsWith("/") ? theme.RootFolder : $"{theme.RootFolder}/";
+        return resourcePath.StartsWith(rootFolder, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private ItemBuyMenuGroup GetBuyGroupById(string groupId) {
+        if (string.IsNullOrWhiteSpace(groupId))
+            return null;
+
+        var activeThemeGroup = GetBuyGroupById(_activeBuyTheme?.BuyMenuGroups, groupId);
+        if (activeThemeGroup != null)
+            return activeThemeGroup;
+
+        foreach (var theme in _activeItemThemes) {
+            var group = GetBuyGroupById(theme?.BuyMenuGroups, groupId);
+            if (group != null)
+                return group;
+        }
+
+        return null;
+    }
+
+    private static ItemBuyMenuGroup GetBuyGroupById(Godot.Collections.Array<ItemBuyMenuGroup> groups, string groupId) {
+        if (groups == null)
+            return null;
+
+        foreach (var group in groups) {
+            if (group == null)
+                continue;
+
+            if (string.Equals(group.Id, groupId, StringComparison.OrdinalIgnoreCase))
+                return group;
+
+            var childGroup = GetBuyGroupById(group.ChildGroups, groupId);
+            if (childGroup != null)
+                return childGroup;
+        }
+
+        return null;
+    }
+
+    private PlayerItem LoadBuyEntryItem(PlayerBuyRadialMenu.Entry entry) {
+        if (entry == null)
+            return null;
+
+        if (entry.Id.StartsWith("armor:"))
+            return LoadArmor(entry.Id["armor:".Length..]);
+        if (entry.Id.StartsWith("item:"))
+            return LoadItem(entry.Id["item:".Length..]);
+
+        return null;
+    }
+
+    private bool CanAffordItem(int globalId, PlayerItem item) {
+        if (item == null)
+            return false;
+
+        return !UsesCredits() || GetCredits(globalId) >= Mathf.Max(item.Cost, 0);
+    }
+
+    private bool CanEquipBuyItem(int globalId, PlayerItem item) {
+        if (item == null)
+            return false;
+
+        if (item is PlayerArmor)
+            return true;
+
+        var loadout = GetOrCreateLoadout(globalId);
+        if (item is PlayerWeapon)
+            return HasAvailableBuySlot(loadout.Weapons, item, GetWeaponSlotCount(loadout));
+        if (item is PlayerGadget)
+            return HasAvailableBuySlot(loadout.Gadgets, item, GetGadgetSlotCount(loadout));
+
+        return false;
+    }
+
+    private static bool HasAvailableBuySlot<T>(T[] slots, PlayerItem item, int availableSlots) where T : PlayerItem {
+        availableSlots = Mathf.Clamp(availableSlots, 0, slots.Length);
+        if (availableSlots <= 0)
+            return false;
+
+        for (var i = 0; i < availableSlots; i++) {
+            if (slots[i] == null || slots[i].ItemId == item.ItemId)
+                return true;
+        }
+
+        return true;
+    }
+
+    private static int GetWeaponSlotCount(PlayerLoadoutState loadout) {
+        return loadout?.Armor?.AllowsSecondWeapon == true ? PlayerLoadoutState.MaxWeaponSlots : 1;
+    }
+
+    private static int GetGadgetSlotCount(PlayerLoadoutState loadout) {
+        return Mathf.Clamp(loadout?.Armor?.GadgetSlotCount ?? 1, 0, PlayerLoadoutState.MaxGadgetSlots);
+    }
+
+    private int GetCredits(int globalId) {
+        if (globalId < 0)
+            return 0;
+
+        if (!_creditsByGlobalId.TryGetValue(globalId, out var credits)) {
+            credits = GetStartingCredits();
+            _creditsByGlobalId[globalId] = credits;
+        }
+
+        return credits;
+    }
+
+    private void SpendCredits(int globalId, int cost) {
+        if (!UsesCredits() || globalId < 0 || cost <= 0)
+            return;
+
+        var previousCredits = GetCredits(globalId);
+        var nextCredits = Mathf.Max(previousCredits - cost, 0);
+        _creditsByGlobalId[globalId] = nextCredits;
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "BuyMenuCreditsSpent", $"global={globalId} cost={cost} credits={nextCredits}/{GetStartingCredits()}");
+        UpdateStatusLabel();
+    }
+
+    private void AwardKillCredits(int globalId) {
+        if (GetSelectedLoadoutModeType() != LoadoutModeConfig.LoadoutModeType.BuyOnSpawn || globalId < 0)
+            return;
+
+        var creditsPerKill = GetCreditsPerKill();
+        if (creditsPerKill <= 0)
+            return;
+
+        var nextCredits = GetCredits(globalId) + creditsPerKill;
+        _creditsByGlobalId[globalId] = nextCredits;
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "KillCreditsAwarded", $"global={globalId} gained={creditsPerKill} credits={nextCredits}");
+        UpdateStatusLabel();
+    }
+
+    private void AwardSpawnCredits(int globalId) {
+        if (GetSelectedLoadoutModeType() != LoadoutModeConfig.LoadoutModeType.BuyOnSpawn || globalId < 0)
+            return;
+
+        var creditsPerSpawn = GetCreditsPerSpawn();
+        if (creditsPerSpawn <= 0)
+            return;
+
+        var nextCredits = GetCredits(globalId) + creditsPerSpawn;
+        _creditsByGlobalId[globalId] = nextCredits;
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "SpawnCreditsAwarded", $"global={globalId} gained={creditsPerSpawn} credits={nextCredits}");
+        UpdateStatusLabel();
+    }
+
+    private bool UsesCredits() {
+        var loadoutModeType = GetSelectedLoadoutModeType();
+        return loadoutModeType is LoadoutModeConfig.LoadoutModeType.BuyOnSpawn or LoadoutModeConfig.LoadoutModeType.PersistentBudget;
+    }
+
+    private int GetStartingCredits() {
+        return Mathf.Max(_networking?.MultiplayerData?.SetupConfig?.LoadoutModeConfig?.StartingCredits ?? 0, 0);
+    }
+
+    private int GetCreditsPerKill() {
+        return Mathf.Max(_networking?.MultiplayerData?.SetupConfig?.LoadoutModeConfig?.CreditsPerKill ?? 0, 0);
+    }
+
+    private int GetCreditsPerSpawn() {
+        return Mathf.Max(_networking?.MultiplayerData?.SetupConfig?.LoadoutModeConfig?.CreditsPerSpawn ?? 0, 0);
+    }
+
+    private PlayerBuyRadialMenu.Entry CreateCancelEntry() {
+        return new PlayerBuyRadialMenu.Entry {
+            Id = "cancel",
+            Label = "Cancel",
+            Icon = UiResourceLoader.LoadIconTexture(BuyCancelIconPath),
+            Kind = PlayerBuyRadialMenu.EntryKind.Close,
+        };
+    }
+
+    private bool HasBuyGroupItems(ItemThemeDefinition theme, ItemBuyMenuGroup group) {
+        if (group == null)
+            return false;
+
+        if (group.ChildGroups.Count > 0) {
+            foreach (var childGroup in group.ChildGroups) {
+                if (HasBuyGroupItems(theme, childGroup))
+                    return true;
+            }
+
+            return false;
+        }
+
+        return GetBuyGroupItemPaths(theme, group).Count > 0;
+    }
+
+    private List<string> GetBuyGroupItemPaths(ItemThemeDefinition theme, ItemBuyMenuGroup group) {
+        var itemPaths = new List<string>();
+        if (group == null)
+            return itemPaths;
+
+        AddBuyGroupItemPaths(itemPaths, GetThemeFilteredPaths(_activeItemPaths, theme), theme, group);
+        AddBuyGroupItemPaths(itemPaths, GetThemeFilteredPaths(_activeArmorPaths, theme), theme, group);
+        itemPaths.Sort(StringComparer.OrdinalIgnoreCase);
+        return itemPaths;
+    }
+
+    private void AddBuyGroupItemPaths(List<string> results, List<string> candidatePaths, ItemThemeDefinition theme, ItemBuyMenuGroup group) {
+        foreach (var itemPath in candidatePaths) {
+            var item = LoadBuyItem(itemPath);
+            if (item == null || !group.Matches(item, itemPath, theme))
+                continue;
+
+            results.Add(itemPath);
+        }
+    }
+
+    private PlayerItem LoadBuyItem(string itemPath) {
+        return LoadItem(itemPath) ?? LoadArmor(itemPath);
+    }
+
+    private string FormatBuyItemLabel(PlayerItem item) {
+        if (item == null)
+            return string.Empty;
+
+        if (!UsesCredits())
+            return item.DisplayName;
+
+        var credits = GetCredits(_activeBuyMenuGlobalId);
+        return item.Cost > 0
+            ? $"{item.DisplayName}\n{item.Cost} Credits ({credits})"
+            : $"{item.DisplayName}\nFree ({credits})";
+    }
+
+    private bool CanPlayerUseBuyMenu(int globalId, DamageTestPlayer player) {
+        if (player == null || player.IsDead())
+            return false;
+
+        var playerData = _networking.MultiplayerData.GetPlayerByGlobalId(globalId);
+        if (!TryGetBackendTeamId(playerData, out var teamId, "buy-menu"))
+            return false;
+
+        var teamBase = GetTeamSpawnBaseMarker(teamId);
+        return teamBase != null && teamBase.ContainsSpawnPosition(player.GlobalPosition);
+    }
+
+    private TeamSpawnBaseMarker GetTeamSpawnBaseMarker(int teamId) {
+        foreach (var marker in _teamSpawnBaseMarkers) {
+            if (IsInstanceValid(marker) && marker.TeamId == teamId)
+                return marker;
+        }
+
+        return null;
     }
 
     private void UpdateScoreboard() {
@@ -829,7 +1210,7 @@ public partial class ArenaMatch : Node2D {
         _activeArmorPaths.Clear();
         _activeItemThemes.Clear();
 
-        var themePaths = _networking?.MultiplayerData?.SetupConfig?.ItemThemeConfig?.EnabledThemeDefinitionPaths;
+        var themePaths = GetSelectedItemThemePaths();
         _activeItemThemes.AddRange(ItemThemeRegistry.ResolveThemes(themePaths));
 
         foreach (var theme in _activeItemThemes) {
@@ -861,6 +1242,18 @@ public partial class ArenaMatch : Node2D {
         }
 
         return _activeItemPaths.Count > 0 ? _activeItemPaths[0] : string.Empty;
+    }
+
+    private List<string> GetSelectedItemThemePaths() {
+        var themeConfig = _networking?.MultiplayerData?.SetupConfig?.ItemThemeConfig;
+        var selectedThemePath = themeConfig?.SelectedThemeDefinitionPath;
+        if (!string.IsNullOrWhiteSpace(selectedThemePath))
+            return new List<string> { selectedThemePath };
+
+        if (themeConfig?.EnabledThemeDefinitionPaths.Count > 0)
+            return new List<string> { themeConfig.EnabledThemeDefinitionPaths[0] };
+
+        return ItemThemeRegistry.GetDefaultEnabledThemePaths();
     }
 
     private void ApplyCommandLineOverrides() {
@@ -929,7 +1322,7 @@ public partial class ArenaMatch : Node2D {
             SourceId = 0,
             WallDamageSourceId = 1,
             DefaultWallMaxDamage = WallDamageData.DefaultWallHealth,
-            DefaultWallBiome = BiomeConfig.BiomeType.Arena,
+            DefaultWallBiome = GetSelectedBiomeType(),
         };
 
         GenerateStructureLayout();
@@ -939,7 +1332,7 @@ public partial class ArenaMatch : Node2D {
         BuildItemSpawnMarkers();
         BuildCenterProp();
         RebuildPlayersFromNetworkData();
-        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "ArenaMatchBuilt", $"floorTiles={_arenaMapData.FloorTiles.Count} wallTiles={_arenaMapData.WallTiles.Count}");
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Lifecycle, "ArenaMatchBuilt", $"{GetMatchSetupText()} floorTiles={_arenaMapData.FloorTiles.Count} wallTiles={_arenaMapData.WallTiles.Count}");
     }
 
     private void GenerateStructureLayout() {
@@ -960,6 +1353,7 @@ public partial class ArenaMatch : Node2D {
         if (ForceTestSetupOverrides) {
             mapConfig.EnabledStructureTypes.Clear();
             mapConfig.EnabledStructureTypes.Add(MapGenerationConfig.StructureType.Square);
+            mapConfig.SelectedStructureType = MapGenerationConfig.StructureType.Square;
             mapConfig.SelectedSeedMode = MapGenerationConfig.SeedMode.FixedSeed;
             mapConfig.FixedSeed = MapSeedOverride;
         }
@@ -968,10 +1362,50 @@ public partial class ArenaMatch : Node2D {
     }
 
     private static MapGenerationConfig.StructureType GetSelectedStructureType(MapGenerationConfig mapConfig) {
-        if (mapConfig?.EnabledStructureTypes.Count > 0)
-            return mapConfig.EnabledStructureTypes[0];
+        if (mapConfig != null)
+            return mapConfig.SelectedStructureType;
 
         return MapGenerationConfig.StructureType.Arena;
+    }
+
+    private BiomeConfig.BiomeType GetSelectedBiomeType() {
+        var biomeConfig = _networking?.MultiplayerData?.SetupConfig?.BiomeConfig;
+        if (biomeConfig != null)
+            return biomeConfig.SelectedBiome;
+
+        return BiomeConfig.BiomeType.Arena;
+    }
+
+    private GameModeConfig.GameModeType GetSelectedGameModeType() {
+        var setupConfig = _networking?.MultiplayerData?.SetupConfig;
+        if (setupConfig?.GameModes.Count > 0 && setupConfig.GameModes[0] != null)
+            return setupConfig.GameModes[0].ModeType;
+
+        return GameModeConfig.GameModeType.Deathmatch;
+    }
+
+    private LoadoutModeConfig.LoadoutModeType GetSelectedLoadoutModeType() {
+        var loadoutModeConfig = _networking?.MultiplayerData?.SetupConfig?.LoadoutModeConfig;
+        if (loadoutModeConfig != null)
+            return loadoutModeConfig.SelectedLoadoutMode;
+
+        return LoadoutModeConfig.LoadoutModeType.BuyOnSpawn;
+    }
+
+    private string GetMatchSetupText() {
+        var mapConfig = _networking?.MultiplayerData?.SetupConfig?.MapConfig;
+        return $"mode={GetGameModeDisplayName(GetSelectedGameModeType())} loadout={FormatLoadoutModeName(GetSelectedLoadoutModeType())} structure={GetSelectedStructureType(mapConfig)} biome={GetSelectedBiomeType()} seed={mapConfig?.FixedSeed ?? 0}";
+    }
+
+    private static string FormatLoadoutModeName(LoadoutModeConfig.LoadoutModeType loadoutModeType) {
+        return loadoutModeType switch {
+            LoadoutModeConfig.LoadoutModeType.BuyOnSpawn => "Buy On Spawn",
+            LoadoutModeConfig.LoadoutModeType.PersistentBudget => "Persistent Budget",
+            LoadoutModeConfig.LoadoutModeType.RandomOnRespawn => "Random Respawn",
+            LoadoutModeConfig.LoadoutModeType.MirrorLoadout => "Mirror Loadout",
+            LoadoutModeConfig.LoadoutModeType.MapPickups => "Map Pickups",
+            _ => loadoutModeType.ToString(),
+        };
     }
 
     private void ApplyGeneratedTeamSpawns() {
@@ -1108,6 +1542,7 @@ public partial class ArenaMatch : Node2D {
             _shotIntervalSecondsByGlobalId.Remove(removedGlobalId);
             _wasUseHeldByGlobalId.Remove(removedGlobalId);
             _suppressUseUntilReleasedByGlobalId.Remove(removedGlobalId);
+            _creditsByGlobalId.Remove(removedGlobalId);
             _respawnSecondsByGlobalId.Remove(removedGlobalId);
             _spawnSecondsByGlobalId.Remove(removedGlobalId);
             _playerTeamIdsByGlobalId.Remove(removedGlobalId);
@@ -1139,6 +1574,7 @@ public partial class ArenaMatch : Node2D {
         _shotIntervalSecondsByGlobalId.Clear();
         _wasUseHeldByGlobalId.Clear();
         _suppressUseUntilReleasedByGlobalId.Clear();
+        _creditsByGlobalId.Clear();
         _respawnSecondsByGlobalId.Clear();
         _spawnSecondsByGlobalId.Clear();
         _playerTeamIdsByGlobalId.Clear();
@@ -1157,6 +1593,7 @@ public partial class ArenaMatch : Node2D {
         _shotIntervalSecondsByGlobalId[globalId] = 0.0;
         _wasUseHeldByGlobalId[globalId] = false;
         _suppressUseUntilReleasedByGlobalId[globalId] = false;
+        _creditsByGlobalId[globalId] = GetStartingCredits();
         _respawnSecondsByGlobalId[globalId] = -1.0f;
         _spawnSecondsByGlobalId[globalId] = 0.0f;
         _accuracyStatesByGlobalId[globalId] = new PlayerItemAccuracyState();
@@ -1661,6 +2098,7 @@ public partial class ArenaMatch : Node2D {
 
         player.FinishSpawn();
         _spawnSecondsByGlobalId[globalId] = 0.0f;
+        AwardSpawnCredits(globalId);
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.Spawn, "PlayerSpawnFinished", $"global={globalId}");
         if (syncToPeers)
             SyncPlayerSpawnFinished(globalId);
@@ -2062,7 +2500,31 @@ public partial class ArenaMatch : Node2D {
             PlayersByGlobalId = _playersByGlobalId,
             Props = props,
             ArenaChanged = RenderArenaWithCollision,
+            PlayerKilled = OnPlayerKilledByItem,
         };
+    }
+
+    private void OnPlayerKilledByItem(int killerGlobalId, int victimGlobalId) {
+        if (victimGlobalId < 0)
+            return;
+
+        var victimData = _networking?.MultiplayerData?.GetPlayerByGlobalId(victimGlobalId);
+        if (victimData != null)
+            victimData.Deaths++;
+
+        if (killerGlobalId >= 0 && killerGlobalId != victimGlobalId) {
+            var killerData = _networking?.MultiplayerData?.GetPlayerByGlobalId(killerGlobalId);
+            if (killerData != null) {
+                killerData.Kills++;
+                killerData.Score++;
+            }
+
+            AwardKillCredits(killerGlobalId);
+        }
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.StateChange, "PlayerKilled", $"killer={killerGlobalId} victim={victimGlobalId} loadout={GetSelectedLoadoutModeType()}");
+        UpdateScoreboard();
+        UpdateStatusLabel();
     }
 
     private void SyncItemUse(int globalId, string itemId, Vector2 startPosition, Vector2 direction, float range, Vector2 targetPosition) {
@@ -2733,9 +3195,15 @@ public partial class ArenaMatch : Node2D {
         if (_networking == null)
             return;
 
-        _statusLabel.Text = $"Arena Match\nPeers connected: {GetConnectedPeerCount()}\nControls: B item menu | Tab/Select scoreboard | arrows/d-pad + Enter/A select | left mouse / Xbox RT use";
+        _statusLabel.Text = $"Arena Match\n{GetMatchSetupText()}\nPeers connected: {GetConnectedPeerCount()}\nControls: {GetBuyMenuControlText()} | Tab/Select scoreboard | arrows/d-pad + Enter/A select | left mouse / Xbox RT use";
         UpdateObjectiveStatusHud();
         UpdateLocalPlayersHud();
+    }
+
+    private string GetBuyMenuControlText() {
+        return EnableDebugBuyMenu
+            ? "V buy menu | B debug equip"
+            : "V/B buy menu near team base";
     }
 
     private void UpdateLocalPlayersHud() {

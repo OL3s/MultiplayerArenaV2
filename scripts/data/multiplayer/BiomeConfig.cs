@@ -11,6 +11,9 @@ public partial class BiomeConfig : Resource {
     [Export]
     public Godot.Collections.Array<BiomeType> EnabledBiomes { get; set; } = new();
 
+    [Export]
+    public BiomeType SelectedBiome { get; set; } = BiomeType.Arena;
+
     public void AddBiome(BiomeType biomeType) {
         if (HasBiome(biomeType))
             return;
@@ -35,7 +38,9 @@ public partial class BiomeConfig : Resource {
     }
 
     public BiomeConfig Clone() {
-        var clone = new BiomeConfig();
+        var clone = new BiomeConfig {
+            SelectedBiome = SelectedBiome,
+        };
         foreach (var biome in EnabledBiomes)
             clone.EnabledBiomes.Add(biome);
 

@@ -47,6 +47,7 @@ public partial class MatchLobby : Control {
         LoadoutModeConfig.LoadoutModeType.PersistentBudget,
         LoadoutModeConfig.LoadoutModeType.RandomOnRespawn,
         LoadoutModeConfig.LoadoutModeType.MirrorLoadout,
+        LoadoutModeConfig.LoadoutModeType.MapPickups,
     };
     private static readonly string[] AvailableStructureIconPaths = {
         StructureArenaIconPath,
@@ -63,6 +64,7 @@ public partial class MatchLobby : Control {
         LoadoutPersistentBudgetIconPath,
         LoadoutRandomRespawnIconPath,
         LoadoutMirrorIconPath,
+        ConfigLoadoutIconPath,
     };
     private PackedScene _lobbyPlayerCardScene;
     private PackedScene _lobbyTeamContainerScene;
@@ -406,6 +408,7 @@ public partial class MatchLobby : Control {
             LoadoutModeConfig.LoadoutModeType.PersistentBudget => LoadoutPersistentBudgetIconPath,
             LoadoutModeConfig.LoadoutModeType.RandomOnRespawn => LoadoutRandomRespawnIconPath,
             LoadoutModeConfig.LoadoutModeType.MirrorLoadout => LoadoutMirrorIconPath,
+            LoadoutModeConfig.LoadoutModeType.MapPickups => ConfigLoadoutIconPath,
             _ => ConfigLoadoutIconPath,
         };
     }
@@ -731,6 +734,7 @@ public partial class MatchLobby : Control {
             LoadoutModeConfig.LoadoutModeType.PersistentBudget => "Persistent Budget",
             LoadoutModeConfig.LoadoutModeType.RandomOnRespawn => "Random Respawn",
             LoadoutModeConfig.LoadoutModeType.MirrorLoadout => "Mirror Loadout",
+            LoadoutModeConfig.LoadoutModeType.MapPickups => "Map Pickups",
             _ => loadoutModeType.ToString(),
         };
     }

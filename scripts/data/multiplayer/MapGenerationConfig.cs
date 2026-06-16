@@ -26,6 +26,9 @@ public partial class MapGenerationConfig : Resource {
     [Export]
     public Godot.Collections.Array<StructureType> EnabledStructureTypes { get; set; } = new();
 
+    [Export]
+    public StructureType SelectedStructureType { get; set; } = StructureType.Arena;
+
     public void AddStructureType(StructureType structureType) {
         if (HasStructureType(structureType))
             return;
@@ -53,6 +56,7 @@ public partial class MapGenerationConfig : Resource {
         var clone = new MapGenerationConfig {
             SelectedSeedMode = SelectedSeedMode,
             FixedSeed = FixedSeed,
+            SelectedStructureType = SelectedStructureType,
         };
 
         foreach (var seed in SeedPool)
