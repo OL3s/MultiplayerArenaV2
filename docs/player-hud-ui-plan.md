@@ -88,6 +88,10 @@ The test room instantiates `scenes/ui/hud/local_players_hud.tscn` under its `Can
 
 The `B` item grid remains a debug/equipment menu. The primary buy UI is the `V`/Xbox `Y` radial buy menu. The HUD is a passive status display that should remain useful while buy menus are closed and should not consume gameplay input.
 
+## Match Config Strip
+
+`scenes/ui/hud/scoreboard_overlay.tscn` includes `scenes/ui/hud/match_config_strip.tscn` at the bottom of the Tab scoreboard overlay. The strip is intentionally short and scene-driven, with `match_config_entry.tscn` instances for mode, loadout, structure, biome, item theme, and seed. `ArenaMatch` binds the host-resolved active setup values and existing SVG icons into the strip through `ScoreboardOverlay.SetMatchConfig()`.
+
 ## First Pass Acceptance
 
 - HUD uses `.tscn` scenes for reusable UI structure.

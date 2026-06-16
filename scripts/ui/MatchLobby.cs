@@ -108,6 +108,8 @@ public partial class MatchLobby : Control {
     }
 
     public override void _ExitTree() {
+        _availableItemThemes.Clear();
+
         var networking = GetNodeOrNull<Networking>("/root/Networking");
         if (networking == null)
             return;

@@ -4,6 +4,7 @@ using Godot;
 public partial class ScoreboardOverlay : PanelContainer {
     private const string PlayerRowScenePath = "res://scenes/ui/hud/scoreboard_player_row.tscn";
     private VBoxContainer _rows;
+    private MatchConfigStrip _matchConfigStrip;
     private PackedScene _rowScene;
 
     public override void _Ready() {
@@ -40,6 +41,33 @@ public partial class ScoreboardOverlay : PanelContainer {
         }
     }
 
+    public void SetMatchConfig(
+        string modeName,
+        string modeIconPath,
+        string loadoutName,
+        string loadoutIconPath,
+        string structureName,
+        string structureIconPath,
+        string biomeName,
+        string biomeIconPath,
+        string themeName,
+        string themeIconPath,
+        string seedText) {
+        EnsureNodes();
+        _matchConfigStrip.SetMatchConfig(
+            modeName,
+            modeIconPath,
+            loadoutName,
+            loadoutIconPath,
+            structureName,
+            structureIconPath,
+            biomeName,
+            biomeIconPath,
+            themeName,
+            themeIconPath,
+            seedText);
+    }
+
     private void AddRow(
         string playerName,
         string peerId,
@@ -70,5 +98,6 @@ public partial class ScoreboardOverlay : PanelContainer {
             return;
 
         _rows = GetNode<VBoxContainer>("Margin/Layout/ScoreboardScroll/Rows");
+        _matchConfigStrip = GetNode<MatchConfigStrip>("Margin/Layout/MatchConfigStrip");
     }
 }

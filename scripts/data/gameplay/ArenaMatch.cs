@@ -31,6 +31,25 @@ public partial class ArenaMatch : Node2D {
     private const string KeyboardReloadIconPath = "res://assets/inputicons/keyboard/key_r.svg";
     private const string GamepadReloadIconPath = "res://assets/inputicons/xbox/button_x.svg";
     private const string BuyCancelIconPath = "res://assets/ui/buy/buy_cancel.svg";
+    private const string ConfigBiomeIconPath = "res://assets/ui/config_biome.svg";
+    private const string ConfigStructureIconPath = "res://assets/ui/config_structure.svg";
+    private const string ConfigThemeIconPath = "res://assets/ui/config_theme.svg";
+    private const string ConfigLoadoutIconPath = "res://assets/ui/config_loadout.svg";
+    private const string ConfigGameIconPath = "res://assets/ui/config_game.svg";
+    private const string BiomeWoodsIconPath = "res://assets/ui/biome_woods.svg";
+    private const string BiomeArenaIconPath = "res://assets/ui/biome_arena.svg";
+    private const string BiomeMedievalIconPath = "res://assets/ui/theme_medieval.svg";
+    private const string StructureArenaIconPath = "res://assets/ui/structure_arena.svg";
+    private const string StructurePlainsIconPath = "res://assets/ui/structure_plains.svg";
+    private const string StructureSquareIconPath = "res://assets/ui/structure_square.svg";
+    private const string GameModeDeathmatchIconPath = "res://assets/ui/game_mode_deathmatch.svg";
+    private const string GameModeCaptureTheFlagIconPath = "res://assets/ui/game_mode_capture_the_flag.svg";
+    private const string GameModeKingOfTheHillIconPath = "res://assets/ui/game_mode_king_of_the_hill.svg";
+    private const string GameModeHeadquartersIconPath = "res://assets/ui/game_mode_headquarters.svg";
+    private const string LoadoutBuyOnSpawnIconPath = "res://assets/ui/loadout_buy_on_spawn.svg";
+    private const string LoadoutPersistentBudgetIconPath = "res://assets/ui/loadout_persistent_budget.svg";
+    private const string LoadoutRandomRespawnIconPath = "res://assets/ui/loadout_random_respawn.svg";
+    private const string LoadoutMirrorIconPath = "res://assets/ui/loadout_mirror.svg";
     private enum InputStrength {
         None,
         Some,
@@ -210,11 +229,24 @@ public partial class ArenaMatch : Node2D {
     }
 
     public override void _ExitTree() {
+        ClearRuntimeResourceCaches();
+
         if (_networking == null)
             return;
 
         _networking.ConnectionStateChanged -= OnConnectionStateChanged;
         _networking.LobbyStateChanged -= OnLobbyStateChanged;
+    }
+
+    private void ClearRuntimeResourceCaches() {
+        _activeBuyTheme = null;
+        _activeBuyGroup = null;
+        _buyGroupStack.Clear();
+        _activeItemThemes.Clear();
+        _activeItemPaths.Clear();
+        _activeArmorPaths.Clear();
+        _loadedItemsByPath.Clear();
+        _loadedArmorByPath.Clear();
     }
 
     public override void _Process(double delta) {
@@ -224,7 +256,6 @@ public partial class ArenaMatch : Node2D {
         UpdateBuyRadialMenu();
         ProcessLocalItemUse(delta);
         UpdateStatusLabel();
-        UpdateScoreboard();
         UpdateLocalAimIndicator();
     }
 
@@ -1143,6 +1174,30 @@ public partial class ArenaMatch : Node2D {
 
         players.Sort(CompareScoreboardPlayers);
         _scoreboardOverlay.SetPlayers(players, _networking.MultiplayerData);
+        UpdateScoreboardMatchConfig();
+    }
+
+    private void UpdateScoreboardMatchConfig() {
+        var setupConfig = _networking?.MultiplayerData?.SetupConfig;
+        var mapConfig = setupConfig?.MapConfig;
+        var gameModeType = GetSelectedGameModeType();
+        var loadoutModeType = GetSelectedLoadoutModeType();
+        var structureType = GetSelectedStructureType(mapConfig);
+        var biomeType = GetSelectedBiomeType();
+        var selectedTheme = GetSelectedItemThemeDefinition(setupConfig?.ItemThemeConfig);
+
+        _scoreboardOverlay.SetMatchConfig(
+            GetGameModeDisplayName(gameModeType),
+            GetGameModeIconPath(gameModeType),
+            FormatLoadoutModeName(loadoutModeType),
+            GetLoadoutModeIconPath(loadoutModeType),
+            FormatStructureName(structureType),
+            GetStructureIconPath(structureType),
+            FormatBiomeName(biomeType),
+            GetBiomeIconPath(biomeType),
+            selectedTheme?.DisplayName ?? "Theme",
+            GetItemThemeIconPath(selectedTheme),
+            (mapConfig?.FixedSeed ?? 0).ToString());
     }
 
     private static int CompareScoreboardPlayers(PlayerData a, PlayerData b) {
@@ -1397,6 +1452,14 @@ public partial class ArenaMatch : Node2D {
         return $"mode={GetGameModeDisplayName(GetSelectedGameModeType())} loadout={FormatLoadoutModeName(GetSelectedLoadoutModeType())} structure={GetSelectedStructureType(mapConfig)} biome={GetSelectedBiomeType()} seed={mapConfig?.FixedSeed ?? 0}";
     }
 
+    private static string FormatStructureName(MapGenerationConfig.StructureType structureType) {
+        return structureType.ToString();
+    }
+
+    private static string FormatBiomeName(BiomeConfig.BiomeType biomeType) {
+        return biomeType.ToString();
+    }
+
     private static string FormatLoadoutModeName(LoadoutModeConfig.LoadoutModeType loadoutModeType) {
         return loadoutModeType switch {
             LoadoutModeConfig.LoadoutModeType.BuyOnSpawn => "Buy On Spawn",
@@ -1406,6 +1469,68 @@ public partial class ArenaMatch : Node2D {
             LoadoutModeConfig.LoadoutModeType.MapPickups => "Map Pickups",
             _ => loadoutModeType.ToString(),
         };
+    }
+
+    private static string GetGameModeIconPath(GameModeConfig.GameModeType gameModeType) {
+        return gameModeType switch {
+            GameModeConfig.GameModeType.Deathmatch => GameModeDeathmatchIconPath,
+            GameModeConfig.GameModeType.CaptureTheFlag => GameModeCaptureTheFlagIconPath,
+            GameModeConfig.GameModeType.KingOfTheHill => GameModeKingOfTheHillIconPath,
+            GameModeConfig.GameModeType.Headquarters => GameModeHeadquartersIconPath,
+            _ => ConfigGameIconPath,
+        };
+    }
+
+    private static string GetLoadoutModeIconPath(LoadoutModeConfig.LoadoutModeType loadoutModeType) {
+        return loadoutModeType switch {
+            LoadoutModeConfig.LoadoutModeType.BuyOnSpawn => LoadoutBuyOnSpawnIconPath,
+            LoadoutModeConfig.LoadoutModeType.PersistentBudget => LoadoutPersistentBudgetIconPath,
+            LoadoutModeConfig.LoadoutModeType.RandomOnRespawn => LoadoutRandomRespawnIconPath,
+            LoadoutModeConfig.LoadoutModeType.MirrorLoadout => LoadoutMirrorIconPath,
+            _ => ConfigLoadoutIconPath,
+        };
+    }
+
+    private static string GetStructureIconPath(MapGenerationConfig.StructureType structureType) {
+        return structureType switch {
+            MapGenerationConfig.StructureType.Arena => StructureArenaIconPath,
+            MapGenerationConfig.StructureType.Plains => StructurePlainsIconPath,
+            MapGenerationConfig.StructureType.Square => StructureSquareIconPath,
+            _ => ConfigStructureIconPath,
+        };
+    }
+
+    private static string GetBiomeIconPath(BiomeConfig.BiomeType biomeType) {
+        return biomeType switch {
+            BiomeConfig.BiomeType.Woods => BiomeWoodsIconPath,
+            BiomeConfig.BiomeType.Arena => BiomeArenaIconPath,
+            BiomeConfig.BiomeType.Medieval => BiomeMedievalIconPath,
+            _ => ConfigBiomeIconPath,
+        };
+    }
+
+    private ItemThemeDefinition GetSelectedItemThemeDefinition(ItemThemeConfig themeConfig) {
+        if (themeConfig == null)
+            return _activeItemThemes.Count > 0 ? _activeItemThemes[0] : null;
+
+        var selectedThemePath = themeConfig.SelectedThemeDefinitionPath;
+        if (string.IsNullOrWhiteSpace(selectedThemePath) && themeConfig.EnabledThemeDefinitionPaths.Count > 0)
+            selectedThemePath = themeConfig.EnabledThemeDefinitionPaths[0];
+
+        if (string.IsNullOrWhiteSpace(selectedThemePath))
+            return _activeItemThemes.Count > 0 ? _activeItemThemes[0] : null;
+
+        foreach (var theme in _activeItemThemes) {
+            if (theme?.ResourcePath == selectedThemePath)
+                return theme;
+        }
+
+        return _activeItemThemes.Count > 0 ? _activeItemThemes[0] : null;
+    }
+
+    private static string GetItemThemeIconPath(ItemThemeDefinition theme) {
+        var iconPath = ItemThemeRegistry.GetThemeIconPath(theme);
+        return string.IsNullOrWhiteSpace(iconPath) ? ConfigThemeIconPath : iconPath;
     }
 
     private void ApplyGeneratedTeamSpawns() {

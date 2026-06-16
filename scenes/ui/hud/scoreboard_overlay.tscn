@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/ScoreboardOverlay.cs" id="1_scoreboard_overlay"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/match_config_strip.tscn" id="2_match_config_strip"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.04, 0.05, 0.07, 0.88)
@@ -166,3 +167,6 @@ horizontal_scroll_mode = 0
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
+
+[node name="MatchConfigStrip" parent="Margin/Layout" instance=ExtResource("2_match_config_strip")]
+layout_mode = 2

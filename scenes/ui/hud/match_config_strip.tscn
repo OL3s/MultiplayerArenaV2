@@ -1,0 +1,56 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/MatchConfigStrip.cs" id="1_match_config_strip"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/match_config_entry.tscn" id="2_match_config_entry"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.06, 0.075, 0.1, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.24, 0.3, 0.38, 0.95)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[node name="MatchConfigStrip" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 58)
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+script = ExtResource("1_match_config_strip")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 7
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.78, 0.9, 1)
+theme_override_font_sizes/font_size = 10
+text = "MATCH CONFIG"
+horizontal_alignment = 1
+
+[node name="Entries" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ModeEntry" parent="Margin/Layout/Entries" instance=ExtResource("2_match_config_entry")]
+
+[node name="LoadoutEntry" parent="Margin/Layout/Entries" instance=ExtResource("2_match_config_entry")]
+
+[node name="StructureEntry" parent="Margin/Layout/Entries" instance=ExtResource("2_match_config_entry")]
+
+[node name="BiomeEntry" parent="Margin/Layout/Entries" instance=ExtResource("2_match_config_entry")]
+
+[node name="ThemeEntry" parent="Margin/Layout/Entries" instance=ExtResource("2_match_config_entry")]
+
+[node name="SeedEntry" parent="Margin/Layout/Entries" instance=ExtResource("2_match_config_entry")]
