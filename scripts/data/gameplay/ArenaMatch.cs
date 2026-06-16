@@ -24,10 +24,12 @@ public partial class ArenaMatch : Node2D {
     private const string GenericLaunchedProjectileScenePath = "res://scenes/gameplay/projectiles/generic_launched_projectile.tscn";
     private const string NeutralObjectiveScenePath = "res://scenes/gameplay/objectives/neutral_objective.tscn";
     private const string TeamSpawnBaseMarkerScenePath = "res://scenes/gameplay/objectives/team_spawn_base_marker.tscn";
+    private const string MainMenuScenePath = "res://scenes/ui/menus/main_menu.tscn";
     private const string LocalPlayersHudScenePath = "res://scenes/ui/hud/local_players_hud.tscn";
     private const string PlayerBuyRadialMenuScenePath = "res://scenes/ui/buy/player_buy_radial_menu.tscn";
     private const string ScoreboardOverlayScenePath = "res://scenes/ui/hud/scoreboard_overlay.tscn";
     private const string ObjectiveStatusHudScenePath = "res://scenes/ui/hud/objective_status_hud.tscn";
+    private const string HostServerActionsOverlayScenePath = "res://scenes/ui/overlays/host_server_actions_overlay.tscn";
     private const string KeyboardReloadIconPath = "res://assets/inputicons/keyboard/key_r.svg";
     private const string GamepadReloadIconPath = "res://assets/inputicons/xbox/button_x.svg";
     private const string BuyCancelIconPath = "res://assets/ui/buy/buy_cancel.svg";
@@ -148,6 +150,7 @@ public partial class ArenaMatch : Node2D {
     private PackedScene _playerBuyRadialMenuScene;
     private PackedScene _scoreboardOverlayScene;
     private PackedScene _objectiveStatusHudScene;
+    private PackedScene _hostServerActionsOverlayScene;
     private int _activeBuyMenuGlobalId = -1;
     private BuyMenuState _buyMenuState = BuyMenuState.Categories;
     private ItemThemeDefinition _activeBuyTheme;
@@ -196,6 +199,7 @@ public partial class ArenaMatch : Node2D {
         _playerBuyRadialMenuScene = GD.Load<PackedScene>(PlayerBuyRadialMenuScenePath);
         _scoreboardOverlayScene = GD.Load<PackedScene>(ScoreboardOverlayScenePath);
         _objectiveStatusHudScene = GD.Load<PackedScene>(ObjectiveStatusHudScenePath);
+        _hostServerActionsOverlayScene = GD.Load<PackedScene>(HostServerActionsOverlayScenePath);
 
         ApplyCommandLineOverrides();
         if (UseLanTestBootstrap) {
@@ -286,6 +290,12 @@ public partial class ArenaMatch : Node2D {
             return;
         }
 
+        if (IsHostServerActionsToggleEvent(@event)) {
+            ToggleHostServerActionsMenu();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
         if (IsScoreboardToggleEvent(@event)) {
             ToggleScoreboard();
             GetViewport().SetInputAsHandled();
@@ -316,6 +326,10 @@ public partial class ArenaMatch : Node2D {
             return true;
 
         return @event is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.B };
+    }
+
+    private bool IsHostServerActionsToggleEvent(InputEvent @event) {
+        return @event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.Escape };
     }
 
     private bool TryProcessBuyRadialMenuInput(InputEvent @event) {
@@ -626,6 +640,74 @@ public partial class ArenaMatch : Node2D {
             UpdateScoreboard();
 
         GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, _scoreboardOverlay.Visible ? "ScoreboardOpened" : "ScoreboardClosed");
+    }
+
+    private void ToggleHostServerActionsMenu() {
+        if (_networking?.IsHostAuthority != true)
+            return;
+
+        var existingOverlay = GetHostServerActionsOverlay();
+        if (existingOverlay != null) {
+            existingOverlay.QueueFree();
+            return;
+        }
+
+        var overlay = SceneOverlay.GetOrCreate(this);
+        if (overlay == null || _hostServerActionsOverlayScene == null)
+            return;
+
+        CloseBuyMenu();
+        CloseDebugBuyMenu();
+        var actionsOverlay = _hostServerActionsOverlayScene.Instantiate<HostServerActionsOverlay>();
+        actionsOverlay.NextGameModeRequested += OnHostNextGameModeRequested;
+        actionsOverlay.RestartMatchRequested += OnHostRestartMatchRequested;
+        actionsOverlay.BackToMainMenuRequested += OnHostBackToMainMenuRequested;
+        actionsOverlay.TreeExited += () => SetLocalPlayersControlState(PlayerControlState.Gameplay);
+        overlay.AddOverlay(actionsOverlay);
+        SetLocalPlayersControlState(PlayerControlState.Menu);
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "HostServerActionsOpened");
+    }
+
+    private HostServerActionsOverlay GetHostServerActionsOverlay() {
+        var overlay = SceneOverlay.Get(this);
+        if (overlay == null)
+            return null;
+
+        foreach (var child in overlay.GetChildren()) {
+            if (child is HostServerActionsOverlay actionsOverlay)
+                return actionsOverlay;
+        }
+
+        return null;
+    }
+
+    private void OnHostNextGameModeRequested() {
+        if (_networking?.IsHostAuthority != true)
+            return;
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "HostNextGameModeRequested");
+        _networking.StartNextGameModeScene(GetCurrentMatchScenePath());
+    }
+
+    private void OnHostRestartMatchRequested() {
+        if (_networking?.IsHostAuthority != true)
+            return;
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "HostRestartMatchRequested");
+        _networking.RestartCurrentMatchScene(GetCurrentMatchScenePath());
+    }
+
+    private void OnHostBackToMainMenuRequested() {
+        if (_networking?.IsHostAuthority != true)
+            return;
+
+        GameLog.Print(GameLogScope.PlayerItemRoom, GameLogType.UI, "HostBackToMainMenuRequested");
+        _networking.ResetSessionState();
+        GetTree().ChangeSceneToFile(MainMenuScenePath);
+    }
+
+    private string GetCurrentMatchScenePath() {
+        return string.IsNullOrWhiteSpace(SceneFilePath) ? "res://scenes/gameplay/arena_match.tscn" : SceneFilePath;
     }
 
     private void OpenDebugBuyMenu() {
@@ -3320,9 +3402,13 @@ public partial class ArenaMatch : Node2D {
         if (_networking == null)
             return;
 
-        _statusLabel.Text = $"Arena Match\n{GetMatchSetupText()}\nPeers connected: {GetConnectedPeerCount()}\nControls: {GetBuyMenuControlText()} | Tab/Select scoreboard | arrows/d-pad + Enter/A select | left mouse / Xbox RT use";
+        _statusLabel.Text = $"Arena Match\n{GetMatchSetupText()}\nPeers connected: {GetConnectedPeerCount()}\nControls: {GetBuyMenuControlText()} | Tab/Select scoreboard{GetHostServerActionsControlText()} | arrows/d-pad + Enter/A select | left mouse / Xbox RT use";
         UpdateObjectiveStatusHud();
         UpdateLocalPlayersHud();
+    }
+
+    private string GetHostServerActionsControlText() {
+        return _networking?.IsHostAuthority == true ? " | Esc host menu" : string.Empty;
     }
 
     private string GetBuyMenuControlText() {

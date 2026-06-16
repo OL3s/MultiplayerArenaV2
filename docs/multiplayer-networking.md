@@ -217,11 +217,13 @@ Overlay UI should be managed through a reusable `SceneOverlay` scene, and it is 
 
 Join IP uses the reusable `SceneOverlay` blur backdrop when its address panel is open.
 
+`ArenaMatch` exposes a host-only server actions overlay on `Esc` through `scenes/ui/overlays/host_server_actions_overlay.tscn`. `Next Game Mode` advances the configured game-mode playlist, resolves fresh structure/biome/item-theme/loadout/seed values from the selected candidate pools, syncs the resulting setup, and reloads the current match scene on all peers. `Restart Current Match` reloads the current match scene with the already-resolved setup values and seed. `Back To Main Menu` closes the active server/session through `Networking.ResetSessionState()` and loads `scenes/ui/menus/main_menu.tscn`.
+
 ## RPC Update Methods
 
 The `Networking` autoload exposes simple RPC update methods for shared multiplayer state. These methods should use basic arguments instead of sending complex objects directly, which keeps the netcode easier to reason about and compatible with Godot's RPC system.
 
-When the host starts a match, `StartMatchScene(...)` resolves the authoritative map seed, serializes the full `SetupConfig`, and passes that serialized setup into `RpcLoadMatchScene(...)`. Each peer applies that setup immediately before changing to the match scene so `ArenaMatch._Ready()` consumes the same final game mode, loadout mode, structure, biome, item theme, and seed state on every process.
+When the host starts a match, `StartMatchScene(...)` resolves the authoritative map seed, serializes the full `SetupConfig`, and passes that serialized setup into `RpcLoadMatchScene(...)`. Each peer applies that setup immediately before changing to the match scene so `ArenaMatch._Ready()` consumes the same final game mode, loadout mode, structure, biome, item theme, and seed state on every process. In-match host controls reuse the same scene-load path through `StartNextGameModeScene(...)` and `RestartCurrentMatchScene(...)`.
 
 Current public update methods:
 

@@ -104,6 +104,7 @@ Script: `scripts/data/gameplay/TestPlayerItemRoomLAN.cs`
 - `V` or Xbox controller `Y`: open or close the scene-backed radial buy menu around the first local player. The first ring contains the host-resolved active theme's configured buy groups plus `Cancel`; leaf buy group rings list purchasable items for that selected theme plus `Back`.
 - `B`: open or close the debug buy/equip grid. Keyboard `B` and Xbox controller `B` both toggle it.
 - `Tab` or Xbox controller select/back: toggle the compact scoreboard overlay with player ids, peer/local ownership, team, score, kills, deaths, and assists. Scoreboard player pills are tinted by team and local-device players use a stronger white outline for accessibility.
+- `Esc` on the host/server: open the host-only server actions overlay. `Next Game Mode` advances the playlist and resolves fresh random match setup values before reloading gameplay; `Restart Current Match` reloads the room with the current resolved setup and seed; `Back To Main Menu` closes the server/session, clears multiplayer state, and loads the main menu.
 - `R` or Xbox controller `X`: start reloading the selected weapon when it is not full and not already reloading.
 - The scoreboard uses editable HUD scenes: `scenes/ui/hud/scoreboard_overlay.tscn` and `scenes/ui/hud/scoreboard_player_row.tscn`.
 - The objective state is shown through `scenes/ui/hud/objective_status_hud.tscn` at the top of the screen, with panel color changing for neutral, contested, or team-owned states.

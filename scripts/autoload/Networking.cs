@@ -583,6 +583,41 @@ public partial class Networking : Node {
         return true;
     }
 
+    public bool StartNextGameModeScene(string matchScenePath) {
+        if (!IsHostAuthority) {
+            PrintMultiplayerLog(GameLogType.Authority, "StartNextGameModeSceneRejected", "reason=notHostAuthority");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(matchScenePath)) {
+            PrintMultiplayerLog(GameLogType.Validation, "StartNextGameModeSceneRejected", "reason=emptyScenePath");
+            return false;
+        }
+
+        AdvanceAuthoritativeGameMode(MultiplayerData.SetupConfig);
+        ResolveAuthoritativeMatchSelections(MultiplayerData.SetupConfig);
+        PrepareAuthoritativeMapSeed(MultiplayerData.SetupConfig);
+        SyncCachedSetupConfig();
+        LoadMatchSceneWithCurrentSetup(matchScenePath, "StartNextGameModeScene");
+        return true;
+    }
+
+    public bool RestartCurrentMatchScene(string matchScenePath) {
+        if (!IsHostAuthority) {
+            PrintMultiplayerLog(GameLogType.Authority, "RestartCurrentMatchSceneRejected", "reason=notHostAuthority");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(matchScenePath)) {
+            PrintMultiplayerLog(GameLogType.Validation, "RestartCurrentMatchSceneRejected", "reason=emptyScenePath");
+            return false;
+        }
+
+        SyncCachedSetupConfig();
+        LoadMatchSceneWithCurrentSetup(matchScenePath, "RestartCurrentMatchScene");
+        return true;
+    }
+
     public void RegisterLocalLobbyPlayers() {
         var peerId = GetLocalPeerId();
         if (peerId == -1) {
@@ -820,6 +855,92 @@ public partial class Networking : Node {
             setupConfig.LoadoutModeConfig.SelectedLoadoutMode = setupConfig.LoadoutModeConfig.EnabledLoadoutModes[GetRandomIndex(setupConfig.LoadoutModeConfig.EnabledLoadoutModes.Count)];
 
         PrintMultiplayerLog(GameLogType.StateChange, "MatchSelectionsResolved", $"structure={setupConfig.MapConfig?.SelectedStructureType} biome={setupConfig.BiomeConfig?.SelectedBiome} theme={setupConfig.ItemThemeConfig?.SelectedThemeDefinitionPath} loadout={setupConfig.LoadoutModeConfig?.SelectedLoadoutMode}");
+    }
+
+    private void LoadMatchSceneWithCurrentSetup(string matchScenePath, string eventName) {
+        var serializedSetupConfig = MultiplayerData.SetupConfig.SerializeForNetwork();
+        PrintMultiplayerLog(GameLogType.StateChange, eventName, $"scene={matchScenePath} mode={GetCurrentGameModeDisplayName(MultiplayerData.SetupConfig)} structure={MultiplayerData.SetupConfig.MapConfig?.SelectedStructureType} biome={MultiplayerData.SetupConfig.BiomeConfig?.SelectedBiome} theme={MultiplayerData.SetupConfig.ItemThemeConfig?.SelectedThemeDefinitionPath} loadout={MultiplayerData.SetupConfig.LoadoutModeConfig?.SelectedLoadoutMode} seed={MultiplayerData.SetupConfig.MapConfig?.FixedSeed ?? 0}");
+
+        if (IsNetworkedSession)
+            Rpc(nameof(RpcLoadMatchScene), matchScenePath, serializedSetupConfig);
+        else
+            RpcLoadMatchScene(matchScenePath, serializedSetupConfig);
+    }
+
+    private void AdvanceAuthoritativeGameMode(SetupConfig setupConfig) {
+        if (setupConfig == null)
+            return;
+
+        setupConfig.EnsureDefaultSelections();
+        var currentIndex = GetFirstEnabledGameModeIndex(setupConfig);
+        var nextIndex = setupConfig.GameplayScoring?.RandomizeGameModeOrder == true
+            ? GetRandomEnabledGameModeIndex(setupConfig, currentIndex)
+            : GetNextEnabledGameModeIndex(setupConfig, currentIndex);
+        if (nextIndex < 0)
+            return;
+
+        var nextGameMode = setupConfig.GameModes[nextIndex];
+        setupConfig.GameModes.RemoveAt(nextIndex);
+        setupConfig.GameModes.Insert(0, nextGameMode);
+        setupConfig.GameModeId = GetGameModeId(nextGameMode.ModeType);
+        PrintMultiplayerLog(GameLogType.StateChange, "GameModeAdvanced", $"mode={nextGameMode.ModeType} id={setupConfig.GameModeId}");
+    }
+
+    private static int GetFirstEnabledGameModeIndex(SetupConfig setupConfig) {
+        if (setupConfig == null)
+            return -1;
+
+        for (var i = 0; i < setupConfig.GameModes.Count; i++) {
+            if (setupConfig.GameModes[i]?.IsEnabled == true)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static int GetNextEnabledGameModeIndex(SetupConfig setupConfig, int currentIndex) {
+        if (setupConfig == null || setupConfig.GameModes.Count == 0)
+            return -1;
+
+        currentIndex = Mathf.Clamp(currentIndex, 0, setupConfig.GameModes.Count - 1);
+        for (var offset = 1; offset <= setupConfig.GameModes.Count; offset++) {
+            var index = (currentIndex + offset) % setupConfig.GameModes.Count;
+            if (setupConfig.GameModes[index]?.IsEnabled == true)
+                return index;
+        }
+
+        return currentIndex;
+    }
+
+    private static int GetRandomEnabledGameModeIndex(SetupConfig setupConfig, int currentIndex) {
+        if (setupConfig == null)
+            return -1;
+
+        var enabledIndices = new List<int>();
+        for (var i = 0; i < setupConfig.GameModes.Count; i++) {
+            if (setupConfig.GameModes[i]?.IsEnabled == true && (setupConfig.GameModes.Count <= 1 || i != currentIndex))
+                enabledIndices.Add(i);
+        }
+
+        if (enabledIndices.Count == 0)
+            return currentIndex;
+
+        return enabledIndices[GetRandomIndex(enabledIndices.Count)];
+    }
+
+    private static string GetCurrentGameModeDisplayName(SetupConfig setupConfig) {
+        var index = GetFirstEnabledGameModeIndex(setupConfig);
+        return index >= 0 ? setupConfig.GameModes[index].ModeType.ToString() : "None";
+    }
+
+    private static string GetGameModeId(GameModeConfig.GameModeType modeType) {
+        return modeType switch {
+            GameModeConfig.GameModeType.Deathmatch => "deathmatch",
+            GameModeConfig.GameModeType.CaptureTheFlag => "capture_the_flag",
+            GameModeConfig.GameModeType.KingOfTheHill => "king_of_the_hill",
+            GameModeConfig.GameModeType.Headquarters => "headquarters",
+            _ => modeType.ToString().ToLowerInvariant(),
+        };
     }
 
     private static int GetRandomIndex(int count) {

@@ -1,0 +1,132 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/HostServerActionsOverlay.cs" id="1_host_server_actions"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.045, 0.055, 0.075, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.34, 0.42, 0.55, 0.95)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_action"]
+bg_color = Color(0.13, 0.17, 0.24, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.42, 0.5, 0.64, 0.95)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 12.0
+content_margin_right = 12.0
+
+[node name="HostServerActionsOverlay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("1_host_server_actions")
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -438.0
+offset_top = -376.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="Layout" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="Panel/Margin/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Server Actions"
+horizontal_alignment = 1
+
+[node name="HintLabel" type="Label" parent="Panel/Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.78, 0.9, 1)
+theme_override_font_sizes/font_size = 12
+text = "Host-only match controls. Esc opens this menu."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Actions" type="VBoxContainer" parent="Panel/Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="NextGameModeButton" type="Button" parent="Panel/Margin/Layout/Actions"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_action")
+text = "Next Game Mode"
+
+[node name="NextDescription" type="Label" parent="Panel/Margin/Layout/Actions"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.69, 0.8, 1)
+theme_override_font_sizes/font_size = 11
+text = "Advances the playlist, resolves new random setup values, and reloads gameplay."
+autowrap_mode = 3
+
+[node name="RestartMatchButton" type="Button" parent="Panel/Margin/Layout/Actions"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_action")
+text = "Restart Current Match"
+
+[node name="RestartDescription" type="Label" parent="Panel/Margin/Layout/Actions"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.69, 0.8, 1)
+theme_override_font_sizes/font_size = 11
+text = "Reloads this room with the current resolved mode, map, theme, loadout, and seed."
+autowrap_mode = 3
+
+[node name="BackToMainMenuButton" type="Button" parent="Panel/Margin/Layout/Actions"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_action")
+text = "Back To Main Menu"
+
+[node name="BackDescription" type="Label" parent="Panel/Margin/Layout/Actions"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.68, 0.58, 1)
+theme_override_font_sizes/font_size = 11
+text = "Closes the server/session, clears multiplayer state, and returns to the main menu."
+autowrap_mode = 3
+
+[node name="CloseButton" type="Button" parent="Panel/Margin/Layout/Actions"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Close"
